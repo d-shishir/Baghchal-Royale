@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "Baghchal Royale",
+    "slug": "baghchal-royale",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "backgroundColor": "#1a1a1a"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.baghchal.royale",
+      "buildNumber": "1.0.0"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#1a1a1a"
+      },
+      "package": "com.baghchal.royale",
+      "versionCode": 1
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-font"
+    ],
+    "scheme": "baghchal-royale",
+    "extra": {
+      "apiUrl": "http://192.168.1.127:8000",
+      "wsUrl": "ws://192.168.1.127:8000"
+    }
+  }
+} 
