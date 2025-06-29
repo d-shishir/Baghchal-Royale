@@ -10,13 +10,16 @@ from enum import Enum
 import sys
 from pathlib import Path
 
-# Add backend path for imports
-sys.path.append(str(Path(__file__).parent / "backend"))
-
+# Import from the same core directory
 try:
-    from backend.app.core.baghchal_env import BaghchalEnv, Player, GamePhase, PieceType
-except ImportError:
-    print("Warning: Could not import BaghchalEnv from backend")
+    from .baghchal_env import BaghchalEnv, Player, GamePhase, PieceType
+    print("✅ Successfully imported Player from baghchal_env")
+except ImportError as e:
+    print(f"Warning: Could not import BaghchalEnv from backend: {e}")
+    # Fallback enum definitions if import fails
+    class Player(Enum):
+        TIGER = 1
+        GOAT = 2
 
 class TigerStrategy(Enum):
     AGGRESSIVE_HUNT = "aggressive_hunt"

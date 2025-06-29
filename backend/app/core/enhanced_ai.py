@@ -65,8 +65,19 @@ class AIPlayer:
     def _load_advanced_tiger(self):
         """Load advanced tiger AI."""
         # Try to load trained model first
-        model_path = "advanced_tiger_ai.pkl"
-        if os.path.exists(model_path):
+        # Try different possible locations for the pkl file
+        possible_paths = [
+            "advanced_tiger_ai.pkl",  # Current working directory (backend/)
+            os.path.join(os.path.dirname(__file__), "../../../advanced_tiger_ai.pkl"),  # Root directory
+            os.path.join(os.path.dirname(__file__), "../../advanced_tiger_ai.pkl")  # Backend directory from core
+        ]
+        
+        model_path = None
+        for path in possible_paths:
+            if os.path.exists(path):
+                model_path = path
+                break
+        if model_path and os.path.exists(model_path):
             try:
                 with open(model_path, 'rb') as f:
                     trained_agent = pickle.load(f)
@@ -75,7 +86,7 @@ class AIPlayer:
                     'strategy': trained_agent.strategy.value,
                     'difficulty': trained_agent.difficulty
                 }
-                print(f"✅ Loaded trained Tiger AI: {trained_agent.strategy.value}")
+                print(f"✅ Loaded trained Tiger AI: {trained_agent.strategy.value} from {model_path}")
                 return trained_agent
             except Exception as e:
                 print(f"Warning: Could not load trained tiger model: {e}")
@@ -92,8 +103,19 @@ class AIPlayer:
     def _load_advanced_goat(self):
         """Load advanced goat AI."""
         # Try to load trained model first
-        model_path = "advanced_goat_ai.pkl"
-        if os.path.exists(model_path):
+        # Try different possible locations for the pkl file
+        possible_paths = [
+            "advanced_goat_ai.pkl",  # Current working directory (backend/)
+            os.path.join(os.path.dirname(__file__), "../../../advanced_goat_ai.pkl"),  # Root directory
+            os.path.join(os.path.dirname(__file__), "../../advanced_goat_ai.pkl")  # Backend directory from core
+        ]
+        
+        model_path = None
+        for path in possible_paths:
+            if os.path.exists(path):
+                model_path = path
+                break
+        if model_path and os.path.exists(model_path):
             try:
                 with open(model_path, 'rb') as f:
                     trained_agent = pickle.load(f)
@@ -102,7 +124,7 @@ class AIPlayer:
                     'strategy': trained_agent.strategy.value,
                     'difficulty': trained_agent.difficulty
                 }
-                print(f"✅ Loaded trained Goat AI: {trained_agent.strategy.value}")
+                print(f"✅ Loaded trained Goat AI: {trained_agent.strategy.value} from {model_path}")
                 return trained_agent
             except Exception as e:
                 print(f"Warning: Could not load trained goat model: {e}")
@@ -119,7 +141,23 @@ class AIPlayer:
     def select_action(self, env, state: Dict) -> Optional[Tuple]:
         """Select action using the AI agent."""
         if hasattr(self.ai_agent, 'select_action'):
-            return self.ai_agent.select_action(env, state)
+            try:
+                # Ensure board is numpy array for advanced AI
+                if 'board' in state and not isinstance(state['board'], np.ndarray):
+                    state = state.copy()
+                    state['board'] = np.array(state['board'])
+                
+                print(f"🤖 AI agent {type(self.ai_agent).__name__} calling select_action...")
+                action = self.ai_agent.select_action(env, state)
+                print(f"🤖 AI agent returned: {action}")
+                return action
+            except Exception as e:
+                print(f"❌ AI select_action failed: {e}")
+                import traceback
+                print(f"❌ Traceback: {traceback.format_exc()}")
+                # Fallback to random move
+                valid_actions = env.get_valid_actions(self.player_type)
+                return random.choice(valid_actions) if valid_actions else None
         else:
             # Fallback for basic AI
             valid_actions = env.get_valid_actions(self.player_type)

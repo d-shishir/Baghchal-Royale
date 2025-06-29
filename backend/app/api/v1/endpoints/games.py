@@ -60,23 +60,36 @@ class CreateGameRequest(BaseModel):
 
 def get_ai_player_for_difficulty(player_type: Player, difficulty: str) -> Optional[AIPlayer]:
     """Get AI player based on difficulty level."""
-    if not AI_AVAILABLE:
+    if not AI_AVAILABLE or not ai_manager:
+        print(f"❌ AI not available: AI_AVAILABLE={AI_AVAILABLE}, ai_manager={ai_manager}")
         return None
     
     try:
+        print(f"🤖 Creating AI player: type={player_type}, difficulty={difficulty}")
+        
         if difficulty == "easy":
-            # Use rule-based AI for easy mode
-            return ai_manager.create_ai_player(player_type, "rule_based")
+            # Create new advanced AI for easy (could use different strategy)
+            ai_player = ai_manager.create_ai_player(player_type, "advanced")
         elif difficulty == "medium":
-            # Use enhanced AI with reduced confidence
+            # Use global enhanced AI instances or create new ones
             ai_player = tiger_ai if player_type == Player.TIGER else goat_ai
-            return ai_player
+            if not ai_player:
+                print(f"⚠️ Global AI instance not available, creating new one")
+                ai_player = ai_manager.create_ai_player(player_type, "advanced")
         else:  # hard
-            # Use full enhanced AI
+            # Use global enhanced AI instances or create new ones
             ai_player = tiger_ai if player_type == Player.TIGER else goat_ai
-            return ai_player
+            if not ai_player:
+                print(f"⚠️ Global AI instance not available, creating new one")
+                ai_player = ai_manager.create_ai_player(player_type, "advanced")
+        
+        print(f"✅ AI player created: {type(ai_player)} for {player_type} at {difficulty} difficulty")
+        return ai_player
+        
     except Exception as e:
-        print(f"Error creating AI player: {e}")
+        print(f"❌ Error creating AI player: {e}")
+        import traceback
+        print(f"❌ Traceback: {traceback.format_exc()}")
         return None
 
 
@@ -114,8 +127,23 @@ def execute_ai_move_if_needed(game_id: str, db: Session) -> Dict[str, Any]:
         return {}
     
     try:
-        # Get AI action
-        action = ai_player.select_action(game_env, state)
+        # Use direct advanced AI system that we know works
+        from app.core.advanced_baghchal_ai import AdvancedTigerAI, AdvancedGoatAI, TigerStrategy, GoatStrategy
+        
+        # Create fresh AI instance directly (bypassing the complex initialization)
+        if ai_side_enum == Player.TIGER:
+            direct_ai = AdvancedTigerAI(TigerStrategy.AGGRESSIVE_HUNT, "expert")
+        else:
+            direct_ai = AdvancedGoatAI(GoatStrategy.DEFENSIVE_BLOCK, "expert")
+        
+        print(f"🤖 Using direct AI: {type(direct_ai).__name__}")
+        action = direct_ai.select_action(game_env, state)
+        
+        if not action:
+            print(f"❌ Direct AI also failed, trying AI player...")
+            # Fallback to original method
+            action = ai_player.select_action(game_env, state)
+        
         if not action:
             print(f"❌ AI could not select action for {current_player_name}")
             return {"error": "AI could not select action", "ai_move_executed": False}
@@ -123,7 +151,14 @@ def execute_ai_move_if_needed(game_id: str, db: Session) -> Dict[str, Any]:
         print(f"🤖 AI ({current_player_name}) executing: {action}")
         
         # Execute AI move
-        new_state, reward, done, info = game_env.step(action)
+        try:
+            new_state, reward, done, info = game_env.step(action)
+            print(f"✅ Move executed successfully: {action}")
+        except Exception as step_error:
+            print(f"❌ Error executing move {action}: {step_error}")
+            import traceback
+            print(f"❌ Step error traceback: {traceback.format_exc()}")
+            return {"error": f"Could not execute AI move: {step_error}", "ai_move_executed": False}
         
         # Update database
         game = crud.game.get_sync(db=db, id=uuid.UUID(game_id))
@@ -649,4 +684,7 @@ def get_ai_status() -> Any:
         "active_games": len(active_games),
         "ai_games": len(ai_agents),
         "difficulties": ["easy", "medium", "hard"]
-    } 
+    }
+
+
+ 
