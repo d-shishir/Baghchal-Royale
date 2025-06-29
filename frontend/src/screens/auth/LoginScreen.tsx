@@ -66,46 +66,30 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToRegister }) => {
 
       console.log('Login result:', result);
 
-      // The new auth endpoint returns { access_token, token_type }
       if (result.access_token) {
-        console.log('Got access token, fetching profile...');
+        console.log('Login successful, creating user object...');
         
-        // Fetch user profile after successful login
-        const apiUrl = Constants.expoConfig?.extra?.apiUrl || 'http://localhost:8000';
-        console.log('Using API URL:', apiUrl);
-        
-        const profileResponse = await fetch(`${apiUrl}/api/v1/users/profile`, {
-          headers: {
-            'Authorization': `Bearer ${result.access_token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (!profileResponse.ok) {
-          throw new Error(`Profile fetch failed: ${profileResponse.status} ${profileResponse.statusText}`);
-        }
-
-        const userProfile = await profileResponse.json();
-        console.log('Got user profile:', userProfile);
-
-        const user = {
-          id: userProfile.id,
-          email: userProfile.email,
-          username: userProfile.username,
-          rating: userProfile.rating || 1200,
-          games_played: userProfile.games_played || 0,
-          games_won: userProfile.games_won || 0,
-          tiger_wins: userProfile.tiger_wins || 0,
-          goat_wins: userProfile.goat_wins || 0,
-          created_at: userProfile.created_at || new Date().toISOString(),
+        // Create a basic user object from the token
+        // The actual profile data will be fetched by RTK Query when needed
+        const basicUser = {
+          id: 'temp-id', // This will be updated when profile loads
+          email: email.trim().toLowerCase(),
+          username: 'Loading...', // This will be updated when profile loads
+          rating: 1200,
+          games_played: 0,
+          games_won: 0,
+          tiger_wins: 0,
+          goat_wins: 0,
+          created_at: new Date().toISOString(),
         };
 
         console.log('Dispatching login success...');
         dispatch(loginSuccess({
           access_token: result.access_token,
           refresh_token: result.access_token, // Use same token for refresh for now
-          user,
+          user: basicUser,
         }));
+        
         console.log('Login completed successfully');
       } else {
         throw new Error('Login failed - no token received');

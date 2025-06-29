@@ -4,6 +4,7 @@ import uuid
 from fastapi import APIRouter, Body, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app import crud, models, schemas
 from app.api import deps
@@ -160,6 +161,130 @@ async def get_user_profile(
         "rating": getattr(current_user, 'rating', 1200),
     }
 
+@router.put("/profile")
+async def update_user_profile(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    profile_update: dict,
+    current_user: models.User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    Update current user profile.
+    """
+    try:
+        # Update allowed fields
+        update_data = {}
+        if "username" in profile_update:
+            update_data["username"] = profile_update["username"]
+        if "bio" in profile_update:
+            update_data["bio"] = profile_update["bio"]
+        if "country" in profile_update:
+            update_data["country"] = profile_update["country"]
+        
+        if update_data:
+            updated_user = await crud.user.update(db, db_obj=current_user, obj_in=update_data)
+            return {"success": True, "message": "Profile updated successfully"}
+        else:
+            return {"success": True, "message": "No changes made"}
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Profile update failed: {str(e)}")
+
+@router.get("/stats")
+async def get_user_stats(
+    current_user: models.User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    Get current user statistics.
+    """
+    win_rate = 0
+    if current_user.games_played > 0:
+        win_rate = (current_user.games_won / current_user.games_played) * 100
+    
+    return {
+        "username": current_user.username,
+        "games_played": current_user.games_played,
+        "games_won": current_user.games_won,
+        "tiger_wins": current_user.tiger_wins,
+        "goat_wins": current_user.goat_wins,
+        "rating": current_user.rating,
+        "win_rate": round(win_rate, 1),
+    }
+
+@router.get("/search")
+async def search_users(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    query: str,
+    limit: int = 10,
+    current_user: models.User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    Search users by username.
+    """
+    try:
+        # Search users by username (case-insensitive)
+        stmt = select(models.User).where(
+            models.User.username.ilike(f"%{query}%")
+        ).limit(limit)
+        
+        result = await db.execute(stmt)
+        users = result.scalars().all()
+        
+        return [
+            {
+                "id": str(user.id),
+                "username": user.username,
+                "rating": user.rating,
+                "games_played": user.games_played,
+            }
+            for user in users
+        ]
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"User search failed: {str(e)}")
+
+@router.get("/{user_id}/profile")
+async def get_user_profile_by_id(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    user_id: str,
+    current_user: models.User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    Get a specific user's profile by ID.
+    """
+    try:
+        user = await crud.user.get(db, id=user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        return {
+            "id": str(user.id),
+            "username": user.username,
+            "created_at": user.created_at.isoformat() if user.created_at else None,
+            "games_played": user.games_played,
+            "games_won": user.games_won,
+            "tiger_wins": user.tiger_wins,
+            "goat_wins": user.goat_wins,
+            "rating": user.rating,
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get user profile: {str(e)}")
+
+@router.post("/logout")
+async def logout_user(
+    current_user: models.User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    Logout user (token-based, so just return success).
+    """
+    return {"success": True, "message": "Logout successful"}
+
+# Legacy endpoints for compatibility
 @router.post("/")
 async def create_user(
     *,
@@ -198,10 +323,6 @@ async def read_user_by_id(
     Get a specific user by id.
     """
     user = await crud.user.get(db, id=user_id)
-    if user == current_user:
-        return user
-    if not crud.user.is_superuser(current_user):
-        raise HTTPException(
-            status_code=400, detail="The user doesn't have enough privileges"
-        )
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
     return user 
