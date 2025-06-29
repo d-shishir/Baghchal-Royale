@@ -12,42 +12,23 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import GameBoard from '../../components/game/GameBoard';
-
-interface Player {
-  id: string;
-  username: string;
-  rating: number;
-  side: 'tigers' | 'goats';
-}
-
-interface BackendGameState {
-  game_id: string;
-  board: number[][];
-  current_player: 'tigers' | 'goats';
-  phase: 'placement' | 'movement';
-  goats_placed: number;
-  goats_captured: number;
-  game_over: boolean;
-  winner: 'tigers' | 'goats' | null;
-  valid_actions: Array<{
-    type: string;
-    row?: number;
-    col?: number;
-    from_row?: number;
-    from_col?: number;
-    to_row?: number;
-    to_col?: number;
-  }>;
-}
+import { GameMode, GamePlayer, GamePhase, PlayerSide, PieceType } from '../../store/slices/gameSlice';
 
 interface GameScreenProps {
-  gameMode: 'single' | 'multiplayer';
-  player1: Player;
-  player2?: Player;
-  userSide: 'tigers' | 'goats';
-  gameState?: BackendGameState;
+  gameMode: GameMode;
+  board: PieceType[][];
+  currentPlayer: PlayerSide;
+  player1: GamePlayer | null;
+  player2: GamePlayer | null;
+  userSide: PlayerSide | null;
+  selectedPosition: { row: number, col: number } | null;
+  validMoves: { row: number, col: number }[];
   onMove: (move: any) => void;
   onQuitGame: () => void;
+  winner: PlayerSide | null;
+  gameOver: boolean;
+  goatsCaptured: number;
+  phase: GamePhase;
   onRequestAIMove?: () => void;
   onRestartGame?: () => void;
 }
@@ -56,79 +37,63 @@ const { width, height } = Dimensions.get('window');
 
 const GameScreen: React.FC<GameScreenProps> = ({
   gameMode,
+  board,
+  currentPlayer,
   player1,
   player2,
   userSide,
-  gameState,
+  selectedPosition,
+  validMoves,
   onMove,
   onQuitGame,
+  winner,
+  gameOver,
+  goatsCaptured,
+  phase,
   onRequestAIMove,
   onRestartGame,
 }) => {
-  const [selectedPosition, setSelectedPosition] = useState<{row: number; col: number} | null>(null);
   const [showGameMenu, setShowGameMenu] = useState(false);
   const [showDebugPanel, setShowDebugPanel] = useState(true); // Enable debug panel by default
   const [lastClickInfo, setLastClickInfo] = useState<string>('No clicks yet');
 
-  // Default state if backend state is not available yet
-  const defaultState = {
-    board: [
-      [1, 0, 0, 0, 1],
-      [0, 0, 0, 0, 0],
-      [0, 0, 0, 0, 0],
-      [0, 0, 0, 0, 0],
-      [1, 0, 0, 0, 1],
-    ],
-    current_player: 'goats' as const,
-    phase: 'placement' as const,
-    goats_placed: 0,
-    goats_captured: 0,
-    game_over: false,
-    winner: null,
-    valid_actions: []
-  };
-
-  const currentGameState = gameState || defaultState;
-  const isUserTurn = currentGameState.current_player === userSide;
-  const currentPlayerInfo = currentGameState.current_player === player1.side ? player1 : player2;
+  const isUserTurn = userSide ? currentPlayer === userSide : true; // In local PVP, it's always "user's turn"
+  const currentPlayerInfo = currentPlayer === 'tigers' ? player1 : player2;
 
   // Debug logging for turn calculation
   console.log('🔍 Turn Debug:', {
-    current_player: currentGameState.current_player,
-    current_player_length: currentGameState.current_player?.length,
-    current_player_type: typeof currentGameState.current_player,
+    current_player: currentPlayer,
+    current_player_length: currentPlayer?.length,
+    current_player_type: typeof currentPlayer,
     userSide: userSide,
-    userSide_length: userSide?.length,
     userSide_type: typeof userSide,
     isUserTurn: isUserTurn,
-    strict_equality: currentGameState.current_player === userSide,
-    loose_equality: currentGameState.current_player == userSide,
-    player1Side: player1.side,
+    strict_equality: currentPlayer === userSide,
+    loose_equality: currentPlayer == userSide,
+    player1Side: player1?.side,
     player2Side: player2?.side,
-    gameState: !!gameState
+    gameState: !!board
   });
 
   // Get valid moves for the selected position
   const getValidMovesForPosition = useCallback((row: number, col: number) => {
-    return currentGameState.valid_actions
-      .filter(action => action.from_row === row && action.from_col === col)
-      .map(action => ({ row: action.to_row!, col: action.to_col! }));
-  }, [currentGameState.valid_actions]);
+    // This logic needs to be implemented or sourced from a local game engine
+    return []; // Placeholder
+  }, []);
 
   const handlePositionPress = useCallback((position: {row: number; col: number}) => {
     console.log('🎮 GameScreen handlePositionPress called:', position);
     const { row, col } = position;
-    const { board, current_player, phase } = currentGameState;
 
     // Create debug info
     let debugInfo = `Click at (${row},${col})\n`;
-    debugInfo += `Current player: ${current_player}\n`;
+    debugInfo += `Current player: ${currentPlayer}\n`;
     debugInfo += `User side: ${userSide}\n`;
     debugInfo += `Phase: ${phase}\n`;
     debugInfo += `Is user turn: ${isUserTurn}\n`;
-    debugInfo += `Game over: ${currentGameState.game_over}\n`;
+    debugInfo += `Game over: ${gameOver}\n`;
     debugInfo += `Board at position: ${board[row][col]}\n`;
-    debugInfo += `Valid actions count: ${currentGameState.valid_actions.length}\n`;
+    debugInfo += `Valid moves count: ${validMoves.length}\n`;
 
     if (!isUserTurn) {
       debugInfo += '❌ BLOCKED: Not user turn';
@@ -136,25 +101,24 @@ const GameScreen: React.FC<GameScreenProps> = ({
       return;
     }
 
-    if (currentGameState.game_over) {
+    if (gameOver) {
       debugInfo += '❌ BLOCKED: Game is over';
       setLastClickInfo(debugInfo);
       return;
     }
 
     // If in placement phase and playing goats
-    if (phase === 'placement' && current_player === 'goats' && userSide === 'goats') {
+    if (phase === 'placement' && currentPlayer === 'goats') {
       debugInfo += '📍 Placement phase for goats\n';
       if (board[row][col] === 0) {
         debugInfo += '✅ SENDING MOVE: Valid placement';
         const move = {
-          action_type: 'place',
-          row: row,
-          col: col,
+          type: 'place',
+          to: [row, col],
         };
         setLastClickInfo(debugInfo + `\nMove: ${JSON.stringify(move)}`);
         onMove(move);
-        setSelectedPosition(null);
+        // setSelectedPosition(null); // This should be handled by the container/slice
       } else {
         debugInfo += '❌ BLOCKED: Position occupied';
         setLastClickInfo(debugInfo);
@@ -165,50 +129,42 @@ const GameScreen: React.FC<GameScreenProps> = ({
     // Movement phase logic
     if (selectedPosition) {
       debugInfo += `🎯 Movement phase - position selected: (${selectedPosition.row},${selectedPosition.col})\n`;
-      const validMoves = getValidMovesForPosition(selectedPosition.row, selectedPosition.col);
-      debugInfo += `Valid moves: ${JSON.stringify(validMoves)}\n`;
-      const isValidMove = validMoves.some(m => m.row === row && m.col === col);
+      const isMoveValid = validMoves.some(m => m.row === row && m.col === col);
       
-      if (isValidMove) {
+      if (isMoveValid) {
         debugInfo += '✅ SENDING MOVE: Valid movement';
         const move = {
-          action_type: 'move',
-          from_row: selectedPosition.row,
-          from_col: selectedPosition.col,
-          to_row: row,
-          to_col: col,
+          type: 'move',
+          from: [selectedPosition.row, selectedPosition.col],
+          to: [row, col],
         };
         setLastClickInfo(debugInfo + `\nMove: ${JSON.stringify(move)}`);
         onMove(move);
-        setSelectedPosition(null);
       } else {
         debugInfo += '❌ BLOCKED: Invalid movement - deselecting';
         setLastClickInfo(debugInfo);
-        setSelectedPosition(null);
+        // setSelectedPosition(null);
       }
     } else {
       debugInfo += '🔍 Trying to select piece\n';
       const piece = board[row][col];
-      const isPlayerPiece = (current_player === 'tigers' && piece === 1) || 
-                           (current_player === 'goats' && piece === 2);
+      const isPlayerPiece = (currentPlayer === 'tigers' && piece === 1) || 
+                           (currentPlayer === 'goats' && piece === 2);
       
       debugInfo += `Piece: ${piece}, Is player piece: ${isPlayerPiece}\n`;
-      debugInfo += `Current player: "${current_player}", User side: "${userSide}"\n`;
-      debugInfo += `Player turn match: ${current_player === userSide}\n`;
-      debugInfo += `Selection criteria: isPlayerPiece=${isPlayerPiece} && current_player===userSide=${current_player === userSide}\n`;
+      debugInfo += `Current player: "${currentPlayer}", User side: "${userSide}"\n`;
+      debugInfo += `Player turn match: ${currentPlayer === userSide}\n`;
       
-      if (isPlayerPiece && current_player === userSide) {
-        debugInfo += '✅ Valid piece selected';
-        setSelectedPosition({ row, col });
+      if (isPlayerPiece) {
+        debugInfo += `✅ SELECTING PIECE: (${row}, ${col})`;
+        // onSelectPosition({row, col}) -> handled by container now
         setLastClickInfo(debugInfo);
       } else {
-        debugInfo += '❌ BLOCKED: Cannot select this piece';
+        debugInfo += `❌ BLOCKED: Not player's piece`;
         setLastClickInfo(debugInfo);
       }
     }
-  }, [currentGameState, selectedPosition, isUserTurn, userSide, onMove, getValidMovesForPosition]);
-
-  const validMoves = selectedPosition ? getValidMovesForPosition(selectedPosition.row, selectedPosition.col) : [];
+  }, [board, currentPlayer, userSide, phase, gameOver, onMove, selectedPosition, validMoves]);
 
   const handleQuitGame = () => {
     Alert.alert(
@@ -219,6 +175,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
         { text: 'Quit', style: 'destructive', onPress: onQuitGame },
       ]
     );
+    setShowGameMenu(false);
   };
 
   const handleRestartGame = () => {
@@ -231,7 +188,6 @@ const GameScreen: React.FC<GameScreenProps> = ({
           text: 'Restart', 
           style: 'destructive', 
           onPress: () => {
-            setSelectedPosition(null);
             setShowGameMenu(false);
             onRestartGame?.();
           }
@@ -240,111 +196,73 @@ const GameScreen: React.FC<GameScreenProps> = ({
     );
   };
 
-  const renderPlayerInfo = (player: Player, isActive: boolean) => (
-    <View style={[styles.playerInfo, isActive && styles.activePlayer]}>
-      <View style={styles.playerDetails}>
-        <View style={[
-          styles.playerSideIndicator,
-          { backgroundColor: player.side === 'tigers' ? '#FF6F00' : '#66BB6A' }
-        ]}>
-          <Ionicons 
-            name={player.side === 'tigers' ? 'flash' : 'leaf'} 
-            size={16} 
-            color="#FFF" 
-          />
+  const renderPlayerInfo = (player: GamePlayer | null, isActive: boolean) => {
+    if (!player) return null;
+
+    return (
+      <View style={[styles.playerInfo, isActive && styles.activePlayer]}>
+        <View style={styles.avatar}>
+          <Ionicons name={player.side === 'tigers' ? "flash" : "shield"} size={20} color="#FFF" />
         </View>
-        <View style={styles.playerText}>
+        <View>
           <Text style={styles.playerName}>{player.username}</Text>
-          <Text style={styles.playerRating}>Rating: {player.rating}</Text>
+          <Text style={styles.playerRating}>{`Rating: ${player.rating}`}</Text>
         </View>
       </View>
-      {isActive && (
-        <View style={styles.turnIndicator}>
-          <Text style={styles.turnText}>Your Turn</Text>
+    );
+  };
+
+  const renderGameStatus = () => {
+    if (gameOver && winner) {
+      return (
+        <View style={styles.gameStatusContainer}>
+          <Ionicons name="trophy" size={24} color="#FFD700" />
+          <Text style={styles.gameStatusText}>{`${winner.charAt(0).toUpperCase() + winner.slice(1)} wins!`}</Text>
         </View>
-      )}
-    </View>
-  );
+      );
+    }
+    
+    if (currentPlayerInfo) {
+      return (
+        <View style={styles.gameStatusContainer}>
+          <Ionicons name="hourglass-outline" size={24} color="#FFF" />
+          <Text style={styles.gameStatusText}>{`${currentPlayerInfo.username}'s turn`}</Text>
+        </View>
+      );
+    }
+
+    return null;
+  };
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
+    <LinearGradient colors={['#1a1a2e', '#16213e']} style={styles.container}>
+      {/* Header: Player Info */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => setShowGameMenu(true)} style={styles.menuButton}>
-          <Ionicons name="menu" size={24} color="#FFF" />
-        </TouchableOpacity>
-        
-        <View style={styles.gameInfo}>
-          <Text style={styles.gameTitle}>
-            {gameMode === 'single' ? 'vs AI' : 'Multiplayer'}
-          </Text>
-          <Text style={styles.gamePhase}>
-            {currentGameState.phase === 'placement' ? 'Placement Phase' : 'Movement Phase'}
-          </Text>
-        </View>
-
-        <View style={styles.gameStats}>
-          <Text style={styles.statText}>Goats: {20 - currentGameState.goats_placed}</Text>
-          <Text style={styles.statText}>Captured: {currentGameState.goats_captured}</Text>
-        </View>
+        {renderPlayerInfo(player1, currentPlayer === player1?.side)}
+        <View style={styles.separator} />
+        {renderPlayerInfo(player2, currentPlayer === player2?.side)}
       </View>
 
-      {/* Player Info */}
-      <View style={styles.playersSection}>
-        {renderPlayerInfo(player1, currentGameState.current_player === player1.side)}
-        {player2 && renderPlayerInfo(player2, currentGameState.current_player === player2.side)}
+      {/* Game Status */}
+      {renderGameStatus()}
+      
+      {/* Goats Captured */}
+      <View style={styles.capturedContainer}>
+        <Text style={styles.capturedText}>Goats Captured: {goatsCaptured} / 5</Text>
+        <View style={styles.capturedBar}>
+          <View style={[styles.capturedProgress, { width: `${(goatsCaptured / 5) * 100}%` }]} />
+        </View>
       </View>
 
       {/* Game Board */}
-      <View style={styles.boardContainer}>
-        <GameBoard
-          board={currentGameState.board}
-          selectedPosition={selectedPosition}
-          validMoves={validMoves}
-          onPositionPress={handlePositionPress}
-          disabled={!isUserTurn || currentGameState.game_over}
-          showValidMoves={true}
-        />
-      </View>
-
-      {/* Current Turn Indicator or Game Over */}
-      <View style={styles.turnSection}>
-        {currentGameState.game_over ? (
-          <View style={styles.gameOverSection}>
-            <Text style={styles.gameOverText}>Game Over!</Text>
-            <View style={[
-              styles.winnerBadge,
-              { backgroundColor: currentGameState.winner === 'tigers' ? '#FF6F00' : '#66BB6A' }
-            ]}>
-              <Ionicons 
-                name={currentGameState.winner === 'tigers' ? 'flash' : 'leaf'} 
-                size={20} 
-                color="#FFF" 
-              />
-              <Text style={styles.winnerText}>
-                {currentGameState.winner === 'tigers' ? 'Tigers Win!' : 'Goats Win!'}
-              </Text>
-            </View>
-          </View>
-        ) : (
-          <>
-            <Text style={styles.turnLabel}>Current Turn:</Text>
-            <View style={[
-              styles.turnBadge,
-              { backgroundColor: currentGameState.current_player === 'tigers' ? '#FF6F00' : '#66BB6A' }
-            ]}>
-              <Ionicons 
-                name={currentGameState.current_player === 'tigers' ? 'flash' : 'leaf'} 
-                size={20} 
-                color="#FFF" 
-              />
-              <Text style={styles.turnBadgeText}>
-                {currentGameState.current_player === 'tigers' ? 'Tigers' : 'Goats'}
-              </Text>
-            </View>
-          </>
-        )}
-      </View>
+      <GameBoard
+        board={board}
+        selectedPosition={selectedPosition}
+        validMoves={validMoves}
+        onPositionPress={handlePositionPress}
+        disabled={!isUserTurn || gameOver}
+        showValidMoves={true}
+      />
 
       {/* Game Menu Modal */}
       <Modal
@@ -403,173 +321,135 @@ const GameScreen: React.FC<GameScreenProps> = ({
             </Text>
             <Text style={styles.debugText}>
               {'\n'}<Text style={styles.debugLabel}>Game State:</Text>
-              {'\n'}• Current Player: "{currentGameState.current_player}" (len: {currentGameState.current_player?.length})
+              {'\n'}• Current Player: "{currentPlayer}" (len: {currentPlayer?.length})
               {'\n'}• User Side: "{userSide}" (len: {userSide?.length})
-              {'\n'}• Phase: {currentGameState.phase}
+              {'\n'}• Phase: {phase}
               {'\n'}• Is User Turn: {isUserTurn ? 'YES' : 'NO'}
-              {'\n'}• Strict Comparison: "{currentGameState.current_player}" === "{userSide}" = {currentGameState.current_player === userSide ? 'TRUE' : 'FALSE'}
-              {'\n'}• Loose Comparison: "{currentGameState.current_player}" == "{userSide}" = {currentGameState.current_player == userSide ? 'TRUE' : 'FALSE'}
-              {'\n'}• Types: {typeof currentGameState.current_player} vs {typeof userSide}
-              {'\n'}• Game Over: {currentGameState.game_over ? 'YES' : 'NO'}
-              {'\n'}• Valid Actions: {currentGameState.valid_actions.length}
-              {'\n'}• Player1 Side: "{player1.side}"
+              {'\n'}• Strict Comparison: "{currentPlayer}" === "{userSide}" = {currentPlayer === userSide ? 'TRUE' : 'FALSE'}
+              {'\n'}• Loose Comparison: "{currentPlayer}" == "{userSide}" = {currentPlayer == userSide ? 'TRUE' : 'FALSE'}
+              {'\n'}• Types: {typeof currentPlayer} vs {typeof userSide}
+              {'\n'}• Game Over: {gameOver ? 'YES' : 'NO'}
+              {'\n'}• Valid Actions: {validMoves.length}
+              {'\n'}• Player1 Side: "{player1?.side}"
               {'\n'}• Player2 Side: "{player2?.side}"
-              {'\n'}• Game State Source: {gameState ? 'BACKEND' : 'DEFAULT'}
+              {'\n'}• Game State Source: {board ? 'BACKEND' : 'DEFAULT'}
             </Text>
             <Text style={styles.debugText}>
               {'\n'}<Text style={styles.debugLabel}>Valid Actions Detail:</Text>
-              {'\n'}{JSON.stringify(currentGameState.valid_actions, null, 2)}
+              {'\n'}{JSON.stringify(validMoves, null, 2)}
             </Text>
           </ScrollView>
         </View>
       )}
-    </View>
+    </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 10,
   },
   header: {
+    width: '100%',
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
     alignItems: 'center',
-    paddingTop: 50,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-    backgroundColor: '#1E1E1E',
+    paddingHorizontal: 10,
+    paddingVertical: 15,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    borderRadius: 15,
+    marginBottom: 10,
   },
-  menuButton: {
-    padding: 8,
-  },
-  gameInfo: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  gameTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFF',
-  },
-  gamePhase: {
-    fontSize: 14,
-    color: '#999',
-    marginTop: 2,
-  },
-  gameStats: {
-    alignItems: 'flex-end',
-  },
-  statText: {
-    fontSize: 12,
-    color: '#999',
-    marginBottom: 2,
-  },
-  playersSection: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+  separator: {
+    width: 1,
+    height: '80%',
+    backgroundColor: '#333',
   },
   playerInfo: {
+    flex: 1,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#1E1E1E',
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 8,
+    padding: 10,
+    borderRadius: 10,
+    marginHorizontal: 5,
   },
   activePlayer: {
-    borderWidth: 2,
-    borderColor: '#FF5252',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    shadowColor: '#FFF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 5,
+    elevation: 5,
   },
-  playerDetails: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  playerSideIndicator: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#3a3a5e',
     justifyContent: 'center',
-    marginRight: 12,
+    alignItems: 'center',
+    marginRight: 10,
+    borderWidth: 2,
+    borderColor: 'transparent',
   },
-  playerText: {
-    flex: 1,
+  activeAvatar: {
+    borderColor: '#FFD700',
   },
   playerName: {
-    fontSize: 16,
-    fontWeight: '600',
     color: '#FFF',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   playerRating: {
-    fontSize: 12,
     color: '#999',
-    marginTop: 2,
-  },
-  turnIndicator: {
-    backgroundColor: '#FF5252',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  turnText: {
     fontSize: 12,
-    color: '#FFF',
-    fontWeight: '600',
   },
-  boardContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  turnSection: {
+  gameStatusContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-  },
-  turnLabel: {
-    fontSize: 16,
-    color: '#FFF',
-    marginRight: 12,
-  },
-  turnBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    marginVertical: 10,
+    padding: 10,
+    backgroundColor: 'rgba(0,0,0,0.3)',
     borderRadius: 20,
   },
-  turnBadgeText: {
+  gameStatusText: {
+    color: '#FFF',
     fontSize: 16,
-    fontWeight: '600',
-    color: '#FFF',
-    marginLeft: 8,
-  },
-  gameOverSection: {
-    alignItems: 'center',
-  },
-  gameOverText: {
-    fontSize: 18,
     fontWeight: 'bold',
-    color: '#FFF',
-    marginBottom: 12,
+    marginLeft: 10,
   },
-  winnerBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
+  capturedContainer: {
+    width: '80%',
+    marginVertical: 10,
   },
-  winnerText: {
-    fontSize: 18,
-    fontWeight: 'bold',
+  capturedText: {
     color: '#FFF',
-    marginLeft: 8,
+    fontSize: 14,
+    marginBottom: 5,
+    textAlign: 'center',
+  },
+  capturedBar: {
+    height: 10,
+    backgroundColor: '#333',
+    borderRadius: 5,
+    overflow: 'hidden',
+  },
+  capturedProgress: {
+    height: '100%',
+    backgroundColor: '#FF5252',
+    borderRadius: 5,
+  },
+  menuButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 10,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    padding: 10,
+    borderRadius: 25,
   },
   modalOverlay: {
     flex: 1,
@@ -623,13 +503,13 @@ const styles = StyleSheet.create({
   },
   debugPanel: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#1E1E1E',
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#333',
+    bottom: 10,
+    left: 10,
+    right: 10,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    borderRadius: 10,
+    padding: 10,
+    maxHeight: height / 4,
   },
   debugHeader: {
     flexDirection: 'row',

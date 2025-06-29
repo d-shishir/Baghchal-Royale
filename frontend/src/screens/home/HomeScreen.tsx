@@ -18,6 +18,7 @@ interface HomeScreenProps {
     games_won: number;
   };
   onPlaySinglePlayer: () => void;
+  onPlayLocalPVP: () => void;
   onPlayMultiplayer: () => void;
   onViewProfile: () => void;
   onViewLeaderboard: () => void;
@@ -29,6 +30,7 @@ const { width } = Dimensions.get('window');
 const HomeScreen: React.FC<HomeScreenProps> = ({
   user,
   onPlaySinglePlayer,
+  onPlayLocalPVP,
   onPlayMultiplayer,
   onViewProfile,
   onViewLeaderboard,
@@ -85,6 +87,25 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                 <Text style={styles.modeDescription}>Play against AI opponent</Text>
                 <View style={styles.modeBadge}>
                   <Text style={styles.badgeText}>Practice Mode</Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={24} color="#FFF" />
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
+
+        {/* On-Device PVP Mode */}
+        <TouchableOpacity style={styles.gameModeCard} onPress={onPlayLocalPVP}>
+          <LinearGradient colors={['#42A5F5', '#1976D2']} style={styles.modeGradient}>
+            <View style={styles.modeContent}>
+              <View style={styles.modeIcon}>
+                <Ionicons name="phone-portrait-outline" size={32} color="#FFF" />
+              </View>
+              <View style={styles.modeInfo}>
+                <Text style={styles.modeTitle}>PVP (On Device)</Text>
+                <Text style={styles.modeDescription}>Two players on the same device</Text>
+                <View style={styles.modeBadge}>
+                  <Text style={styles.badgeText}>Local Match</Text>
                 </View>
               </View>
               <Ionicons name="chevron-forward" size={24} color="#FFF" />

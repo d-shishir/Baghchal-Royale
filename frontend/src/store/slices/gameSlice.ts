@@ -1,7 +1,7 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 export type PlayerSide = 'tigers' | 'goats';
-export type GameMode = 'pvp' | 'pvai';
+export type GameMode = 'pvp' | 'pvai' | 'pvp-local';
 export type GameStatus = 'waiting' | 'active' | 'completed' | 'cancelled';
 export type GamePhase = 'placement' | 'movement';
 export type PieceType = 0 | 1 | 2; // 0 = empty, 1 = tiger, 2 = goat
@@ -104,6 +104,17 @@ const gameSlice = createSlice({
   initialState,
   reducers: {
     // Game session management
+    startLocalPVPGame: (state) => {
+      return {
+        ...initialState,
+        gameMode: 'pvp-local',
+        status: 'active',
+        player1: { id: 'player1', username: 'Player 1', rating: 0, side: 'tigers' },
+        player2: { id: 'player2', username: 'Player 2', rating: 0, side: 'goats' },
+        currentPlayer: 'goats', // Goats always start in placement phase
+        userSide: null, // Not relevant for local pvp
+      };
+    },
     createGameStart: (state) => {
       state.loading = true;
       state.error = null;
@@ -156,6 +167,17 @@ const gameSlice = createSlice({
     },
     
     // Move handling
+    localMove: (state, action: PayloadAction<{ board: PieceType[][]; nextPlayer: PlayerSide; phase: GamePhase; goatsPlaced: number; goatsCaptured: number; gameOver: boolean; winner: PlayerSide | null }>) => {
+      state.board = action.payload.board;
+      state.currentPlayer = action.payload.nextPlayer;
+      state.phase = action.payload.phase;
+      state.goatsPlaced = action.payload.goatsPlaced;
+      state.goatsCaptured = action.payload.goatsCaptured;
+      state.gameOver = action.payload.gameOver;
+      state.winner = action.payload.winner;
+      state.selectedPosition = null;
+      state.validMoves = [];
+    },
     makeMove: (state, action: PayloadAction<GameMove>) => {
       state.moveHistory.push(action.payload);
       state.lastMove = action.payload;
@@ -209,10 +231,12 @@ const gameSlice = createSlice({
 });
 
 export const {
+  startLocalPVPGame,
   createGameStart,
   createGameSuccess,
   joinGameSuccess,
   updateBoard,
+  localMove,
   makeMove,
   selectPosition,
   setValidMoves,

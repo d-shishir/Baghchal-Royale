@@ -7,6 +7,7 @@ import { Alert } from 'react-native';
 
 // Import actions
 import { logout } from '../store/slices/authSlice';
+import { startLocalPVPGame } from '../store/slices/gameSlice';
 import { RootState } from '../store';
 
 // Auth Screens
@@ -18,6 +19,7 @@ import HomeScreen from '../screens/home/HomeScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
 import LeaderboardScreen from '../screens/leaderboard/LeaderboardScreen';
 import SinglePlayerContainer from '../containers/SinglePlayerContainer';
+import GameContainer from '../containers/GameContainer';
 
 // Define navigation types
 export type AuthStackParamList = {
@@ -35,7 +37,7 @@ export type MainStackParamList = {
   MainTabs: undefined;
   SinglePlayerSetup: undefined;
   MultiplayerSetup: undefined;
-  Game: { gameId: string; mode: 'pvp' | 'pvai' };
+  Game: { gameId?: string; mode: 'pvp' | 'pvai' | 'pvp-local' };
 };
 
 export type RootStackParamList = {
@@ -85,9 +87,15 @@ const RegisterNavigator = ({ navigation }: any) => {
 const HomeScreenWrapper = ({ navigation }: any) => {
   const user = useSelector((state: RootState) => state.auth.user);
   const guestMode = useSelector((state: RootState) => state.auth.guestMode);
+  const dispatch = useDispatch();
 
   const handlePlaySinglePlayer = () => {
     navigation.navigate('SinglePlayerSetup');
+  };
+
+  const handlePlayLocalPVP = () => {
+    dispatch(startLocalPVPGame());
+    navigation.navigate('Game', { mode: 'pvp-local' });
   };
 
   const handlePlayMultiplayer = () => {
@@ -129,6 +137,7 @@ const HomeScreenWrapper = ({ navigation }: any) => {
     <HomeScreen
       user={homeUser}
       onPlaySinglePlayer={handlePlaySinglePlayer}
+      onPlayLocalPVP={handlePlayLocalPVP}
       onPlayMultiplayer={handlePlayMultiplayer}
       onViewProfile={handleViewProfile}
       onViewLeaderboard={handleViewLeaderboard}
@@ -281,6 +290,9 @@ const MainStackNavigator = () => {
     >
       <MainStack.Screen name="MainTabs" component={MainTabNavigator} />
       <MainStack.Screen name="SinglePlayerSetup" component={SinglePlayerContainer} />
+      {/* TODO: Create Multiplayer setup screen */}
+      {/* <MainStack.Screen name="MultiplayerSetup" component={MultiplayerSetupScreen} /> */}
+      <MainStack.Screen name="Game" component={GameContainer} />
     </MainStack.Navigator>
   );
 };
