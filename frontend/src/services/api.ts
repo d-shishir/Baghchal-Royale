@@ -2,7 +2,25 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import Constants from 'expo-constants';
 import { RootState } from '../store';
 
-const baseUrl = Constants.expoConfig?.extra?.apiUrl || 'http://localhost:8000';
+// Function to determine API base URL
+const getBaseUrl = () => {
+  // Production URL (replace with your actual production URL)
+  const prodUrl = 'https://api.baghchal-royale.com';
+
+  // Development: Use the host machine's IP address
+  // The 'hostUri' is typically in the format '192.168.1.100:8081'
+  const hostUri = Constants.expoConfig?.hostUri;
+  const devUrl = hostUri ? `http://${hostUri.split(':')[0]}:8000` : 'http://localhost:8000';
+
+  // Use the production URL in production, otherwise use the development URL
+  // __DEV__ is a global variable set by React Native/Expo
+  return __DEV__ ? devUrl : prodUrl;
+};
+
+const baseUrl = getBaseUrl();
+
+// Log the base URL for debugging purposes
+console.log('🚀 API requests will be sent to:', baseUrl);
 
 // Base query with authentication
 const baseQuery = fetchBaseQuery({

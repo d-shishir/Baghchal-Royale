@@ -109,8 +109,8 @@ const gameSlice = createSlice({
         ...initialState,
         gameMode: 'pvp-local',
         status: 'active',
-        player1: { id: 'player1', username: 'Player 1', rating: 0, side: 'tigers' },
-        player2: { id: 'player2', username: 'Player 2', rating: 0, side: 'goats' },
+        player1: { id: 'tigers', username: 'Tigers', rating: 0, side: 'tigers' },
+        player2: { id: 'goats', username: 'Goats', rating: 0, side: 'goats' },
         currentPlayer: 'goats', // Goats always start in placement phase
         userSide: null, // Not relevant for local pvp
       };

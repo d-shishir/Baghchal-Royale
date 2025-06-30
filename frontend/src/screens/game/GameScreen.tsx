@@ -24,6 +24,7 @@ interface GameScreenProps {
   selectedPosition: { row: number, col: number } | null;
   validMoves: { row: number, col: number }[];
   onMove: (move: any) => void;
+  onSelectPosition: (position: { row: number, col: number } | null) => void;
   onQuitGame: () => void;
   winner: PlayerSide | null;
   gameOver: boolean;
@@ -45,6 +46,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
   selectedPosition,
   validMoves,
   onMove,
+  onSelectPosition,
   onQuitGame,
   winner,
   gameOver,
@@ -107,64 +109,60 @@ const GameScreen: React.FC<GameScreenProps> = ({
       return;
     }
 
-    // If in placement phase and playing goats
-    if (phase === 'placement' && currentPlayer === 'goats') {
-      debugInfo += '📍 Placement phase for goats\n';
-      if (board[row][col] === 0) {
-        debugInfo += '✅ SENDING MOVE: Valid placement';
-        const move = {
-          type: 'place',
-          to: [row, col],
-        };
-        setLastClickInfo(debugInfo + `\nMove: ${JSON.stringify(move)}`);
-        onMove(move);
-        // setSelectedPosition(null); // This should be handled by the container/slice
-      } else {
-        debugInfo += '❌ BLOCKED: Position occupied';
-        setLastClickInfo(debugInfo);
-      }
-      return;
-    }
+    // --- Start of new selection logic ---
 
-    // Movement phase logic
+    const pieceAtClick = board[row][col];
+    const isOurPiece = (currentPlayer === 'tigers' && pieceAtClick === 1) || (currentPlayer === 'goats' && pieceAtClick === 2);
+
+    // If a piece is already selected...
     if (selectedPosition) {
-      debugInfo += `🎯 Movement phase - position selected: (${selectedPosition.row},${selectedPosition.col})\n`;
-      const isMoveValid = validMoves.some(m => m.row === row && m.col === col);
-      
-      if (isMoveValid) {
-        debugInfo += '✅ SENDING MOVE: Valid movement';
-        const move = {
-          type: 'move',
-          from: [selectedPosition.row, selectedPosition.col],
-          to: [row, col],
-        };
-        setLastClickInfo(debugInfo + `\nMove: ${JSON.stringify(move)}`);
-        onMove(move);
-      } else {
-        debugInfo += '❌ BLOCKED: Invalid movement - deselecting';
-        setLastClickInfo(debugInfo);
-        // setSelectedPosition(null);
-      }
-    } else {
-      debugInfo += '🔍 Trying to select piece\n';
-      const piece = board[row][col];
-      const isPlayerPiece = (currentPlayer === 'tigers' && piece === 1) || 
-                           (currentPlayer === 'goats' && piece === 2);
-      
-      debugInfo += `Piece: ${piece}, Is player piece: ${isPlayerPiece}\n`;
-      debugInfo += `Current player: "${currentPlayer}", User side: "${userSide}"\n`;
-      debugInfo += `Player turn match: ${currentPlayer === userSide}\n`;
-      
-      if (isPlayerPiece) {
-        debugInfo += `✅ SELECTING PIECE: (${row}, ${col})`;
-        // onSelectPosition({row, col}) -> handled by container now
-        setLastClickInfo(debugInfo);
-      } else {
-        debugInfo += `❌ BLOCKED: Not player's piece`;
-        setLastClickInfo(debugInfo);
-      }
+        const isMoveValid = validMoves.some(m => m.row === row && m.col === col);
+        // If the click is a valid destination for the selected piece...
+        if (isMoveValid) {
+            debugInfo += '✅ SENDING MOVE: Valid movement';
+            const move = {
+                type: 'move' as const,
+                from: [selectedPosition.row, selectedPosition.col],
+                to: [row, col] as [number, number],
+            };
+            onMove(move);
+            onSelectPosition(null); // Deselect after moving
+        } else {
+            // If another tiger is tapped, select it
+            if (currentPlayer === 'tigers' && pieceAtClick === 1) {
+                debugInfo += `✅ CHANGING SELECTION TO TIGER: (${row}, ${col})`;
+                onSelectPosition({ row, col });
+            } else {
+                // Otherwise, deselect
+                debugInfo += '❌ BLOCKED: Invalid movement - deselecting';
+                onSelectPosition(null);
+            }
+        }
+    } 
+    // If no piece is selected yet...
+    else {
+        // If it's the goat placement phase...
+        if (phase === 'placement' && currentPlayer === 'goats') {
+            debugInfo += '📍 Placement phase for goats\n';
+            const move = { type: 'place' as const, to: [row, col] as [number, number] };
+            if (validMoves.some(m => m.row === row && m.col === col)) {
+                onMove(move);
+            } else {
+                debugInfo += '❌ BLOCKED: Invalid placement spot';
+            }
+        } 
+        // If we click on one of our pieces during movement phase...
+        else if (isOurPiece) {
+            debugInfo += `✅ SELECTING PIECE: (${row}, ${col})`;
+            onSelectPosition({ row, col });
+        } else {
+            debugInfo += `❌ BLOCKED: Not a selectable piece`;
+        }
     }
-  }, [board, currentPlayer, userSide, phase, gameOver, onMove, selectedPosition, validMoves]);
+    
+    setLastClickInfo(debugInfo);
+    // --- End of new selection logic ---
+  }, [board, currentPlayer, userSide, phase, gameOver, onMove, onSelectPosition, selectedPosition, validMoves]);
 
   const handleQuitGame = () => {
     Alert.alert(
@@ -245,7 +243,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
       {/* Game Status */}
       {renderGameStatus()}
-      
+
       {/* Goats Captured */}
       <View style={styles.capturedContainer}>
         <Text style={styles.capturedText}>Goats Captured: {goatsCaptured} / 5</Text>
@@ -262,6 +260,8 @@ const GameScreen: React.FC<GameScreenProps> = ({
         onPositionPress={handlePositionPress}
         disabled={!isUserTurn || gameOver}
         showValidMoves={true}
+        currentPlayer={currentPlayer}
+        phase={phase}
       />
 
       {/* Game Menu Modal */}
