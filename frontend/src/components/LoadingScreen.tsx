@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Animated, Dimensions, Image } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
 
@@ -51,30 +51,11 @@ const LoadingScreen = () => {
           },
         ]}
       >
-        <View style={styles.gameBoard}>
-          <View style={styles.boardLines}>
-            <View style={[styles.line, styles.horizontalLine, { top: '0%' }]} />
-            <View style={[styles.line, styles.horizontalLine, { top: '25%' }]} />
-            <View style={[styles.line, styles.horizontalLine, { top: '50%' }]} />
-            <View style={[styles.line, styles.horizontalLine, { top: '75%' }]} />
-            <View style={[styles.line, styles.horizontalLine, { top: '100%' }]} />
-            
-            <View style={[styles.line, styles.verticalLine, { left: '0%' }]} />
-            <View style={[styles.line, styles.verticalLine, { left: '25%' }]} />
-            <View style={[styles.line, styles.verticalLine, { left: '50%' }]} />
-            <View style={[styles.line, styles.verticalLine, { left: '75%' }]} />
-            <View style={[styles.line, styles.verticalLine, { left: '100%' }]} />
-          </View>
-          
-          <View style={[styles.piece, styles.tiger, { top: '0%', left: '0%' }]} />
-          <View style={[styles.piece, styles.tiger, { top: '0%', right: '0%' }]} />
-          <View style={[styles.piece, styles.tiger, { bottom: '0%', left: '0%' }]} />
-          <View style={[styles.piece, styles.tiger, { bottom: '0%', right: '0%' }]} />
-          
-          <View style={[styles.piece, styles.goat, { top: '25%', left: '50%' }]} />
-          <View style={[styles.piece, styles.goat, { top: '50%', left: '25%' }]} />
-        </View>
-        
+        <Image
+          source={require('../../assets/br.png')}
+          style={styles.logoImage}
+          resizeMode="contain"
+        />
         <Text style={styles.title}>बाघचाल Royale</Text>
         <Text style={styles.subtitle}>Tigers and Goats</Text>
       </Animated.View>
@@ -104,46 +85,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 60,
   },
-  gameBoard: {
+  logoImage: {
     width: 120,
     height: 120,
     marginBottom: 20,
-    position: 'relative',
-  },
-  boardLines: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  line: {
-    backgroundColor: '#6D4C41',
-    position: 'absolute',
-  },
-  horizontalLine: {
-    height: 2,
-    width: '100%',
-  },
-  verticalLine: {
-    width: 2,
-    height: '100%',
-  },
-  piece: {
-    position: 'absolute',
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    marginLeft: -8,
-    marginTop: -8,
-    borderWidth: 2,
-    borderColor: '#757575',
-  },
-  tiger: {
-    backgroundColor: '#FF6F00',
-  },
-  goat: {
-    backgroundColor: '#66BB6A',
   },
   title: {
     fontSize: 32,

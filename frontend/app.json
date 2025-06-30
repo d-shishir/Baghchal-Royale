@@ -5,7 +5,9 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
+    "icon": "./assets/br.png",
     "splash": {
+      "image": "./assets/br.png",
       "backgroundColor": "#1a1a1a"
     },
     "assetBundlePatterns": [

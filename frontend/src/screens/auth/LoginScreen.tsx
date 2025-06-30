@@ -10,6 +10,7 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -148,19 +149,11 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToRegister }) => {
         <ScrollView contentContainerStyle={styles.scrollContent}>
           {/* Logo Section */}
           <View style={styles.logoSection}>
-            <View style={styles.gameBoard}>
-              <View style={styles.boardLines}>
-                <View style={[styles.line, styles.horizontalLine, { top: '0%' }]} />
-                <View style={[styles.line, styles.horizontalLine, { top: '50%' }]} />
-                <View style={[styles.line, styles.horizontalLine, { top: '100%' }]} />
-                <View style={[styles.line, styles.verticalLine, { left: '0%' }]} />
-                <View style={[styles.line, styles.verticalLine, { left: '50%' }]} />
-                <View style={[styles.line, styles.verticalLine, { left: '100%' }]} />
-              </View>
-              <View style={[styles.piece, styles.tiger, { top: '0%', left: '0%' }]} />
-              <View style={[styles.piece, styles.tiger, { top: '0%', right: '0%' }]} />
-              <View style={[styles.piece, styles.goat, { top: '50%', left: '50%' }]} />
-            </View>
+            <Image
+              source={require('../../../assets/br.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
             <Text style={styles.title}>बाघचाल Royale</Text>
             <Text style={styles.subtitle}>Welcome Back!</Text>
           </View>
@@ -282,46 +275,12 @@ const styles = StyleSheet.create({
   },
   logoSection: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 32,
   },
-  gameBoard: {
-    width: 80,
-    height: 80,
-    position: 'relative',
-    marginBottom: 20,
-  },
-  boardLines: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  line: {
-    backgroundColor: '#FF6F00',
-    position: 'absolute',
-  },
-  horizontalLine: {
-    height: 2,
-    width: '100%',
-  },
-  verticalLine: {
-    width: 2,
-    height: '100%',
-  },
-  piece: {
-    position: 'absolute',
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    marginLeft: -8,
-    marginTop: -8,
-  },
-  tiger: {
-    backgroundColor: '#FF6F00',
-  },
-  goat: {
-    backgroundColor: '#FFF',
+  logoImage: {
+    width: 120,
+    height: 120,
+    marginBottom: 16,
   },
   title: {
     fontSize: 32,
