@@ -26,12 +26,14 @@ interface GameScreenProps {
   onMove: (move: any) => void;
   onSelectPosition: (position: { row: number, col: number } | null) => void;
   onQuitGame: () => void;
-  winner: PlayerSide | null;
+  onNewGame: () => void;
+  winner?: 'tigers' | 'goats' | 'draw' | null;
   gameOver: boolean;
   goatsCaptured: number;
   phase: GamePhase;
   onRequestAIMove?: () => void;
   onRestartGame?: () => void;
+  isAIThinking?: boolean;
 }
 
 const { width, height } = Dimensions.get('window');
@@ -48,12 +50,14 @@ const GameScreen: React.FC<GameScreenProps> = ({
   onMove,
   onSelectPosition,
   onQuitGame,
+  onNewGame,
   winner,
   gameOver,
   goatsCaptured,
   phase,
   onRequestAIMove,
   onRestartGame,
+  isAIThinking = false,
 }) => {
   const [showGameMenu, setShowGameMenu] = useState(false);
   const [showDebugPanel, setShowDebugPanel] = useState(true); // Enable debug panel by default
@@ -211,11 +215,20 @@ const GameScreen: React.FC<GameScreenProps> = ({
   };
 
   const renderGameStatus = () => {
-    if (gameOver && winner) {
+    if (gameOver) {
       return (
         <View style={styles.gameStatusContainer}>
           <Ionicons name="trophy" size={24} color="#FFD700" />
-          <Text style={styles.gameStatusText}>{`${winner.charAt(0).toUpperCase() + winner.slice(1)} wins!`}</Text>
+          <Text style={styles.gameStatusText}>Game Over!</Text>
+        </View>
+      );
+    }
+    
+    if (isAIThinking) {
+      return (
+        <View style={styles.gameStatusContainer}>
+          <Ionicons name="refresh" size={24} color="#FF6F00" />
+          <Text style={styles.gameStatusText}>AI is thinking...</Text>
         </View>
       );
     }
@@ -252,17 +265,33 @@ const GameScreen: React.FC<GameScreenProps> = ({
         </View>
       </View>
 
-      {/* Game Board */}
-      <GameBoard
-        board={board}
-        selectedPosition={selectedPosition}
-        validMoves={validMoves}
-        onPositionPress={handlePositionPress}
-        disabled={!isUserTurn || gameOver}
-        showValidMoves={true}
-        currentPlayer={currentPlayer}
-        phase={phase}
-      />
+      {/* Game Board or Game Over Screen */}
+      <View style={styles.boardContainer}>
+        {gameOver ? (
+          <View style={styles.gameOverContainer}>
+            <Text style={styles.gameOverTitle}>
+              {winner ? `${winner.charAt(0).toUpperCase() + winner.slice(1)} Wins!` : "It's a Draw!"}
+            </Text>
+            <TouchableOpacity style={styles.button} onPress={onNewGame}>
+              <Text style={styles.buttonText}>New Game</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.button, styles.quitButton]} onPress={onQuitGame}>
+              <Text style={styles.buttonText}>Quit to Menu</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <GameBoard
+            board={board}
+            selectedPosition={selectedPosition}
+            validMoves={validMoves}
+            onPositionPress={handlePositionPress}
+            disabled={!isUserTurn || gameOver}
+            showValidMoves={true}
+            currentPlayer={currentPlayer}
+            phase={phase}
+          />
+        )}
+      </View>
 
       {/* Game Menu Modal */}
       <Modal
@@ -534,6 +563,56 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#FFF',
     fontWeight: 'bold',
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  gameOverContainer: {
+    backgroundColor: '#1F2937',
+    padding: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    width: '80%',
+    borderWidth: 1,
+    borderColor: '#F97316',
+  },
+  gameOverTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 25,
+    textAlign: 'center',
+  },
+  gameOverText: {
+    fontSize: 20,
+    color: '#9CA3AF',
+    marginBottom: 25,
+  },
+  button: {
+    backgroundColor: '#F97316',
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 8,
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  quitButton: {
+    backgroundColor: '#4B5563',
+  },
+  buttonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  boardContainer: {
+    flex: 1,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 

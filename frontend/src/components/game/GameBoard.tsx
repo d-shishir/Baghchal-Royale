@@ -2,11 +2,12 @@ import React, { useState, useCallback } from 'react';
 import {
   View,
   TouchableOpacity,
-  Dimensions,
   StyleSheet,
+  Dimensions,
   Animated,
 } from 'react-native';
 import Svg, { Line, Circle, G } from 'react-native-svg';
+import { colors } from '../../theme';
 
 interface Position {
   row: number;
@@ -28,6 +29,31 @@ const { width: screenWidth } = Dimensions.get('window');
 const BOARD_SIZE = Math.min(screenWidth - 40, 400);
 const CELL_SIZE = BOARD_SIZE / 4;
 const PIECE_SIZE = 24;
+
+// Theme colors for consistent highlighting using the app's color scheme
+const THEME_COLORS = {
+  // Piece colors using theme
+  tiger: colors.dark.tigerColor, // '#FF6F00'
+  goat: '#FFFFFF',
+  
+  // Highlight colors for placement
+  goatPlacement: 'rgba(33, 150, 243, 0.2)', // Blue for goat placement
+  goatPlacementBorder: '#2196F3',
+  
+  // Highlight colors for movement destinations
+  tigerDestination: 'rgba(255, 193, 7, 0.2)', // Gold for tiger moves
+  tigerDestinationBorder: colors.dark.highlightColor, // '#FFD54F'
+  goatDestination: 'rgba(76, 175, 80, 0.2)', // Green for goat moves  
+  goatDestinationBorder: colors.dark.validMoveColor, // '#4CAF50'
+  
+  // Selection indicators
+  tigerSelection: colors.dark.highlightColor, // '#FFD54F' - Gold for selected tigers
+  goatSelection: colors.dark.goatColor, // '#66BB6A' - Light green for selected goats
+  
+  // Board elements
+  boardLine: colors.dark.boardColor, // '#6D4C41'
+  boardBackground: 'transparent',
+}
 
 const GameBoard: React.FC<GameBoardProps> = ({
   board,
@@ -83,117 +109,71 @@ const GameBoard: React.FC<GameBoardProps> = ({
 
   const renderBoardLines = () => {
     const lines = [];
-    
-    // Horizontal lines
-    for (let i = 0; i <= 4; i++) {
-      lines.push(
-        <Line
-          key={`h-${i}`}
-          x1={0}
-          y1={i * CELL_SIZE}
-          x2={BOARD_SIZE}
-          y2={i * CELL_SIZE}
-          stroke="#6D4C41"
-          strokeWidth={2}
-        />
-      );
+    const drawnConnections = new Set<string>();
+
+    // This data is sourced from `baghchal.ts` to ensure the rendered board
+    // perfectly matches the game's logical structure.
+    const allConnections: { [key: string]: [number, number][] } = {
+      '0,0': [[0,1], [1,0], [1,1]],
+      '0,1': [[0,0], [0,2], [1,1]],
+      '0,2': [[0,1], [0,3], [1,2], [1,1], [1,3]],
+      '0,3': [[0,2], [0,4], [1,3]],
+      '0,4': [[0,3], [1,4], [1,3]],
+
+      '1,0': [[0,0], [2,0], [1,1]],
+      '1,1': [[1,0], [0,1], [1,2], [2,1], [2,2], [0,0], [0,2], [2,0]],
+      '1,2': [[0,2], [1,1], [1,3], [2,2]],
+      '1,3': [[0,3], [0,4], [1,2], [1,4], [2,2], [2,3], [2,4]],
+      '1,4': [[0,4], [1,3], [2,4]],
+
+      '2,0': [[1,0], [3,0], [2,1], [1,1], [3,1]],
+      '2,1': [[2,0], [1,1], [3,1], [2,2]],
+      '2,2': [[1,1], [1,2], [1,3], [2,1], [2,3], [3,1], [3,2], [3,3]],
+      '2,3': [[2,2], [1,3], [3,3], [2,4]],
+      '2,4': [[1,4], [1,3], [2,3], [3,3], [3,4]],
+
+      '3,0': [[2,0], [4,0], [3,1]],
+      '3,1': [[3,0], [2,0], [2,1], [3,2], [4,0], [4,2], [2,2], [4,1]],
+      '3,2': [[3,1], [2,2], [3,3], [4,2]],
+      '3,3': [[3,2], [2,3], [2,4], [3,4], [4,2], [4,3], [4,4], [2,2]],
+      '3,4': [[2,4], [3,3], [4,4]],
+
+      '4,0': [[3,0], [4,1], [3,1]],
+      '4,1': [[4,0], [4,2], [3,1]],
+      '4,2': [[4,1], [3,1], [3,2], [3,3], [4,3]],
+      '4,3': [[4,2], [3,3], [4,4]],
+      '4,4': [[3,4], [4,3], [3,3]]
+    };
+
+    for (const posKey in allConnections) {
+      const [fromRow, fromCol] = posKey.split(',').map(Number);
+      const connections = allConnections[posKey];
+
+      for (const to of connections) {
+        const [toRow, toCol] = to;
+        
+        // Create a canonical key for the connection to avoid drawing lines twice
+        // e.g., '0,0-0,1' is the same as '0,1-0,0'
+        const fromKey = `${fromRow},${fromCol}`;
+        const toKey = `${toRow},${toCol}`;
+        const connectionKey = [fromKey, toKey].sort().join('-');
+
+        if (!drawnConnections.has(connectionKey)) {
+          lines.push(
+            <Line
+              key={connectionKey}
+              x1={fromCol * CELL_SIZE}
+              y1={fromRow * CELL_SIZE}
+              x2={toCol * CELL_SIZE}
+              y2={toRow * CELL_SIZE}
+              stroke={THEME_COLORS.boardLine}
+              strokeWidth={2}
+            />
+          );
+          drawnConnections.add(connectionKey);
+        }
+      }
     }
-    
-    // Vertical lines
-    for (let i = 0; i <= 4; i++) {
-      lines.push(
-        <Line
-          key={`v-${i}`}
-          x1={i * CELL_SIZE}
-          y1={0}
-          x2={i * CELL_SIZE}
-          y2={BOARD_SIZE}
-          stroke="#6D4C41"
-          strokeWidth={2}
-        />
-      );
-    }
-    
-    // Diagonal lines - Two main diagonals (cross) + inner slanted square
-    // Main diagonal: top-left to bottom-right
-    lines.push(
-      <Line
-        key="main-diagonal"
-        x1={0}
-        y1={0}
-        x2={BOARD_SIZE}
-        y2={BOARD_SIZE}
-        stroke="#6D4C41"
-        strokeWidth={2}
-      />
-    );
-    
-    // Anti-diagonal: top-right to bottom-left
-    lines.push(
-      <Line
-        key="anti-diagonal"
-        x1={BOARD_SIZE}
-        y1={0}
-        x2={0}
-        y2={BOARD_SIZE}
-        stroke="#6D4C41"
-        strokeWidth={2}
-      />
-    );
-    
-    // Inner slanted square (diamond) connecting middle points
-    // Top middle (0,2) to right middle (2,4)
-    lines.push(
-      <Line
-        key="diamond-1"
-        x1={2 * CELL_SIZE}
-        y1={0}
-        x2={BOARD_SIZE}
-        y2={2 * CELL_SIZE}
-        stroke="#6D4C41"
-        strokeWidth={2}
-      />
-    );
-    
-    // Right middle (2,4) to bottom middle (4,2)
-    lines.push(
-      <Line
-        key="diamond-2"
-        x1={BOARD_SIZE}
-        y1={2 * CELL_SIZE}
-        x2={2 * CELL_SIZE}
-        y2={BOARD_SIZE}
-        stroke="#6D4C41"
-        strokeWidth={2}
-      />
-    );
-    
-    // Bottom middle (4,2) to left middle (2,0)
-    lines.push(
-      <Line
-        key="diamond-3"
-        x1={2 * CELL_SIZE}
-        y1={BOARD_SIZE}
-        x2={0}
-        y2={2 * CELL_SIZE}
-        stroke="#6D4C41"
-        strokeWidth={2}
-      />
-    );
-    
-    // Left middle (2,0) to top middle (0,2) - completing the diamond
-    lines.push(
-      <Line
-        key="diamond-4"
-        x1={0}
-        y1={2 * CELL_SIZE}
-        x2={2 * CELL_SIZE}
-        y2={0}
-        stroke="#6D4C41"
-        strokeWidth={2}
-      />
-    );
-    
     return lines;
   };
 
@@ -204,35 +184,49 @@ const GameBoard: React.FC<GameBoardProps> = ({
     const goatPlacement = !selectedPosition && currentPlayer === 'goats' && phase === 'placement';
     const goatSelection = currentPlayer === 'goats' && phase === 'movement';
     const tigerSelection = currentPlayer === 'tigers';
+    
     for (let row = 0; row < 5; row++) {
       for (let col = 0; col < 5; col++) {
         let isValid = false;
         let highlightColor = 'transparent';
-        // Goat placement: highlight/tap empty squares
+        let borderColor = 'transparent';
+        let borderWidth = 0;
+        
+        // Determine highlight based on game state
         if (goatPlacement && board[row][col] === 0) {
+          // Goat placement: highlight empty squares where goats can be placed
           isValid = validMoves.some(m => m.row === row && m.col === col);
-          highlightColor = isValid ? 'rgba(0, 200, 255, 0.15)' : 'transparent';
-        }
-        // Tiger move: highlight/tap valid destinations
-        else if (tigerSelected) {
+          if (isValid) {
+            highlightColor = THEME_COLORS.goatPlacement;
+            borderColor = THEME_COLORS.goatPlacementBorder;
+            borderWidth = 2;
+          }
+        } else if (tigerSelected) {
+          // Tiger move: highlight valid destinations for selected tiger
           isValid = validMoves.some(m => m.row === row && m.col === col);
-          highlightColor = isValid ? 'rgba(255, 215, 0, 0.15)' : 'transparent';
+          if (isValid) {
+            highlightColor = THEME_COLORS.tigerDestination;
+            borderColor = THEME_COLORS.tigerDestinationBorder;
+            borderWidth = 2;
+          }
+        } else if (goatSelected) {
+          // Goat move: highlight valid destinations for selected goat
+          isValid = validMoves.some(m => m.row === row && m.col === col);
+          if (isValid) {
+            highlightColor = THEME_COLORS.goatDestination;
+            borderColor = THEME_COLORS.goatDestinationBorder;
+            borderWidth = 2;
+          }
         }
-        // Tiger selection: allow tapping on tigers to select, even if one is already selected
+        
+        // Allow piece selection
         if (tigerSelection && board[row][col] === 1) {
-          isValid = true;
-          // No highlight for selection overlays
+          isValid = true; // Tigers can always be selected
         }
-        // Goat move: highlight/tap valid destinations
-        else if (goatSelected) {
-          isValid = validMoves.some(m => m.row === row && m.col === col);
-          highlightColor = isValid ? 'rgba(139, 195, 74, 0.15)' : 'transparent';
-        }
-        // Goat selection: allow tapping on goats to select, even if one is already selected
         if (goatSelection && board[row][col] === 2) {
-          isValid = true;
-          // No highlight for selection overlays
+          isValid = true; // Goats can always be selected during movement
         }
+        
         positions.push(
           <TouchableOpacity
             key={`pos-${row}-${col}`}
@@ -244,8 +238,8 @@ const GameBoard: React.FC<GameBoardProps> = ({
               height: 24,
               borderRadius: 12,
               backgroundColor: highlightColor,
-              borderWidth: isValid && tigerSelected ? 1 : isValid && goatSelected ? 1 : 0,
-              borderColor: isValid && tigerSelected ? '#FFD700' : isValid && goatPlacement ? '#00C8FF' : isValid && goatSelected ? '#8BC34A' : 'transparent',
+              borderWidth: borderWidth,
+              borderColor: borderColor,
               zIndex: 3,
             }}
             onPress={() => isValid && handlePositionPress(row, col)}
@@ -265,8 +259,11 @@ const GameBoard: React.FC<GameBoardProps> = ({
       for (let col = 0; col < 5; col++) {
         const piece = board[row][col];
         if (piece === 0) continue;
+        
         const isSelected = selectedPosition && selectedPosition.row === row && selectedPosition.col === col;
         const isTiger = piece === 1;
+        const selectionColor = isTiger ? THEME_COLORS.tigerSelection : THEME_COLORS.goatSelection;
+        
         pieces.push(
           <Animated.View
             key={`piece-${row}-${col}`}
@@ -278,14 +275,15 @@ const GameBoard: React.FC<GameBoardProps> = ({
               height: PIECE_SIZE,
               alignItems: 'center',
               justifyContent: 'center',
-              zIndex: isSelected ? 2 : 1,
-              borderWidth: isSelected && isTiger ? 3 : 0,
-              borderColor: isSelected && isTiger ? '#FFD700' : 'transparent',
+              zIndex: isSelected ? 4 : 2,
+              borderWidth: isSelected ? 3 : 0,
+              borderColor: isSelected ? selectionColor : 'transparent',
               borderRadius: PIECE_SIZE / 2,
-              shadowColor: isSelected && isTiger ? '#FFD700' : 'transparent',
-              shadowOpacity: isSelected && isTiger ? 0.8 : 0,
-              shadowRadius: isSelected && isTiger ? 10 : 0,
+              shadowColor: isSelected ? selectionColor : 'transparent',
+              shadowOpacity: isSelected ? 0.8 : 0,
+              shadowRadius: isSelected ? 8 : 0,
               shadowOffset: { width: 0, height: 0 },
+              transform: [{ scale: animatedValues[`${row}-${col}`] }],
             }}
           >
             <TouchableOpacity
@@ -294,25 +292,14 @@ const GameBoard: React.FC<GameBoardProps> = ({
               disabled={disabled}
             >
               <Svg width={PIECE_SIZE} height={PIECE_SIZE}>
-                {piece === 1 ? (
-                  <Circle
-                    cx={PIECE_SIZE / 2}
-                    cy={PIECE_SIZE / 2}
-                    r={PIECE_SIZE / 2 - 4}
-                    fill="#FF9800"
-                    stroke="#6D4C41"
-                    strokeWidth={2}
-                  />
-                ) : (
-                  <Circle
-                    cx={PIECE_SIZE / 2}
-                    cy={PIECE_SIZE / 2}
-                    r={PIECE_SIZE / 2 - 4}
-                    fill="#FFF"
-                    stroke="#6D4C41"
-                    strokeWidth={2}
-                  />
-                )}
+                <Circle
+                  cx={PIECE_SIZE / 2}
+                  cy={PIECE_SIZE / 2}
+                  r={PIECE_SIZE / 2 - 2}
+                  fill={isTiger ? THEME_COLORS.tiger : THEME_COLORS.goat}
+                  stroke={THEME_COLORS.boardLine}
+                  strokeWidth={2}
+                />
               </Svg>
             </TouchableOpacity>
           </Animated.View>
@@ -332,7 +319,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
         >
           <G>{renderBoardLines()}</G>
         </Svg>
-        {renderBoardPositions()}
+        {showValidMoves && renderBoardPositions()}
         {renderPieces()}
       </View>
     </View>
@@ -353,50 +340,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     left: 0,
-  },
-  position: {
-    position: 'absolute',
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1,
-  },
-  positionIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#757575',
-    opacity: 0.3,
-  },
-  selectedPosition: {
-    backgroundColor: '#FFD54F',
-    opacity: 0.8,
-  },
-  validMovePosition: {
-    backgroundColor: '#4CAF50',
-    opacity: 0.6,
-  },
-  piece: {
-    position: 'absolute',
-    width: PIECE_SIZE,
-    height: PIECE_SIZE,
-    borderRadius: PIECE_SIZE / 2,
-    borderWidth: 2,
-    borderColor: '#FFF',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    zIndex: 2,
-  },
-  tiger: {
-    backgroundColor: '#FF6F00',
-  },
-  goat: {
-    backgroundColor: '#66BB6A',
   },
 });
 

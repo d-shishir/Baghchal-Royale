@@ -1,6 +1,7 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import Constants from 'expo-constants';
 import { RootState } from '../store';
+import { User } from '../store/slices/authSlice';
 
 // Function to determine API base URL
 const getBaseUrl = () => {
@@ -22,7 +23,6 @@ const baseUrl = getBaseUrl();
 // Log the base URL for debugging purposes
 console.log('🚀 API requests will be sent to:', baseUrl);
 
-// Base query with authentication
 const baseQuery = fetchBaseQuery({
   baseUrl,
   timeout: 15000, // 15 second timeout
@@ -44,56 +44,9 @@ const baseQuery = fetchBaseQuery({
   },
 });
 
-// Base query with automatic token refresh
-const baseQueryWithReauth = async (args: any, api: any, extraOptions: any) => {
-  let result = await baseQuery(args, api, extraOptions);
-  
-  const isGuest = (api.getState() as RootState).auth.guestMode;
-  
-  // Skip authentication handling for guest users
-  if (isGuest) {
-    return result;
-  }
-  
-  if (result.error && result.error.status === 401) {
-    // Try to refresh token
-    const refreshToken = (api.getState() as RootState).auth.refreshToken;
-    if (refreshToken) {
-      const refreshResult = await baseQuery(
-        {
-          url: '/users/refresh-token',
-          method: 'POST',
-          body: { refresh_token: refreshToken },
-        },
-        api,
-        extraOptions
-      );
-      
-      if (refreshResult.data) {
-        // Update token in store
-        api.dispatch({
-          type: 'auth/updateToken',
-          payload: refreshResult.data,
-        });
-        
-        // Retry original request
-        result = await baseQuery(args, api, extraOptions);
-      } else {
-        // Refresh failed, logout user
-        api.dispatch({ type: 'auth/logout' });
-      }
-    } else {
-      // No refresh token, logout user
-      api.dispatch({ type: 'auth/logout' });
-    }
-  }
-  
-  return result;
-};
-
 export const api = createApi({
   reducerPath: 'api',
-  baseQuery: baseQueryWithReauth,
+  baseQuery: baseQuery,
   tagTypes: ['User', 'Game', 'Stats', 'Leaderboard'],
   endpoints: (builder) => ({
     // Authentication endpoints
@@ -115,19 +68,13 @@ export const api = createApi({
     }),
     
     login: builder.mutation<
-      {
-        access_token: string;
-        token_type: string;
-      },
+      { access_token: string; token_type: string },
       { email: string; password: string }
     >({
       query: (credentials) => ({
-        url: '/api/v1/auth/login',
+        url: '/auth/login',
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: `username=${encodeURIComponent(credentials.email)}&password=${encodeURIComponent(credentials.password)}`,
+        body: new URLSearchParams({username: credentials.email, password: credentials.password}),
       }),
       invalidatesTags: ['User'],
     }),
@@ -150,8 +97,8 @@ export const api = createApi({
       tiger_wins: number;
       goat_wins: number;
       rating: number;
-    }, void>({
-      query: () => '/api/v1/users/profile',
+    }, null>({
+      query: () => '/users/me',
       providesTags: ['User'],
     }),
     
@@ -251,29 +198,9 @@ export const api = createApi({
       invalidatesTags: ['Game'],
     }),
     
-    getGameState: builder.query<{
-      success: boolean;
-      data: {
-        game_id: string;
-        board: number[][];
-        phase: string;
-        current_player: string;
-        goats_placed: number;
-        goats_captured: number;
-        game_over: boolean;
-        winner: string | null;
-        valid_actions: Array<{
-          type: string;
-          row?: number;
-          col?: number;
-          from_row?: number;
-          from_col?: number;
-          to_row?: number;
-          to_col?: number;
-        }>;
-      };
-    }, string>({
-      query: (gameId) => `/api/v1/games/${gameId}/state`,
+    getGameState: builder.query({
+      query: (gameId) => `/games/${gameId}`,
+      transformResponse: (response: any) => response.data,
       providesTags: ['Game'],
     }),
     

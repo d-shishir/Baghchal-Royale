@@ -41,12 +41,11 @@ export interface GameState {
   goatsCaptured: number;
   
   // Game result
-  winner: PlayerSide | null;
+  winner: PlayerSide | 'draw' | null;
   gameOver: boolean;
   
   // UI state
   selectedPosition: [number, number] | null;
-  validMoves: [number, number][];
   lastMove: GameMove | null;
   
   // Connection state
@@ -59,6 +58,9 @@ export interface GameState {
   
   // Available games (lobby)
   availableGames: any[];
+  
+  // Additional fields
+  validMoves: { from: [number, number]; to: [number, number] }[];
 }
 
 const initialBoard: PieceType[][] = [
@@ -88,7 +90,6 @@ const initialState: GameState = {
   gameOver: false,
   
   selectedPosition: null,
-  validMoves: [],
   lastMove: null,
   
   connected: false,
@@ -97,12 +98,25 @@ const initialState: GameState = {
   
   moveHistory: [],
   availableGames: [],
+  
+  validMoves: [],
 };
 
 const gameSlice = createSlice({
   name: 'game',
   initialState,
   reducers: {
+    startAIGame: (state, action: PayloadAction<{ userSide: PlayerSide }>) => {
+      return {
+        ...initialState,
+        gameMode: 'pvai',
+        status: 'active',
+        userSide: action.payload.userSide,
+        player1: { id: 'user', username: 'You', rating: 1200, side: action.payload.userSide },
+        player2: { id: 'ai', username: 'AI', rating: 1200, side: action.payload.userSide === 'tigers' ? 'goats' : 'tigers' },
+        currentPlayer: 'goats',
+      };
+    },
     // Game session management
     startLocalPVPGame: (state) => {
       return {
@@ -167,7 +181,15 @@ const gameSlice = createSlice({
     },
     
     // Move handling
-    localMove: (state, action: PayloadAction<{ board: PieceType[][]; nextPlayer: PlayerSide; phase: GamePhase; goatsPlaced: number; goatsCaptured: number; gameOver: boolean; winner: PlayerSide | null }>) => {
+    localMove: (state, action: PayloadAction<{
+      board: PieceType[][],
+      nextPlayer: PlayerSide,
+      phase: GamePhase,
+      goatsPlaced: number,
+      goatsCaptured: number,
+      gameOver: boolean,
+      winner: PlayerSide | 'draw' | null,
+    }>) => {
       state.board = action.payload.board;
       state.currentPlayer = action.payload.nextPlayer;
       state.phase = action.payload.phase;
@@ -176,24 +198,16 @@ const gameSlice = createSlice({
       state.gameOver = action.payload.gameOver;
       state.winner = action.payload.winner;
       state.selectedPosition = null;
-      state.validMoves = [];
     },
     makeMove: (state, action: PayloadAction<GameMove>) => {
       state.moveHistory.push(action.payload);
       state.lastMove = action.payload;
       state.selectedPosition = null;
-      state.validMoves = [];
     },
     
     // UI interactions
     selectPosition: (state, action: PayloadAction<[number, number] | null>) => {
       state.selectedPosition = action.payload;
-      if (action.payload === null) {
-        state.validMoves = [];
-      }
-    },
-    setValidMoves: (state, action: PayloadAction<[number, number][]>) => {
-      state.validMoves = action.payload;
     },
     
     // Game end
@@ -231,6 +245,7 @@ const gameSlice = createSlice({
 });
 
 export const {
+  startAIGame,
   startLocalPVPGame,
   createGameStart,
   createGameSuccess,
@@ -239,7 +254,6 @@ export const {
   localMove,
   makeMove,
   selectPosition,
-  setValidMoves,
   gameEnded,
   setConnected,
   setAvailableGames,

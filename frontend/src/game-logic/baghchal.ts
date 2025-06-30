@@ -12,29 +12,33 @@ export type Position = [number, number];
 const connections: { [key: string]: Position[] } = {
     '0,0': [[0,1], [1,0], [1,1]],
     '0,1': [[0,0], [0,2], [1,1]],
-    '0,2': [[0,1], [0,3], [1,2]],
+    '0,2': [[0,1], [0,3], [1,2], [1,1], [1,3]],
     '0,3': [[0,2], [0,4], [1,3]],
     '0,4': [[0,3], [1,4], [1,3]],
+
     '1,0': [[0,0], [2,0], [1,1]],
-    '1,1': [[0,0], [0,1], [0,2], [1,0], [1,2], [2,0], [2,1], [2,2]],
+    '1,1': [[1,0], [0,1], [1,2], [2,1], [2,2], [0,0], [0,2], [2,0]],
     '1,2': [[0,2], [1,1], [1,3], [2,2]],
-    '1,3': [[0,3], [0,4], [1,2], [1,4], [2,3], [2,4], [2,2]],
-    '1,4': [[0,4], [2,4], [1,3]],
-    '2,0': [[1,0], [1,1], [2,1], [3,0], [3,1]],
-    '2,1': [[1,1], [2,0], [2,2], [3,1]],
+    '1,3': [[0,3], [0,4], [1,2], [1,4], [2,2], [2,3], [2,4]],
+    '1,4': [[0,4], [1,3], [2,4]],
+
+    '2,0': [[1,0], [3,0], [2,1], [1,1], [3,1]],
+    '2,1': [[2,0], [1,1], [3,1], [2,2]],
     '2,2': [[1,1], [1,2], [1,3], [2,1], [2,3], [3,1], [3,2], [3,3]],
-    '2,3': [[1,3], [2,2], [2,4], [3,3]],
-    '2,4': [[1,3], [1,4], [2,3], [3,3], [3,4]],
+    '2,3': [[2,2], [1,3], [3,3], [2,4]],
+    '2,4': [[1,4], [1,3], [2,3], [3,3], [3,4]],
+
     '3,0': [[2,0], [4,0], [3,1]],
-    '3,1': [[2,0], [2,1], [2,2], [3,0], [3,2], [4,0], [4,1], [4,2]],
-    '3,2': [[2,2], [3,1], [3,3], [4,2]],
-    '3,3': [[2,2], [2,3], [2,4], [3,2], [3,4], [4,2], [4,3], [4,4]],
-    '3,4': [[2,4], [4,4], [3,3]],
-    '4,0': [[3,0], [3,1], [4,1]],
+    '3,1': [[3,0], [2,0], [2,1], [3,2], [4,0], [4,2], [2,2], [4,1]],
+    '3,2': [[3,1], [2,2], [3,3], [4,2]],
+    '3,3': [[3,2], [2,3], [2,4], [3,4], [4,2], [4,3], [4,4], [2,2]],
+    '3,4': [[2,4], [3,3], [4,4]],
+
+    '4,0': [[3,0], [4,1], [3,1]],
     '4,1': [[4,0], [4,2], [3,1]],
-    '4,2': [[4,1], [4,3], [3,2]],
-    '4,3': [[4,2], [4,4], [3,3]],
-    '4,4': [[4,3], [3,3], [3,4]],
+    '4,2': [[4,1], [3,1], [3,2], [3,3], [4,3]],
+    '4,3': [[4,2], [3,3], [4,4]],
+    '4,4': [[3,4], [4,3], [3,3]]
 };
 
 function getConnections(pos: Position): Position[] {
@@ -71,20 +75,25 @@ export function isMoveValid(state: GameState, move: PotentialMove | GameMove): b
     }
 
     // Check for a standard move (to adjacent connected spot)
-    const connected = getConnections(from).some(p => p[0] === toRow && p[1] === toCol);
-    if (connected) return true;
+    const isStandardMove = getConnections(from).some(p => p[0] === toRow && p[1] === toCol);
+    if (isStandardMove) {
+        return true; // Valid for both tigers and goats
+    }
     
-    // Check for a tiger capture move
-    if (currentPlayer === 'tigers') {
-        const [midRow, midCol] = [(fromRow + toRow) / 2, (fromCol + toCol) / 2];
-        if (Number.isInteger(midRow) && Number.isInteger(midCol)) {
-            // It's a jump, check if it's over a goat and to a connected spot
-            const isJumpConnected = getConnections(from).some(p => p[0] === midRow && p[1] === midCol);
-            if (isJumpConnected && board[midRow][midCol] === 2) { // Must jump a goat
-                    // Check if the landing spot is also connected to the jumped spot
-                const isLandingConnected = getConnections([midRow, midCol]).some(p => p[0] === toRow && p[1] === toCol);
-                return isLandingConnected;
-            }
+    // If it's not a standard move, it could be a tiger capture. Goats cannot capture.
+    if (currentPlayer === 'goats') {
+        return false;
+    }
+
+    // Check for a valid tiger capture (jump over a goat to a connected, empty spot)
+    const [midRow, midCol] = [(fromRow + toRow) / 2, (fromCol + toCol) / 2];
+    if (Number.isInteger(midRow) && Number.isInteger(midCol)) {
+        const isJumpOverGoat = board[midRow][midCol] === 2;
+        if (isJumpOverGoat) {
+            // A capture is valid if the path from->mid->to exists.
+            const isPathValid = getConnections(from).some(p => p[0] === midRow && p[1] === midCol) &&
+                                getConnections([midRow, midCol]).some(p => p[0] === toRow && p[1] === toCol);
+            return isPathValid;
         }
     }
 
@@ -108,18 +117,16 @@ export function applyMove(state: GameState, move: GameMove): GameState {
         board[from[0]][from[1]] = 0;
         board[to[0]][to[1]] = piece;
 
-        // Check for capture - ensure it was a valid jump over a goat
+        // isMoveValid has already confirmed this is a valid move.
+        // If it was a tiger jump, we just need to remove the goat.
         if (currentPlayer === 'tigers') {
             const dx = Math.abs(from[0] - to[0]);
             const dy = Math.abs(from[1] - to[1]);
-            if (dx === 2 || dy === 2 || (dx === 2 && dy === 2)) {
+            if (dx > 1 || dy > 1) { // A jump is any move greater than 1 unit away
                 const midRow = (from[0] + to[0]) / 2;
                 const midCol = (from[1] + to[1]) / 2;
-                // Double-check that a goat was actually there to be captured
-                if (Number.isInteger(midRow) && Number.isInteger(midCol) && state.board[midRow][midCol] === 2) {
-                    board[midRow][midCol] = 0; // Remove captured goat
-                    newState.goatsCaptured++;
-                }
+                board[midRow][midCol] = 0; // Remove captured goat
+                newState.goatsCaptured++;
             }
         }
     }
@@ -138,33 +145,40 @@ export function applyMove(state: GameState, move: GameMove): GameState {
 /**
  * Checks for a win condition.
  */
-export function checkWinCondition(state: GameState): { gameOver: boolean; winner: PlayerSide | null } {
-    // Tiger wins by capturing 5 goats
+export function checkWinCondition(state: GameState): { winner: 'tigers' | 'goats' | 'draw' | null, gameOver: boolean } {
+    // Tiger win condition: 5 goats captured
     if (state.goatsCaptured >= 5) {
-        return { gameOver: true, winner: 'tigers' };
+        return { winner: 'tigers', gameOver: true };
     }
 
-    // Goat wins if all tigers are blocked
-    if (state.phase === 'movement') {
-        let tigersCanMove = false;
-        for (let r = 0; r < 5; r++) {
-            for (let c = 0; c < 5; c++) {
-                if (state.board[r][c] === 1) { // It's a tiger
-                    if (getValidTigerMoves([r, c], state.board).length > 0) {
-                        tigersCanMove = true;
-                        break;
-                    }
-                }
+    // Goat win condition: Tigers are trapped
+    const tigers = [];
+    for (let r = 0; r < 5; r++) {
+        for (let c = 0; c < 5; c++) {
+            if (state.board[r][c] === 1) {
+                tigers.push([r, c]);
             }
-            if (tigersCanMove) break;
-        }
-
-        if (!tigersCanMove) {
-            return { gameOver: true, winner: 'goats' };
         }
     }
 
-    return { gameOver: false, winner: null };
+    // This check must be independent of whose turn it is.
+    // We check if any tiger has any valid move.
+    if (state.phase === 'movement' && tigers.length > 0) {
+        let canAnyTigerMove = false;
+        for (const tigerPos of tigers) {
+            const moves = getValidTigerMoves(tigerPos as [number, number], state.board);
+            if (moves.length > 0) {
+                canAnyTigerMove = true;
+                break; // Found a movable tiger, no need to check others
+            }
+        }
+
+        if (!canAnyTigerMove) {
+            return { winner: 'goats', gameOver: true };
+        }
+    }
+
+    return { winner: null, gameOver: false };
 }
 
 /**

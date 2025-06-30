@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-
 import { RootState } from '../store';
 import LoadingScreen from '../components/LoadingScreen';
 import { AuthNavigator, MainStackNavigator } from './MainNavigator';
@@ -17,36 +16,15 @@ const ProfileLoader: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   
   const {
     data: profileData,
-    error: profileError,
-    isLoading: profileLoading,
-  } = useGetProfileQuery(undefined, {
+  } = useGetProfileQuery(null, {
     skip: !shouldFetchProfile,
   });
 
   useEffect(() => {
     if (profileData && shouldFetchProfile) {
-      console.log('Updating user profile with data:', profileData);
-      dispatch(updateProfile({
-        id: profileData.id,
-        username: profileData.username,
-        email: profileData.email,
-        rating: profileData.rating,
-        games_played: profileData.games_played,
-        games_won: profileData.games_won,
-        tiger_wins: profileData.tiger_wins,
-        goat_wins: profileData.goat_wins,
-        created_at: profileData.created_at,
-      }));
+      dispatch(updateProfile(profileData));
     }
   }, [profileData, shouldFetchProfile, dispatch]);
-
-  useEffect(() => {
-    if (profileError && shouldFetchProfile) {
-      console.warn('Failed to load user profile:', profileError);
-      // Don't crash the app, just log the error
-      // The user can still use the app with basic profile data
-    }
-  }, [profileError, shouldFetchProfile]);
 
   return <>{children}</>;
 };

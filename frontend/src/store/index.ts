@@ -1,5 +1,5 @@
-import { configureStore } from '@reduxjs/toolkit';
-import { persistStore, persistReducer } from 'redux-persist';
+import { configureStore, combineReducers } from '@reduxjs/toolkit';
+import { persistStore, persistReducer, FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER } from 'redux-persist';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { api } from '../services/api';
@@ -10,22 +10,24 @@ import uiReducer from './slices/uiSlice';
 const persistConfig = {
   key: 'root',
   storage: AsyncStorage,
-  whitelist: ['auth'], // Only persist auth state
+  whitelist: ['auth'], // We only want to persist auth state
 };
 
-const persistedAuthReducer = persistReducer(persistConfig, authReducer);
+const rootReducer = combineReducers({
+  [api.reducerPath]: api.reducer,
+  auth: authReducer,
+  game: gameReducer,
+  ui: uiReducer,
+});
+
+const persistedReducer = persistReducer(persistConfig, rootReducer);
 
 export const store = configureStore({
-  reducer: {
-    api: api.reducer,
-    auth: persistedAuthReducer,
-    game: gameReducer,
-    ui: uiReducer,
-  },
+  reducer: persistedReducer,
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
-        ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE'],
+        ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
       },
     }).concat(api.middleware),
 });
