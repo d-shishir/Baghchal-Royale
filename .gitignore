@@ -59,6 +59,7 @@ coverage.xml
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
+*.db
 
 # Flask stuff:
 instance/
@@ -135,6 +136,11 @@ cython_debug/
 
 # VSCode
 .vscode/
+
+# AI Models
+*.pkl
+training_checkpoint_*.json
+backend/app/ai/models/*.json
 
 ### Node ###
 # Logs
@@ -251,7 +257,7 @@ dist
 
 ### React Native ###
 # Expo
-.expo/
+frontend/.expo/
 web-build/
 
 # Android
