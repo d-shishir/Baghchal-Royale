@@ -39,62 +39,58 @@ class BaghchalEnv:
         
         # Define valid connections on the board (which positions are connected)
         self._init_board_connections()
+        self.adjacency_matrix = self._create_adjacency_matrix()
     
     def _init_board_connections(self):
-        """Initialize the valid connections between board positions based on traditional Baghchal board."""
+        """Initialize the valid connections from a predefined adjacency list."""
+        self.adjacency_list = {
+            (0, 0): [(0, 1), (1, 0), (1, 1)],
+            (0, 1): [(0, 0), (0, 2), (1, 1)],
+            (0, 2): [(0, 1), (0, 3), (1, 2), (1, 1), (1, 3)],
+            (0, 3): [(0, 2), (0, 4), (1, 3)],
+            (0, 4): [(0, 3), (1, 4), (1, 3)],
+            (1, 0): [(0, 0), (2, 0), (1, 1)],
+            (1, 1): [(1, 0), (0, 1), (1, 2), (2, 1), (2, 2), (0, 0), (0, 2), (2, 0)],
+            (1, 2): [(0, 2), (1, 1), (1, 3), (2, 2)],
+            (1, 3): [(0, 3), (0, 4), (1, 2), (1, 4), (2, 2), (2, 3), (2, 4)],
+            (1, 4): [(0, 4), (1, 3), (2, 4)],
+            (2, 0): [(1, 0), (3, 0), (2, 1), (1, 1), (3, 1)],
+            (2, 1): [(2, 0), (1, 1), (3, 1), (2, 2)],
+            (2, 2): [(1, 1), (1, 2), (1, 3), (2, 1), (2, 3), (3, 1), (3, 2), (3, 3)],
+            (2, 3): [(2, 2), (1, 3), (3, 3), (2, 4)],
+            (2, 4): [(1, 4), (1, 3), (2, 3), (3, 3), (3, 4)],
+            (3, 0): [(2, 0), (4, 0), (3, 1)],
+            (3, 1): [(3, 0), (2, 0), (2, 1), (3, 2), (4, 0), (4, 2), (2, 2), (4, 1)],
+            (3, 2): [(3, 1), (2, 2), (3, 3), (4, 2)],
+            (3, 3): [(3, 2), (2, 3), (2, 4), (3, 4), (4, 2), (4, 3), (4, 4), (2, 2)],
+            (3, 4): [(2, 4), (3, 3), (4, 4)],
+            (4, 0): [(3, 0), (4, 1), (3, 1)],
+            (4, 1): [(4, 0), (4, 2), (3, 1)],
+            (4, 2): [(4, 1), (3, 1), (3, 2), (3, 3), (4, 3)],
+            (4, 3): [(4, 2), (3, 3), (4, 4)],
+            (4, 4): [(3, 4), (4, 3), (3, 3)],
+        }
+        # For compatibility with the rest of the class that expects a set of tuples
         self.connections = set()
-        
-        # Horizontal connections (all rows)
+        for pos, connected_positions in self.adjacency_list.items():
+            for connected_pos in connected_positions:
+                # Add connections in both directions to ensure symmetry
+                self.connections.add((pos, connected_pos))
+                self.connections.add((connected_pos, pos))
+
+    def _create_adjacency_matrix(self):
+        # Returns a dict mapping (row, col) to a list of connected (row, col) positions
+        adjacency = {}
         for row in range(self.board_size):
-            for col in range(self.board_size - 1):
-                pos1 = (row, col)
-                pos2 = (row, col + 1)
-                self.connections.add((pos1, pos2))
-                self.connections.add((pos2, pos1))
-        
-        # Vertical connections (all columns)
-        for row in range(self.board_size - 1):
             for col in range(self.board_size):
-                pos1 = (row, col)
-                pos2 = (row + 1, col)
-                self.connections.add((pos1, pos2))
-                self.connections.add((pos2, pos1))
-        
-        # Diagonal connections - Two main diagonals (cross) + inner slanted square
-        # Based on traditional Baghchal board layout
-        
-        # Main diagonal: top-left to bottom-right (full board)
-        for i in range(self.board_size):
-            if i < self.board_size - 1:
-                pos1 = (i, i)
-                pos2 = (i + 1, i + 1)
-                self.connections.add((pos1, pos2))
-                self.connections.add((pos2, pos1))
-        
-        # Anti-diagonal: top-right to bottom-left (full board)
-        for i in range(self.board_size):
-            if i < self.board_size - 1:
-                pos1 = (i, self.board_size - 1 - i)
-                pos2 = (i + 1, self.board_size - 2 - i)
-                self.connections.add((pos1, pos2))
-                self.connections.add((pos2, pos1))
-        
-        # Inner slanted square (diamond) connecting middle points of each side
-        # Top middle to right middle
-        self.connections.add(((0, 2), (2, 4)))
-        self.connections.add(((2, 4), (0, 2)))
-        
-        # Right middle to bottom middle
-        self.connections.add(((2, 4), (4, 2)))
-        self.connections.add(((4, 2), (2, 4)))
-        
-        # Bottom middle to left middle
-        self.connections.add(((4, 2), (2, 0)))
-        self.connections.add(((2, 0), (4, 2)))
-        
-        # Left middle to top middle (completing the diamond)
-        self.connections.add(((2, 0), (0, 2)))
-        self.connections.add(((0, 2), (2, 0)))
+                pos = (row, col)
+                adjacency[pos] = []
+                for other_row in range(self.board_size):
+                    for other_col in range(self.board_size):
+                        other_pos = (other_row, other_col)
+                        if (pos, other_pos) in self.connections:
+                            adjacency[pos].append(other_pos)
+        return adjacency
     
     def reset(self):
         """Reset the game to initial state."""
@@ -409,27 +405,17 @@ class BaghchalEnv:
     
     def _check_game_over(self):
         """Check if the game is over and determine the winner."""
-        # Tigers win if they capture enough goats
+        # Tigers win if they capture enough goats (regardless of phase)
         if self.goats_captured >= self.goats_to_capture_for_tiger_win:
             self.game_over = True
             self.winner = Player.TIGER
             return
-        
         # Goats win if all tigers are blocked (only check during movement phase)
         if self.phase == GamePhase.MOVEMENT:
-            tiger_can_move = False
-            for row in range(self.board_size):
-                for col in range(self.board_size):
-                    if self.board[row, col] == PieceType.TIGER.value:
-                        if len(self._get_valid_moves_for_piece((row, col), Player.TIGER)) > 0:
-                            tiger_can_move = True
-                            break
-                if tiger_can_move:
-                    break
-            
-            if not tiger_can_move:
+            if self._are_tigers_blocked():
                 self.game_over = True
                 self.winner = Player.GOAT
+                return
     
     def is_game_over(self) -> bool:
         """Check if the game is over."""
@@ -465,6 +451,19 @@ class BaghchalEnv:
             print("="*30)
         
         return self.board.copy()
+
+    def is_adjacent(self, pos1: Tuple[int, int], pos2: Tuple[int, int]) -> bool:
+        """Check if two positions are adjacent."""
+        return (pos1, pos2) in self.connections or (pos2, pos1) in self.connections
+
+    def _are_tigers_blocked(self) -> bool:
+        """Check if all tigers on the board are blocked."""
+        for r in range(self.board_size):
+            for c in range(self.board_size):
+                if self.board[r, c] == PieceType.TIGER.value:
+                    if len(self._get_valid_moves_for_piece((r, c), Player.TIGER)) > 0:
+                        return False
+        return True
 
 # Test the environment
 if __name__ == "__main__":

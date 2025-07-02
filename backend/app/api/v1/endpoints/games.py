@@ -6,45 +6,21 @@ import json
 
 from app import crud, models, schemas
 from app.api import deps
-from app.core.baghchal_env import BaghchalEnv, Player, GamePhase
-from app.core.enhanced_ai import AIPlayer, AIGameManager
-from app.core.game_utils import reconstruct_game_state, validate_game_state
+from app.core.baghchal_env import BaghchalEnv, Player
+from app.core.enhanced_ai import get_enhanced_ai_move
+from app.core.game_utils import reconstruct_game_state
 from pydantic import BaseModel
 
 router = APIRouter()
 
 # In-memory game sessions (for active games)
 active_games: Dict[str, BaghchalEnv] = {}
-ai_agents: Dict[str, Dict[str, Any]] = {}
+# Stores AI player info for PvAI games
+ai_game_info: Dict[str, Dict[str, str]] = {}
 
-# Initialize AI manager
-try:
-    ai_manager = AIGameManager()
-    tiger_ai = ai_manager.create_ai_player(Player.TIGER, "enhanced")
-    goat_ai = ai_manager.create_ai_player(Player.GOAT, "enhanced")
-    AI_AVAILABLE = True
-    print("✅ AI system initialized successfully")
-except Exception as e:
-    print(f"Warning: AI initialization failed: {e}")
-    ai_manager = None
-    tiger_ai = None
-    goat_ai = None
-    AI_AVAILABLE = False
-
-# Pydantic models for game operations
-class GameStateResponse(BaseModel):
-    game_id: str
-    board: List[List[int]]
-    phase: str
-    current_player: str
-    goats_placed: int
-    goats_captured: int
-    game_over: bool
-    winner: Optional[str]
-    valid_actions: List[Dict[str, Any]]
 
 class MoveRequest(BaseModel):
-    action_type: str  # "place" or "move"
+    action_type: str
     row: Optional[int] = None
     col: Optional[int] = None
     from_row: Optional[int] = None
@@ -53,183 +29,70 @@ class MoveRequest(BaseModel):
     to_col: Optional[int] = None
 
 class CreateGameRequest(BaseModel):
-    mode: str = "pvai"  # "pvp" or "pvai"
-    side: Optional[str] = "goats"  # "tigers" or "goats"
-    difficulty: Optional[str] = "medium"  # "easy", "medium", "hard"
+    mode: str = "pvai"
+    side: Optional[str] = "goats"
+    difficulty: Optional[str] = "medium"
 
 
-def get_ai_player_for_difficulty(player_type: Player, difficulty: str) -> Optional[AIPlayer]:
-    """Get AI player based on difficulty level."""
-    if not AI_AVAILABLE or not ai_manager:
-        print(f"❌ AI not available: AI_AVAILABLE={AI_AVAILABLE}, ai_manager={ai_manager}")
-        return None
-    
-    try:
-        print(f"🤖 Creating AI player: type={player_type}, difficulty={difficulty}")
-        
-        if difficulty == "easy":
-            # Create new advanced AI for easy (could use different strategy)
-            ai_player = ai_manager.create_ai_player(player_type, "advanced")
-        elif difficulty == "medium":
-            # Use global enhanced AI instances or create new ones
-            ai_player = tiger_ai if player_type == Player.TIGER else goat_ai
-            if not ai_player:
-                print(f"⚠️ Global AI instance not available, creating new one")
-                ai_player = ai_manager.create_ai_player(player_type, "advanced")
-        else:  # hard
-            # Use global enhanced AI instances or create new ones
-            ai_player = tiger_ai if player_type == Player.TIGER else goat_ai
-            if not ai_player:
-                print(f"⚠️ Global AI instance not available, creating new one")
-                ai_player = ai_manager.create_ai_player(player_type, "advanced")
-        
-        print(f"✅ AI player created: {type(ai_player)} for {player_type} at {difficulty} difficulty")
-        return ai_player
-        
-    except Exception as e:
-        print(f"❌ Error creating AI player: {e}")
-        import traceback
-        print(f"❌ Traceback: {traceback.format_exc()}")
+def execute_ai_move_if_needed(game_id: str, db: Session) -> Optional[Dict[str, Any]]:
+    """
+    If it's the AI's turn in a PvAI game, this function gets the AI's move,
+    executes it in the game environment, updates the database, and returns the result.
+    """
+    if game_id not in ai_game_info or game_id not in active_games:
         return None
 
-
-def execute_ai_move_if_needed(game_id: str, db: Session) -> Dict[str, Any]:
-    """Execute AI move if it's AI's turn in a PvAI game."""
-    if game_id not in ai_agents or game_id not in active_games:
-        return {}
-    
     game_env = active_games[game_id]
     state = game_env.get_state()
-    
+
     if state['game_over']:
-        return {}
-    
-    ai_info = ai_agents[game_id]
-    current_player_name = state['current_player'].name.lower()
-    # Map singular to plural for comparison
-    if current_player_name == 'goat':
-        current_player_name = 'goats'
-    elif current_player_name == 'tiger':
-        current_player_name = 'tigers'
-    
-    print(f"🤖 AI Check: current_player='{current_player_name}', ai_side='{ai_info['ai_side']}', match={current_player_name == ai_info['ai_side']}")
-    
-    # Check if it's AI's turn
-    if current_player_name != ai_info['ai_side']:
-        return {}
-    
-    # Get AI player based on difficulty
-    ai_side_enum = Player.TIGER if current_player_name == "tigers" else Player.GOAT
-    ai_player = get_ai_player_for_difficulty(ai_side_enum, ai_info['difficulty'])
-    
-    if not ai_player:
-        print(f"❌ AI player not available for {current_player_name}")
-        return {}
-    
-    try:
-        # Use direct advanced AI system that we know works
-        from app.core.advanced_baghchal_ai import AdvancedTigerAI, AdvancedGoatAI, TigerStrategy, GoatStrategy
-        
-        # Create fresh AI instance directly (bypassing the complex initialization)
-        if ai_side_enum == Player.TIGER:
-            direct_ai = AdvancedTigerAI(TigerStrategy.AGGRESSIVE_HUNT, "expert")
-        else:
-            direct_ai = AdvancedGoatAI(GoatStrategy.DEFENSIVE_BLOCK, "expert")
-        
-        print(f"🤖 Using direct AI: {type(direct_ai).__name__}")
-        action = direct_ai.select_action(game_env, state)
-        
-        if not action:
-            print(f"❌ Direct AI also failed, trying AI player...")
-            # Fallback to original method
-            action = ai_player.select_action(game_env, state)
-        
-        if not action:
-            print(f"❌ AI could not select action for {current_player_name}")
-            return {"error": "AI could not select action", "ai_move_executed": False}
-        
-        print(f"🤖 AI ({current_player_name}) executing: {action}")
-        
-        # Execute AI move
-        try:
-            new_state, reward, done, info = game_env.step(action)
-            print(f"✅ Move executed successfully: {action}")
-        except Exception as step_error:
-            print(f"❌ Error executing move {action}: {step_error}")
-            import traceback
-            print(f"❌ Step error traceback: {traceback.format_exc()}")
-            return {"error": f"Could not execute AI move: {step_error}", "ai_move_executed": False}
-        
-        # Update database
-        game = crud.game.get_sync(db=db, id=uuid.UUID(game_id))
-        if game:
-            board_state = {
-                "board": new_state['board'].tolist(),
-                "phase": new_state['phase'].name,
-                "current_player": new_state['current_player'].name,
-                "goats_placed": new_state['goats_placed'],
-                "goats_captured": new_state['goats_captured'],
-                "game_over": new_state['game_over'],
-                "winner": new_state['winner'].name if new_state['winner'] else None
-            }
-            
-            # Fix field mapping - use correct model fields
-            game.board = json.dumps(board_state)  # Store as JSON text
-            game.phase = new_state['phase'].name.lower()
-            game.goats_placed = new_state['goats_placed']
-            game.goats_captured = new_state['goats_captured']
-            
-            if new_state['game_over']:
-                game.status = "finished"
-                # Set winner correctly - need to get player side from ai_agents
-                if game_id in ai_agents:
-                    ai_info = ai_agents[game_id]
-                    if new_state['winner'] == Player.TIGER:
-                        if ai_info['player_side'] == "tigers":
-                            game.winner_id = game.player_1_id
-                    elif new_state['winner'] == Player.GOAT:
-                        if ai_info['player_side'] == "goats":
-                            game.winner_id = game.player_1_id
-            
-            db.commit()
-            db.refresh(game)
-        
-        # Map enum names to frontend expected format for AI response
-        result_current_player = new_state['current_player'].name.lower()
-        if result_current_player == 'goat':
-            result_current_player = 'goats'
-        elif result_current_player == 'tiger':
-            result_current_player = 'tigers'
-        
-        winner_name = None
-        if new_state['winner']:
-            winner_name = new_state['winner'].name.lower()
-            if winner_name == 'goat':
-                winner_name = 'goats'
-            elif winner_name == 'tiger':
-                winner_name = 'tigers'
+        return None
 
-        print(f"✅ AI move executed successfully. New state: {result_current_player}'s turn")
+    info = ai_game_info[game_id]
+    current_player_name = state['current_player'].name.lower() + 's'
 
-        return {
-            "ai_move_executed": True,
-            "action": action,
-            "game_state": {
-                "board": new_state['board'].tolist(),
-                "phase": new_state['phase'].name.lower(),
-                "current_player": result_current_player,
-                "goats_placed": new_state['goats_placed'],
-                "goats_captured": new_state['goats_captured'],
-                "game_over": new_state['game_over'],
-                "winner": winner_name
-            }
-        }
-        
-    except Exception as e:
-        print(f"❌ Error executing AI move: {e}")
-        import traceback
-        print(f"❌ Full traceback: {traceback.format_exc()}")
-        return {"error": str(e), "ai_move_executed": False}
+    if current_player_name != info['ai_side']:
+        return None
+
+    ai_player = Player.TIGER if info['ai_side'] == 'tigers' else Player.GOAT
+    
+    action = get_enhanced_ai_move(ai_player, game_env, state)
+
+    if not action:
+        print(f"❌ AI could not select an action for {current_player_name}")
+        return None
+
+    print(f"🤖 AI ({current_player_name}) executing: {action}")
+    new_state, _, _, _ = game_env.step(action)
+    
+    _update_game_state_in_db(db, game_id, new_state)
+
+    return {
+        "ai_move_executed": True,
+        "action": action,
+        "game_state": _format_state_for_response(new_state)
+    }
+
+def _update_game_state_in_db(db: Session, game_id: str, state: Dict):
+    """Helper to persist the game state to the database."""
+    game = crud.game.get_sync(db=db, id=uuid.UUID(game_id))
+    if game:
+        board_state = _format_state_for_response(state)
+        game.board = json.dumps(board_state)
+        game.phase = state['phase'].name.lower()
+        game.goats_placed = state['goats_placed']
+        game.goats_captured = state['goats_captured']
+        if state['game_over']:
+            game.status = "finished"
+            winner = state.get('winner')
+            if winner:
+                info = ai_game_info.get(game_id, {})
+                player_side = info.get('player_side')
+                if (winner == Player.TIGER and player_side == 'tigers') or \
+                   (winner == Player.GOAT and player_side == 'goats'):
+                    game.winner_id = game.player_1_id
+        db.commit()
+        db.refresh(game)
 
 
 @router.post("/create", response_model=Dict[str, Any])
@@ -240,75 +103,41 @@ def create_game(
     current_user: models.User = Depends(deps.get_current_active_user_sync),
 ) -> Any:
     """
-    Create new game with enhanced Baghchal logic.
+    Create a new game.
     """
-    # Create game environment
     game_env = BaghchalEnv()
     game_id = str(uuid.uuid4())
-    
-    # Store in active games
     active_games[game_id] = game_env
     
-    # Initialize board state for database
-    state = game_env.get_state()
-    board_state = {
-        "board": state['board'].tolist(),
-        "phase": state['phase'].name,
-        "current_player": state['current_player'].name,
-        "goats_placed": state['goats_placed'],
-        "goats_captured": state['goats_captured'],
-        "game_over": state['game_over'],
-        "winner": state['winner'].name if state['winner'] else None
-    }
+    player_side = game_request.side
+    ai_side = 'tigers' if player_side == 'goats' else 'goats'
     
-    # Set up AI if needed
-    if game_request.mode == "pvai":
-        ai_agents[game_id] = {
-            "player_side": game_request.side,
-            "ai_side": "tigers" if game_request.side == "goats" else "goats",
-            "difficulty": game_request.difficulty
+    if game_request.mode == 'pvai':
+        ai_game_info[game_id] = {
+            'ai_side': ai_side,
+            'player_side': player_side,
+            'difficulty': game_request.difficulty
         }
+
+    # Create game in DB
+    game = crud.game.create_with_owner(db=db, obj_in=schemas.GameCreate(
+        id=game_id,
+        status="active",
+        mode=game_request.mode,
+        player_1_id=current_user.id
+    ), owner_id=current_user.id)
     
-    # Create game record using CRUD
-    game_create = schemas.GameCreate(
-        game_mode=game_request.mode,
-        player1_side=game_request.side
-    )
+    initial_state = _format_state_for_response(game_env.get_state())
     
-    # Create the game object manually for now
-    db_game = models.Game(
-        id=uuid.UUID(game_id),
-        player_1_id=current_user.id,
-        board=json.dumps(board_state),  # Store as JSON text
-        phase=state['phase'].name.lower(),
-        goats_placed=state['goats_placed'],
-        goats_captured=state['goats_captured'],
-        status="active"
-    )
-    
-    db.add(db_game)
-    db.commit()
-    db.refresh(db_game)
-    
-    response_data = {
-        "game_id": game_id,
-        "mode": game_request.mode,
-        "player_side": game_request.side,
-        "ai_side": ai_agents.get(game_id, {}).get("ai_side"),
-        "difficulty": game_request.difficulty,
-        "status": "active"
-    }
-    
-    # Execute AI move if AI goes first (tigers start)
-    if game_request.mode == "pvai" and game_request.side == "goats":
-        ai_result = execute_ai_move_if_needed(game_id, db)
-        if ai_result.get("ai_move_executed"):
-            response_data["ai_move"] = ai_result
-    
+    # Check if AI needs to make the first move
+    ai_response = execute_ai_move_if_needed(game_id, db)
+    if ai_response:
+        initial_state = ai_response["game_state"]
+
     return {
-        "success": True,
+        "game_id": game_id,
         "message": "Game created successfully",
-        "data": response_data
+        "game_state": initial_state
     }
 
 
@@ -392,7 +221,7 @@ def get_game_state(
             "game_over": state['game_over'],
             "winner": winner_name,
             "valid_actions": valid_actions,
-            "ai_info": ai_agents.get(game_id, {})
+            "ai_info": ai_game_info.get(game_id, {})
         }
     }
 
@@ -425,8 +254,8 @@ def make_move(
     current_state = game_env.get_state()
     
     # For PvAI games, check if it's the human player's turn
-    if game_id in ai_agents:
-        ai_info = ai_agents[game_id]
+    if game_id in ai_game_info:
+        ai_info = ai_game_info[game_id]
         current_player_name = current_state['current_player'].name.lower()
         # Map singular to plural for comparison
         if current_player_name == 'goat':
@@ -473,9 +302,9 @@ def make_move(
         
         if state['game_over']:
             game.status = "finished"
-            # Set winner correctly - need to get player side from ai_agents
-            if game_id in ai_agents:
-                ai_info = ai_agents[game_id]
+            # Set winner correctly - need to get player side from ai_game_info
+            if game_id in ai_game_info:
+                ai_info = ai_game_info[game_id]
                 if state['winner'] == Player.TIGER:
                     if ai_info['player_side'] == "tigers":
                         game.winner_id = game.player_1_id
@@ -513,9 +342,9 @@ def make_move(
         }
         
         # Execute AI move if game is not over and it's a PvAI game
-        if not state['game_over'] and game_id in ai_agents:
+        if not state['game_over'] and game_id in ai_game_info:
             ai_result = execute_ai_move_if_needed(game_id, db)
-            if ai_result.get("ai_move_executed"):
+            if ai_result:
                 response_data["ai_move"] = ai_result
         
         return {
@@ -551,7 +380,7 @@ def make_ai_move(
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
     # Check if this is a PvAI game
-    if game_id not in ai_agents:
+    if game_id not in ai_game_info:
         raise HTTPException(status_code=400, detail="This is not a PvAI game")
     
     # Check if game is still active
@@ -561,7 +390,7 @@ def make_ai_move(
     # Execute AI move
     ai_result = execute_ai_move_if_needed(game_id, db)
     
-    if not ai_result.get("ai_move_executed"):
+    if not ai_result:
         error_msg = ai_result.get("error", "Could not execute AI move")
         print(f"❌ AI move failed for game {game_id}: {error_msg}")
         raise HTTPException(status_code=400, detail=f"AI move failed: {error_msg}")
@@ -657,8 +486,8 @@ def reset_game(
         db.refresh(game)
         
         # Execute AI move if AI goes first
-        if game_id in ai_agents:
-            ai_info = ai_agents[game_id]
+        if game_id in ai_game_info:
+            ai_info = ai_game_info[game_id]
             if state['current_player'].name.lower() == ai_info['ai_side']:
                 execute_ai_move_if_needed(game_id, db)
     
@@ -682,8 +511,22 @@ def get_ai_status() -> Any:
         "ai_available": True,
         "system_info": system_info,
         "active_games": len(active_games),
-        "ai_games": len(ai_agents),
+        "ai_games": len(ai_game_info),
         "difficulties": ["easy", "medium", "hard"]
+    }
+
+
+def _format_state_for_response(state: Dict[str, Any]) -> Dict[str, Any]:
+    """Helper to format the game state dictionary for API responses."""
+    winner = state.get('winner')
+    return {
+        "board": state['board'].tolist(),
+        "phase": state['phase'].name.lower(),
+        "current_player": state['current_player'].name.lower() + 's',
+        "goats_placed": state['goats_placed'],
+        "goats_captured": state['goats_captured'],
+        "game_over": state['game_over'],
+        "winner": winner.name.lower() + 's' if winner else None
     }
 
 

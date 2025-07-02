@@ -1,0 +1,74 @@
+{
+  "total_games": 2000,
+  "overall_stats": {
+    "tiger_wins": 0,
+    "goat_wins": 0,
+    "games_played": 2000,
+    "average_game_length": 40.0,
+    "capture_efficiency": 0,
+    "defensive_success_rate": 0
+  },
+  "strategy_performance": {
+    "tiger_strategies": {
+      "aggressive_hunt": {
+        "games_played": 645,
+        "wins": 0,
+        "win_rate": 0.0,
+        "avg_captures": 3.0
+      },
+      "opportunistic": {
+        "games_played": 683,
+        "wins": 0,
+        "win_rate": 0.0,
+        "avg_captures": 3.0
+      },
+      "corner_control": {
+        "games_played": 0,
+        "wins": 0,
+        "win_rate": 0,
+        "avg_captures": 0
+      },
+      "center_dominance": {
+        "games_played": 672,
+        "wins": 0,
+        "win_rate": 0.0,
+        "avg_captures": 3.0
+      }
+    },
+    "goat_strategies": {
+      "defensive_block": {
+        "games_played": 657,
+        "wins": 0,
+        "win_rate": 0.0,
+        "avg_game_length": 40.0
+      },
+      "center_control": {
+        "games_played": 661,
+        "wins": 0,
+        "win_rate": 0.0,
+        "avg_game_length": 40.0
+      },
+      "formation_build": {
+        "games_played": 0,
+        "wins": 0,
+        "win_rate": 0,
+        "avg_game_length": 0
+      },
+      "tiger_containment": {
+        "games_played": 682,
+        "wins": 0,
+        "win_rate": 0.0,
+        "avg_game_length": 40.0
+      }
+    }
+  },
+  "capture_analysis": {
+    "no_tiger_wins": true
+  },
+  "game_length_stats": {
+    "min": 40,
+    "max": 40,
+    "mean": 40.0,
+    "std": 0.0
+  }
+}

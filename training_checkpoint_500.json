@@ -1,0 +1,655 @@
+{
+  "episode": 500,
+  "results": [
+    {
+      "episode": 451,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "center_dominance",
+      "goat_strategy": "center_control",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 452,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "opportunistic",
+      "goat_strategy": "tiger_containment",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 453,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "center_dominance",
+      "goat_strategy": "center_control",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 454,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "center_dominance",
+      "goat_strategy": "center_control",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 455,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "center_dominance",
+      "goat_strategy": "defensive_block",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 456,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "aggressive_hunt",
+      "goat_strategy": "defensive_block",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 457,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "center_dominance",
+      "goat_strategy": "center_control",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 458,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "opportunistic",
+      "goat_strategy": "tiger_containment",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 459,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "opportunistic",
+      "goat_strategy": "tiger_containment",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 460,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "opportunistic",
+      "goat_strategy": "center_control",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 461,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "aggressive_hunt",
+      "goat_strategy": "defensive_block",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 462,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "aggressive_hunt",
+      "goat_strategy": "defensive_block",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 463,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "opportunistic",
+      "goat_strategy": "center_control",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 464,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "aggressive_hunt",
+      "goat_strategy": "defensive_block",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 465,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "opportunistic",
+      "goat_strategy": "tiger_containment",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 466,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "opportunistic",
+      "goat_strategy": "tiger_containment",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 467,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "aggressive_hunt",
+      "goat_strategy": "tiger_containment",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 468,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "opportunistic",
+      "goat_strategy": "defensive_block",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 469,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "center_dominance",
+      "goat_strategy": "center_control",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 470,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "center_dominance",
+      "goat_strategy": "center_control",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 471,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "aggressive_hunt",
+      "goat_strategy": "tiger_containment",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 472,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "center_dominance",
+      "goat_strategy": "defensive_block",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 473,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "aggressive_hunt",
+      "goat_strategy": "defensive_block",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 474,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "opportunistic",
+      "goat_strategy": "defensive_block",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 475,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "aggressive_hunt",
+      "goat_strategy": "tiger_containment",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 476,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "aggressive_hunt",
+      "goat_strategy": "defensive_block",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 477,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "opportunistic",
+      "goat_strategy": "defensive_block",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 478,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "opportunistic",
+      "goat_strategy": "center_control",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 479,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "opportunistic",
+      "goat_strategy": "center_control",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 480,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "opportunistic",
+      "goat_strategy": "tiger_containment",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 481,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "opportunistic",
+      "goat_strategy": "defensive_block",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 482,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "aggressive_hunt",
+      "goat_strategy": "center_control",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 483,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "opportunistic",
+      "goat_strategy": "defensive_block",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 484,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "aggressive_hunt",
+      "goat_strategy": "defensive_block",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 485,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "opportunistic",
+      "goat_strategy": "tiger_containment",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 486,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "aggressive_hunt",
+      "goat_strategy": "tiger_containment",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 487,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "center_dominance",
+      "goat_strategy": "defensive_block",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 488,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "center_dominance",
+      "goat_strategy": "center_control",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 489,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "opportunistic",
+      "goat_strategy": "tiger_containment",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 490,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "opportunistic",
+      "goat_strategy": "defensive_block",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 491,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "opportunistic",
+      "goat_strategy": "tiger_containment",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 492,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "aggressive_hunt",
+      "goat_strategy": "tiger_containment",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 493,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "opportunistic",
+      "goat_strategy": "tiger_containment",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 494,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "opportunistic",
+      "goat_strategy": "tiger_containment",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 495,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "aggressive_hunt",
+      "goat_strategy": "defensive_block",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 496,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "center_dominance",
+      "goat_strategy": "tiger_containment",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 497,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "center_dominance",
+      "goat_strategy": "tiger_containment",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 498,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "center_dominance",
+      "goat_strategy": "tiger_containment",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 499,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "opportunistic",
+      "goat_strategy": "center_control",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    },
+    {
+      "episode": 500,
+      "winner": "None",
+      "moves_played": 40,
+      "captures_made": 3,
+      "tiger_strategy": "center_dominance",
+      "goat_strategy": "tiger_containment",
+      "final_state": {
+        "goats_captured": 3,
+        "goats_placed": 20,
+        "phase": "MOVEMENT"
+      }
+    }
+  ]
+}
