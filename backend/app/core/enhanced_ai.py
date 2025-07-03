@@ -7,6 +7,7 @@ import os
 import pickle
 import numpy as np
 import random
+import copy
 from typing import Dict, Optional, Tuple
 from pathlib import Path
 
@@ -28,58 +29,62 @@ class AIManager:
 
     def _load_agent(self, agent_type: str) -> Optional[object]:
         """Loads a specified AI agent from a .pkl file."""
-        if not ADVANCED_AI_AVAILABLE:
-            print(f"Cannot load {agent_type} agent, advanced AI module not available.")
-            return None
-
-        model_name = f"advanced_{agent_type}_ai.pkl"
-        # The models are in a predictable location: backend/app/ai/models/
-        model_path = Path(__file__).parent.parent / "ai" / "models" / model_name
-
-        if not model_path.exists():
-            print(f"Warning: Model file not found at {model_path}. Using default rule-based agent.")
-            if agent_type == 'tiger':
-                return AdvancedTigerAI(TigerStrategy.AGGRESSIVE_HUNT, "expert")
-            else:
-                return AdvancedGoatAI(GoatStrategy.DEFENSIVE_BLOCK, "expert")
-        
-        try:
-            with open(model_path, 'rb') as f:
-                agent = pickle.load(f)
-            print(f"✅ Loaded trained {agent_type.capitalize()} AI from {model_path}")
-            return agent
-        except Exception as e:
-            print(f"Warning: Could not load trained {agent_type} model from {model_path}: {e}. Using default.")
-            if agent_type == 'tiger':
-                return AdvancedTigerAI(TigerStrategy.AGGRESSIVE_HUNT, "expert")
-            else:
-                return AdvancedGoatAI(GoatStrategy.DEFENSIVE_BLOCK, "expert")
+        print(f"Always using rule-based agent for {agent_type} to ensure latest logic.")
+        if agent_type == 'tiger':
+            return AdvancedTigerAI(TigerStrategy.AGGRESSIVE_HUNT, "expert")
+        else:
+            return AdvancedGoatAI(GoatStrategy.DEFENSIVE_BLOCK, "expert")
 
     def get_ai_move(self, player_type: Player, env, state: Dict) -> Optional[Tuple]:
         """Get an AI move for the specified player."""
         agent = self.tiger_agent if player_type == Player.TIGER else self.goat_agent
         
         if not agent:
-            print(f"❌ AI agent for {player_type.name} not available.")
-            return None
+            print(f"❌ AI agent for {player_type.name} not available. Falling back to random move.")
+            valid_actions = env.get_valid_actions(player_type)
+            if valid_actions:
+                action = random.choice(valid_actions)
+                print(f"🤖 Random move selected for {player_type.name}: {action}")
+                return action
+            else:
+                print(f"❌ No valid actions available for {player_type.name} in random fallback.")
+                return None
         
         try:
             # Ensure board is a numpy array for the AI
-            if 'board' in state and not isinstance(state['board'], np.ndarray):
-                state = state.copy()
-                state['board'] = np.array(state['board'])
+            current_state = copy.deepcopy(state)
+            if 'board' in current_state and not isinstance(current_state['board'], np.ndarray):
+                current_state['board'] = np.array(current_state['board'])
             
-            action = agent.select_action(env, state)
-            print(f"🤖 AI ({player_type.name}) selected: {action}")
-            return action
+            print(f"🔍 AI evaluating move for {player_type.name}...")
+            action = agent.select_action(env, current_state)
+            if action is None:
+                print(f"❌ AI agent for {player_type.name} returned None. Falling back to random move.")
+                valid_actions = env.get_valid_actions(player_type)
+                if valid_actions:
+                    action = random.choice(valid_actions)
+                    print(f"🤖 Random move selected for {player_type.name}: {action}")
+                    return action
+                else:
+                    print(f"❌ No valid actions available for {player_type.name} after AI failure.")
+                    return None
+            else:
+                print(f"✅ AI selected move for {player_type.name}: {action}")
+                return action
         except Exception as e:
-            print(f"❌ AI select_action failed: {e}. Falling back to random move.")
+            print(f"❌ AI Error for {player_type.name}: {e}. Falling back to random move.")
             valid_actions = env.get_valid_actions(player_type)
-            return random.choice(valid_actions) if valid_actions else None
+            if valid_actions:
+                action = random.choice(valid_actions)
+                print(f"🤖 Random move selected for {player_type.name}: {action}")
+                return action
+            else:
+                print(f"❌ No valid actions available for {player_type.name} after exception.")
+                return None
 
-# Singleton instance of the AI Manager
-_ai_manager = AIManager()
+# Global AI instance
+ai_manager = AIManager()
 
-def get_enhanced_ai_move(player: Player, env, state: Dict) -> Optional[Tuple]:
-    """Public function to get a move from the AI manager."""
-    return _ai_manager.get_ai_move(player, env, state) 
+def get_enhanced_ai_move(player_type: Player, env, state: Dict) -> Optional[Tuple]:
+    """Global function to get an AI move from the enhanced AI manager."""
+    return ai_manager.get_ai_move(player_type, env, state) 

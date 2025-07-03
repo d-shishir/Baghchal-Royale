@@ -45,25 +45,25 @@ export function mapBackendStateToGameScreen(backendState: BackendGameState, sele
   if (selectedPosition) {
     // If a piece is selected, show only destination moves for that piece
     validMoves = backendState.valid_actions
-      .filter(action => {
+      ?.filter(action => {
         if (action.type === 'move' && action.from_row === selectedPosition[0] && action.from_col === selectedPosition[1]) {
           return true;
         }
         return false;
       })
-      .map(action => ({ row: action.to_row!, col: action.to_col! }));
+      ?.map(action => ({ row: action.to_row!, col: action.to_col! })) || [];
   } else {
     // No piece selected - show all valid positions for current player
     if (phase === 'placement' && currentPlayer === 'goats') {
       // During placement, show empty spots where goats can be placed
       validMoves = backendState.valid_actions
-        .filter(action => action.type === 'place')
-        .map(action => ({ row: action.row!, col: action.col! }));
+        ?.filter(action => action.type === 'place')
+        ?.map(action => ({ row: action.row!, col: action.col! })) || [];
     } else {
       // During movement phase (or tiger moves during placement), show pieces that can be moved
       const piecePositions = new Set<string>();
       
-      backendState.valid_actions.forEach(action => {
+      backendState.valid_actions?.forEach(action => {
         if (action.type === 'move' && action.from_row !== undefined && action.from_col !== undefined) {
           piecePositions.add(`${action.from_row},${action.from_col}`);
         }

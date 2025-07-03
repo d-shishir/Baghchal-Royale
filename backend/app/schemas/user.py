@@ -9,6 +9,8 @@ class UserBase(BaseModel):
     is_active: Optional[bool] = True
     is_superuser: bool = False
     username: Optional[str] = None
+    bio: Optional[str] = None
+    country: Optional[str] = None
 
 # Properties to receive via API on creation
 class UserCreate(UserBase):

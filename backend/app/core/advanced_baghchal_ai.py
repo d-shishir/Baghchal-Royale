@@ -45,15 +45,19 @@ class AdvancedTigerAI:
         """Select the best action using advanced strategic analysis."""
         valid_actions = env.get_valid_actions(Player.TIGER)
         if not valid_actions:
+            print("❌ TIGER AI: No valid actions available from environment.")
             return None
+        
+        print(f"🔍 TIGER AI: Found {len(valid_actions)} valid actions.")
         
         # PRIORITY 1: Always prioritize captures
         capture_actions = self._find_capture_actions(valid_actions, state['board'])
         if capture_actions:
-            print(f"🎯 TIGER found {len(capture_actions)} capture opportunities!")
+            print(f"🎯 TIGER AI: Found {len(capture_actions)} capture opportunities!")
             return self._select_best_capture(capture_actions, state)
         
         # PRIORITY 2: Strategic positioning
+        print("✅ TIGER AI: No captures, selecting strategic move.")
         return self._select_strategic_action(valid_actions, state)
     
     def _find_capture_actions(self, valid_actions: List[Tuple], board: np.ndarray) -> List[Tuple]:
@@ -78,7 +82,9 @@ class AdvancedTigerAI:
     def _select_best_capture(self, capture_actions: List[Tuple], state: Dict) -> Tuple:
         """Select the best capture action."""
         # For now, just return the first capture (all captures are valuable)
-        return capture_actions[0]
+        selected_capture = capture_actions[0]
+        print(f"✅ TIGER AI: Selected best capture: {selected_capture}")
+        return selected_capture
     
     def _select_strategic_action(self, valid_actions: List[Tuple], state: Dict) -> Optional[Tuple]:
         """Select action based on current strategy."""
@@ -118,7 +124,14 @@ class AdvancedTigerAI:
                     best_score = score
                     best_action = action
         
-        return best_action if best_action else random.choice(valid_actions)
+        if best_action:
+            print(f"✅ TIGER AI: Selected best strategic action with score {best_score}: {best_action}")
+            return best_action
+        else:
+            # Fallback to a random valid action if no strategic action is found
+            selected_action = random.choice(valid_actions)
+            print(f"⚠️ TIGER AI: No best action found, defaulting to random action: {selected_action}")
+            return selected_action
 
 class AdvancedGoatAI:
     """Advanced Goat AI with sophisticated defensive strategies."""
@@ -132,13 +145,17 @@ class AdvancedGoatAI:
         """Select the best action using advanced defensive analysis."""
         valid_actions = env.get_valid_actions(Player.GOAT)
         if not valid_actions:
+            print(f"❌ GOAT AI: No valid actions available from environment.")
             return None
         
+        print(f"🔍 GOAT AI: Found {len(valid_actions)} valid actions. Phase: {state.get('phase')}. First 5 actions: {valid_actions[:5]}")
         # PRIORITY 1: Avoid immediate capture
         safe_actions = self._filter_safe_actions(valid_actions, state)
         if not safe_actions:
-            print("⚠️ GOAT: No safe moves available!")
+            print("⚠️ GOAT AI: No safe moves available, falling back to any valid action.")
             safe_actions = valid_actions  # Have to take risk
+        else:
+            print(f"✅ GOAT AI: Found {len(safe_actions)} safe actions out of {len(valid_actions)} valid actions.")
         
         # PRIORITY 2: Strategic positioning
         return self._select_strategic_action(safe_actions, state)
@@ -148,15 +165,19 @@ class AdvancedGoatAI:
         safe_actions = []
         board = state['board']
         
-        # Find tiger positions
         tiger_positions = []
         for r in range(5):
             for c in range(5):
-                if board[r, c] == 1:  # Tiger value
+                if board[r, c] == 1:
                     tiger_positions.append((r, c))
         
         for action in valid_actions:
-            target_pos = (action[1], action[2])  # Position where goat will be placed/moved
+            if action[0] == 'place':
+                target_pos = (action[1], action[2])
+            elif action[0] == 'move':
+                target_pos = (action[3], action[4])
+            else:
+                continue
             
             if self._is_position_safe(target_pos, tiger_positions, board):
                 safe_actions.append(action)
@@ -197,30 +218,50 @@ class AdvancedGoatAI:
     
     def _select_strategic_action(self, safe_actions: List[Tuple], state: Dict) -> Optional[Tuple]:
         """Select action based on current strategy."""
+        if not safe_actions:
+            print("❌ GOAT AI: No actions (safe or otherwise) to select from.")
+            return None
+        
         board = state['board']
         
-        # Find tiger positions
         tiger_positions = []
         for r in range(5):
             for c in range(5):
-                if board[r, c] == 1:  # Tiger value
+                if board[r, c] == 1:
                     tiger_positions.append((r, c))
         
         best_action = None
         best_score = -1
         
         for action in safe_actions:
-            target_pos = (action[1], action[2])
+            if action[0] == 'place':
+                target_pos = (action[1], action[2])
+            elif action[0] == 'move':
+                target_pos = (action[3], action[4])
+            else:
+                continue
+
+            print(f"🐐 Calculating strategic value for action: {action}, target_pos: {target_pos} (type: {type(target_pos)})")
             score = self._calculate_position_value(target_pos, tiger_positions, board)
             
             if score > best_score:
                 best_score = score
                 best_action = action
         
-        return best_action if best_action else safe_actions[0]
+        if best_action:
+            print(f"✅ GOAT AI: Selected best strategic action with score {best_score}: {best_action}")
+            return best_action
+        else:
+            selected_action = safe_actions[0]
+            print(f"⚠️ GOAT AI: No best action found, defaulting to first available action: {selected_action}")
+            return selected_action
     
     def _calculate_position_value(self, pos: Tuple[int, int], tiger_positions: List[Tuple], board: np.ndarray) -> int:
         """Calculate the strategic value of a position."""
+        if not isinstance(pos, tuple) or len(pos) != 2:
+            print(f"❌ GOAT AI ERROR: _calculate_position_value received invalid pos: {pos} (type: {type(pos)})")
+            return -1 # Return a low score to avoid this action
+
         value = 0
         
         # Bonus for center area control
@@ -233,6 +274,9 @@ class AdvancedGoatAI:
         
         # Blocking value - reduce tiger mobility
         for tiger_pos in tiger_positions:
+            if not isinstance(tiger_pos, tuple) or len(tiger_pos) != 2:
+                print(f"❌ GOAT AI ERROR: _calculate_position_value received invalid tiger_pos: {tiger_pos} (type: {type(tiger_pos)})")
+                continue
             distance = abs(pos[0] - tiger_pos[0]) + abs(pos[1] - tiger_pos[1])
             if distance <= 2:
                 value += 15 - distance * 3

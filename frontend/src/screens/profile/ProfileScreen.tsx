@@ -400,11 +400,24 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({
               ) : (
                 <Text style={styles.email}>{user.email}</Text>
               )}
-              <View style={styles.joinedContainer}>
-                <Ionicons name="calendar" size={14} color="#999" />
-                <Text style={styles.joinedText}>
-                  Joined {new Date(user.created_at).toLocaleDateString()}
+              {user.bio && (
+                <Text style={styles.bio} numberOfLines={2}>
+                  {user.bio}
                 </Text>
+              )}
+              <View style={styles.profileDetails}>
+                {user.country && (
+                  <View style={styles.detailItem}>
+                    <Ionicons name="location-outline" size={14} color="#999" />
+                    <Text style={styles.detailText}>{user.country}</Text>
+                  </View>
+                )}
+                <View style={styles.detailItem}>
+                  <Ionicons name="calendar" size={14} color="#999" />
+                  <Text style={styles.detailText}>
+                    Joined {new Date(user.created_at).toLocaleDateString()}
+                  </Text>
+                </View>
               </View>
             </View>
           </View>
@@ -592,6 +605,27 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#CCC',
     marginBottom: 6,
+  },
+  bio: {
+    fontSize: 14,
+    color: '#BBB',
+    marginBottom: 8,
+    lineHeight: 18,
+    fontStyle: 'italic',
+  },
+  profileDetails: {
+    flexDirection: 'column',
+    gap: 4,
+  },
+  detailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  detailText: {
+    fontSize: 12,
+    color: '#999',
+    marginLeft: 4,
   },
   guestBadgeContainer: {
     alignSelf: 'flex-start',

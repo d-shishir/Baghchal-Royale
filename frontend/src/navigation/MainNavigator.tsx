@@ -20,6 +20,10 @@ import ProfileScreen from '../screens/profile/ProfileScreen';
 import LeaderboardScreen from '../screens/leaderboard/LeaderboardScreen';
 import SinglePlayerContainer from '../containers/SinglePlayerContainer';
 import GameContainer from '../containers/GameContainer';
+import EditProfileModal from '../components/EditProfileModal';
+
+// Import API hooks
+import { useGetProfileQuery } from '../services/api';
 
 // Define navigation types
 export type AuthStackParamList = {
@@ -59,28 +63,10 @@ const AuthNavigator = () => {
         cardStyle: { backgroundColor: '#1a1a2e' },
       }}
     >
-      <AuthStack.Screen name="Login" component={LoginNavigator} />
-      <AuthStack.Screen name="Register" component={RegisterNavigator} />
+      <AuthStack.Screen name="Login" component={LoginScreen} />
+      <AuthStack.Screen name="Register" component={RegisterScreen} />
     </AuthStack.Navigator>
   );
-};
-
-// Login Screen Wrapper
-const LoginNavigator = ({ navigation }: any) => {
-  const handleNavigateToRegister = () => {
-    navigation.navigate('Register');
-  };
-
-  return <LoginScreen onNavigateToRegister={handleNavigateToRegister} />;
-};
-
-// Register Screen Wrapper
-const RegisterNavigator = ({ navigation }: any) => {
-  const handleNavigateToLogin = () => {
-    navigation.navigate('Login');
-  };
-
-  return <RegisterScreen onNavigateToLogin={handleNavigateToLogin} />;
 };
 
 // Home Screen Wrapper
@@ -151,6 +137,12 @@ const ProfileScreenWrapper = ({ navigation }: any) => {
   const dispatch = useDispatch();
   const user = useSelector((state: RootState) => state.auth.user);
   const guestMode = useSelector((state: RootState) => state.auth.guestMode);
+  const [showEditModal, setShowEditModal] = React.useState(false);
+  
+  // Get fresh profile data
+  const { data: profileData, refetch: refetchProfile } = useGetProfileQuery(null, {
+    skip: guestMode || !user,
+  });
 
   const handleEditProfile = () => {
     if (guestMode) {
@@ -161,8 +153,12 @@ const ProfileScreenWrapper = ({ navigation }: any) => {
       );
       return;
     }
-    console.log('Edit profile');
-    Alert.alert('Coming Soon', 'Profile editing will be available soon!');
+    setShowEditModal(true);
+  };
+
+  const handleEditSuccess = () => {
+    // Refetch profile data to get updated information
+    refetchProfile();
   };
 
   const handleLogout = () => {
@@ -212,15 +208,26 @@ const ProfileScreenWrapper = ({ navigation }: any) => {
     },
   ];
 
+  // Use profile data from API if available, otherwise fall back to user from auth
+  const currentUser = profileData || user;
+
   return (
-    <ProfileScreen
-      user={user}
-      guestMode={guestMode}
-      gameHistory={gameHistory}
-      onEditProfile={handleEditProfile}
-      onLogout={handleLogout}
-      onViewAchievement={handleViewAchievement}
-    />
+    <>
+      <ProfileScreen
+        user={currentUser}
+        guestMode={guestMode}
+        gameHistory={gameHistory}
+        onEditProfile={handleEditProfile}
+        onLogout={handleLogout}
+        onViewAchievement={handleViewAchievement}
+      />
+      <EditProfileModal
+        visible={showEditModal}
+        user={currentUser}
+        onClose={() => setShowEditModal(false)}
+        onSuccess={handleEditSuccess}
+      />
+    </>
   );
 };
 

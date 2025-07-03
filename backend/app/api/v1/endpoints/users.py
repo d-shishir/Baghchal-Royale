@@ -1,10 +1,10 @@
 from typing import Any, List
 from datetime import timedelta
 import uuid
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, desc
 
 from app import crud, models, schemas
 from app.api import deps
@@ -17,55 +17,48 @@ router = APIRouter()
 @router.post("/register")
 async def register_user(
     *,
+    db: AsyncSession = Depends(deps.get_db),
     user_in: schemas.UserCreate,
 ) -> Any:
     """
-    Register new user - Frontend compatible endpoint using Supabase API.
+    Register new user - Using local database for consistency.
     """
     try:
-        import os
-        from supabase import create_client, Client
-        
-        # Use Supabase API instead of direct DB connection for now
-        url = "https://jxkwrzrqqppbzoiohzqy.supabase.co"
-        key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4a3dyenJxcXBwYnpvaW9oenF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA5NTAyNDcsImV4cCI6MjA2NjUyNjI0N30.XpPjCP1V3KM1m77AZ0RDDkIPE3Ya5dvBd-VNHxprKvA"  # anon key
-        supabase: Client = create_client(url, key)
-        
         # Check if user exists
-        existing_user = supabase.table('users').select('*').eq('email', user_in.email).execute()
-        if existing_user.data:
+        existing_user = await crud.user.get_by_email(db, email=user_in.email)
+        if existing_user:
             raise HTTPException(
                 status_code=400,
                 detail="User with this email already exists.",
             )
         
-        # Create new user
-        user_id = str(uuid.uuid4())
+        # Create new user directly
         hashed_password = get_password_hash(user_in.password)
         
-        new_user_data = {
-            "id": user_id,
-            "username": user_in.username,
-            "email": user_in.email,
-            "hashed_password": hashed_password,
-            "is_active": True,
-            "is_superuser": False,
-            "rating": 1200,
-            "games_played": 0,
-            "games_won": 0,
-            "tiger_wins": 0,
-            "goat_wins": 0
-        }
+        new_user = models.User(
+            username=user_in.username,
+            email=user_in.email,
+            hashed_password=hashed_password,
+            is_active=True,
+            is_superuser=False,
+            rating=1200,
+            games_played=0,
+            games_won=0,
+            tiger_wins=0,
+            goat_wins=0
+        )
         
-        result = supabase.table('users').insert(new_user_data).execute()
+        db.add(new_user)
+        await db.commit()
+        await db.refresh(new_user)
         
-        if not result.data:
+        if not new_user:
             raise HTTPException(status_code=500, detail="Failed to create user")
         
         # Create access token
         access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = security.create_access_token(
-            user_id, expires_delta=access_token_expires
+            str(new_user.id), expires_delta=access_token_expires
         )
         
         return {
@@ -74,8 +67,8 @@ async def register_user(
             "data": {
                 "access_token": access_token,
                 "refresh_token": access_token,  # Using same token for simplicity
-                "user_id": user_id,
-                "username": user_in.username,
+                "user_id": str(new_user.id),
+                "username": new_user.username,
             }
         }
         
@@ -87,43 +80,35 @@ async def register_user(
 @router.post("/login")
 async def login_user(
     *,
+    db: AsyncSession = Depends(deps.get_db),
     user_credentials: dict,
 ) -> Any:
     """
-    Login user - Frontend compatible endpoint using Supabase API.
+    Login user - Using local database for consistency.
     """
     try:
-        from supabase import create_client, Client
-        
         email = user_credentials.get("email")
         password = user_credentials.get("password")
         
         if not email or not password:
             raise HTTPException(status_code=400, detail="Email and password required")
         
-        # Use Supabase API
-        url = "https://jxkwrzrqqppbzoiohzqy.supabase.co"
-        key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4a3dyenJxcXBwYnpvaW9oenF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA5NTAyNDcsImV4cCI6MjA2NjUyNjI0N30.XpPjCP1V3KM1m77AZ0RDDkIPE3Ya5dvBd-VNHxprKvA"
-        supabase: Client = create_client(url, key)
-        
         # Get user by email
-        user_result = supabase.table('users').select('*').eq('email', email).execute()
+        user = await crud.user.get_by_email(db, email=email)
         
-        if not user_result.data:
+        if not user:
             raise HTTPException(status_code=400, detail="Incorrect email or password")
-        
-        user_data = user_result.data[0]
         
         # Verify password
-        if not verify_password(password, user_data['hashed_password']):
+        if not verify_password(password, user.hashed_password):
             raise HTTPException(status_code=400, detail="Incorrect email or password")
         
-        if not user_data.get('is_active', True):
+        if not user.is_active:
             raise HTTPException(status_code=400, detail="Inactive user")
         
         access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = security.create_access_token(
-            user_data['id'], expires_delta=access_token_expires
+            str(user.id), expires_delta=access_token_expires
         )
         
         return {
@@ -132,8 +117,8 @@ async def login_user(
             "data": {
                 "access_token": access_token,
                 "refresh_token": access_token,  # Using same token for simplicity
-                "user_id": user_data['id'],
-                "username": user_data['username'],
+                "user_id": str(user.id),
+                "username": user.username,
             }
         }
         
@@ -147,18 +132,20 @@ async def get_user_profile(
     current_user: models.User = Depends(deps.get_current_active_user),
 ) -> Any:
     """
-    Get current user profile - Frontend compatible endpoint.
+    Get current user profile.
     """
     return {
         "id": str(current_user.id),
         "email": current_user.email,
         "username": current_user.username,
-        "created_at": current_user.created_at.isoformat() if current_user.created_at else None,
-        "games_played": getattr(current_user, 'games_played', 0),
-        "games_won": getattr(current_user, 'games_won', 0),
-        "tiger_wins": getattr(current_user, 'tiger_wins', 0),
-        "goat_wins": getattr(current_user, 'goat_wins', 0),
-        "rating": getattr(current_user, 'rating', 1200),
+        "created_at": current_user.created_at,
+        "games_played": current_user.games_played,
+        "games_won": current_user.games_won,
+        "tiger_wins": current_user.tiger_wins,
+        "goat_wins": current_user.goat_wins,
+        "rating": current_user.rating,
+        "bio": current_user.bio,
+        "country": current_user.country,
     }
 
 @router.put("/profile")
@@ -243,6 +230,107 @@ async def search_users(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"User search failed: {str(e)}")
+
+@router.get("/leaderboard")
+async def get_leaderboard(
+    db: AsyncSession = Depends(deps.get_db),
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    sort_by: str = Query("rating", enum=["rating", "games_won", "games_played"]),
+) -> Any:
+    """
+    Get the top players leaderboard.
+    """
+    try:
+        # Determine sort order
+        if sort_by == 'rating':
+            order_by = desc(models.User.rating)
+        elif sort_by == 'games_won':
+            order_by = desc(models.User.games_won)
+        else: # games_played
+            order_by = desc(models.User.games_played)
+            
+        # Get top players by rating
+        stmt = select(models.User).order_by(
+            order_by
+        ).limit(limit).offset(offset)
+        
+        result = await db.execute(stmt)
+        users = result.scalars().all()
+        
+        # Prepare leaderboard data
+        leaderboard_data = []
+        for i, user in enumerate(users):
+            win_rate = (user.games_won / user.games_played) * 100 if user.games_played > 0 else 0
+            leaderboard_data.append({
+                "rank": offset + i + 1,
+                "username": user.username,
+                "rating": user.rating,
+                "games_played": user.games_played,
+                "games_won": user.games_won,
+                "tiger_wins": user.tiger_wins,
+                "goat_wins": user.goat_wins,
+                "win_rate": round(win_rate, 1)
+            })
+        
+        return {
+            "success": True,
+            "message": "Leaderboard fetched successfully",
+            "data": leaderboard_data
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch leaderboard: {str(e)}")
+
+@router.get("/leaderboard/test")
+async def get_leaderboard_test(
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    sort_by: str = Query("rating", enum=["rating", "games_won", "games_played"]),
+) -> Any:
+    """
+    Test leaderboard endpoint with mock data (no database required).
+    """
+    # Mock data for testing
+    mock_users = [
+        {"username": "TigerMaster", "rating": 1450, "games_played": 25, "games_won": 18, "tiger_wins": 12, "goat_wins": 6},
+        {"username": "GoatHerder", "rating": 1380, "games_played": 30, "games_won": 20, "tiger_wins": 8, "goat_wins": 12},
+        {"username": "BaghchalPro", "rating": 1320, "games_played": 15, "games_won": 10, "tiger_wins": 6, "goat_wins": 4},
+        {"username": "StrategyKing", "rating": 1280, "games_played": 20, "games_won": 12, "tiger_wins": 5, "goat_wins": 7},
+        {"username": "NepaliGamer", "rating": 1250, "games_played": 12, "games_won": 7, "tiger_wins": 3, "goat_wins": 4},
+    ]
+    
+    # Apply sorting
+    if sort_by == 'rating':
+        mock_users.sort(key=lambda x: x['rating'], reverse=True)
+    elif sort_by == 'games_won':
+        mock_users.sort(key=lambda x: x['games_won'], reverse=True)
+    else:  # games_played
+        mock_users.sort(key=lambda x: x['games_played'], reverse=True)
+    
+    # Apply pagination
+    paginated_users = mock_users[offset:offset + limit]
+    
+    # Prepare leaderboard data
+    leaderboard_data = []
+    for i, user in enumerate(paginated_users):
+        win_rate = (user['games_won'] / user['games_played']) * 100 if user['games_played'] > 0 else 0
+        leaderboard_data.append({
+            "rank": offset + i + 1,
+            "username": user['username'],
+            "rating": user['rating'],
+            "games_played": user['games_played'],
+            "games_won": user['games_won'],
+            "tiger_wins": user['tiger_wins'],
+            "goat_wins": user['goat_wins'],
+            "win_rate": round(win_rate, 1)
+        })
+    
+    return {
+        "success": True,
+        "message": "Test leaderboard fetched successfully",
+        "data": leaderboard_data
+    }
 
 @router.get("/{user_id}/profile")
 async def get_user_profile_by_id(

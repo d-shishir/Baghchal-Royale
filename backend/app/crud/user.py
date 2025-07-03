@@ -20,6 +20,12 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             username=obj_in.username,
             hashed_password=get_password_hash(obj_in.password),
             is_superuser=obj_in.is_superuser,
+            is_active=getattr(obj_in, 'is_active', True),
+            rating=getattr(obj_in, 'rating', 1200),
+            games_played=getattr(obj_in, 'games_played', 0),
+            games_won=getattr(obj_in, 'games_won', 0),
+            tiger_wins=getattr(obj_in, 'tiger_wins', 0),
+            goat_wins=getattr(obj_in, 'goat_wins', 0),
         )
         db.add(db_obj)
         await db.commit()

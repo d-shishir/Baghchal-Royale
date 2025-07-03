@@ -11,7 +11,12 @@ const getBaseUrl = () => {
   // Development: Use the host machine's IP address
   // The 'hostUri' is typically in the format '192.168.1.100:8081'
   const hostUri = Constants.expoConfig?.hostUri;
-  const devUrl = hostUri ? `http://${hostUri.split(':')[0]}:8000` : 'http://localhost:8000';
+  let devUrl = 'http://localhost:8000'; // Default fallback
+  
+  if (hostUri) {
+    const hostIP = hostUri.split(':')[0];
+    devUrl = `http://${hostIP}:8000`;
+  }
 
   // Use the production URL in production, otherwise use the development URL
   // __DEV__ is a global variable set by React Native/Expo
@@ -52,15 +57,19 @@ export const api = createApi({
     // Authentication endpoints
     register: builder.mutation<
       { 
-        id: string;
-        username: string;
-        email: string;
+        success: boolean;
         message: string;
+        data: {
+          access_token: string;
+          refresh_token: string;
+          user_id: string;
+          username: string;
+        };
       },
       { email: string; username: string; password: string }
     >({
       query: (credentials) => ({
-        url: '/api/v1/auth/register',
+        url: '/api/v1/users/register',
         method: 'POST',
         body: credentials,
       }),
@@ -68,13 +77,22 @@ export const api = createApi({
     }),
     
     login: builder.mutation<
-      { access_token: string; token_type: string },
+      { 
+        success: boolean;
+        message: string;
+        data: {
+          access_token: string;
+          refresh_token: string;
+          user_id: string;
+          username: string;
+        };
+      },
       { email: string; password: string }
     >({
       query: (credentials) => ({
-        url: '/auth/login',
+        url: '/api/v1/users/login',
         method: 'POST',
-        body: new URLSearchParams({username: credentials.email, password: credentials.password}),
+        body: credentials,
       }),
       invalidatesTags: ['User'],
     }),
@@ -97,8 +115,10 @@ export const api = createApi({
       tiger_wins: number;
       goat_wins: number;
       rating: number;
+      bio?: string;
+      country?: string;
     }, null>({
-      query: () => '/users/me',
+      query: () => '/api/v1/users/profile',
       providesTags: ['User'],
     }),
     
@@ -160,6 +180,7 @@ export const api = createApi({
         success: boolean;
         message: string;
         data: Array<{
+          rank: number;
           username: string;
           rating: number;
           games_played: number;
@@ -199,7 +220,7 @@ export const api = createApi({
     }),
     
     getGameState: builder.query({
-      query: (gameId) => `/games/${gameId}`,
+      query: (gameId) => `/api/v1/games/${gameId}/state`,
       transformResponse: (response: any) => response.data,
       providesTags: ['Game'],
     }),

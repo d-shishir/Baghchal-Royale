@@ -120,7 +120,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
 
     // If a piece is already selected...
     if (selectedPosition) {
-        const isMoveValid = validMoves.some(m => m.row === row && m.col === col);
+        const isMoveValid = validMoves?.some(m => m.row === row && m.col === col) || false;
         // If the click is a valid destination for the selected piece...
         if (isMoveValid) {
             debugInfo += '✅ SENDING MOVE: Valid movement';
@@ -149,7 +149,7 @@ const GameScreen: React.FC<GameScreenProps> = ({
         if (phase === 'placement' && currentPlayer === 'goats') {
             debugInfo += '📍 Placement phase for goats\n';
             const move = { type: 'place' as const, to: [row, col] as [number, number] };
-            if (validMoves.some(m => m.row === row && m.col === col)) {
+            if (validMoves?.some(m => m.row === row && m.col === col) || false) {
                 onMove(move);
             } else {
                 debugInfo += '❌ BLOCKED: Invalid placement spot';

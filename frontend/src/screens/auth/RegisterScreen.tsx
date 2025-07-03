@@ -16,14 +16,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch } from 'react-redux';
 import Constants from 'expo-constants';
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 import { useRegisterMutation } from '../../services/api';
-import { registerStart, registerSuccess, registerFailure } from '../../store/slices/authSlice';
+import { loginStart, loginSuccess, loginFailure } from '../../store/slices/authSlice';
+import { AuthStackParamList } from '../../navigation/MainNavigator';
 
-interface RegisterScreenProps {
-  onNavigateToLogin: () => void;
-}
+type RegisterScreenNavigationProp = StackNavigationProp<AuthStackParamList, 'Login'>;
 
-const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogin }) => {
+const RegisterScreen: React.FC = () => {
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -40,6 +41,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogin }) =>
   
   const dispatch = useDispatch();
   const [register] = useRegisterMutation();
+  const navigation = useNavigation<RegisterScreenNavigationProp>();
 
   const validateForm = () => {
     const newErrors: { 
@@ -77,11 +79,15 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogin }) =>
     return Object.keys(newErrors).length === 0;
   };
 
+  const handleNavigateToLogin = () => {
+    navigation.navigate('Login');
+  };
+
   const handleRegister = async () => {
     if (!validateForm()) return;
     
     setLoading(true);
-    dispatch(registerStart());
+    dispatch(loginStart());
 
     try {
       console.log('Starting registration...');
@@ -93,78 +99,38 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogin }) =>
 
       console.log('Registration result:', result);
 
-      // The new auth endpoint returns { id, username, email, message }
-      if (result.id) {
-        console.log('Registration successful, logging in...');
+      // Backend returns { success: true, message: "...", data: { access_token, refresh_token, user_id, username } }
+      if (result.success && result.data) {
+        console.log('Registration successful!');
         
-        const apiUrl = Constants.expoConfig?.extra?.apiUrl || 'http://localhost:8000';
-        console.log('Using API URL:', apiUrl);
+        // Create a basic user object from the registration response
+        const user = {
+          id: result.data.user_id,
+          email: email.trim().toLowerCase(),
+          username: result.data.username,
+          rating: 1200,
+          games_played: 0,
+          games_won: 0,
+          tiger_wins: 0,
+          goat_wins: 0,
+          created_at: new Date().toISOString(),
+        };
+
+        console.log('Dispatching registration success...');
+        dispatch(loginSuccess({
+          access_token: result.data.access_token,
+          user,
+        }));
         
-        // After successful registration, login to get token
-        const loginResponse = await fetch(`${apiUrl}/api/v1/auth/login`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: `username=${encodeURIComponent(email.trim().toLowerCase())}&password=${encodeURIComponent(password)}`,
-        });
-
-        if (!loginResponse.ok) {
-          throw new Error(`Login after registration failed: ${loginResponse.status} ${loginResponse.statusText}`);
-        }
-
-        const loginResult = await loginResponse.json();
-        console.log('Login result:', loginResult);
-
-        if (loginResult.access_token) {
-          console.log('Got access token, fetching profile...');
-          
-          // Fetch user profile to get complete data
-          const profileResponse = await fetch(`${apiUrl}/api/v1/users/profile`, {
-            headers: {
-              'Authorization': `Bearer ${loginResult.access_token}`,
-              'Content-Type': 'application/json',
-            },
-          });
-
-          if (!profileResponse.ok) {
-            throw new Error(`Profile fetch failed: ${profileResponse.status} ${profileResponse.statusText}`);
-          }
-
-          const userProfile = await profileResponse.json();
-          console.log('Got user profile:', userProfile);
-
-          const user = {
-            id: userProfile.id,
-            email: userProfile.email,
-            username: userProfile.username,
-            rating: userProfile.rating || 1200,
-            games_played: userProfile.games_played || 0,
-            games_won: userProfile.games_won || 0,
-            tiger_wins: userProfile.tiger_wins || 0,
-            goat_wins: userProfile.goat_wins || 0,
-            created_at: userProfile.created_at || new Date().toISOString(),
-          };
-
-          console.log('Dispatching registration success...');
-          dispatch(registerSuccess({
-            access_token: loginResult.access_token,
-            refresh_token: loginResult.access_token, // Use same token for refresh for now
-            user,
-          }));
-          
-          Alert.alert('Success', 'Account created successfully! Welcome to Baghchal Royale!');
-          console.log('Registration completed successfully');
-        } else {
-          throw new Error('Registration successful but login failed - no token received');
-        }
+        Alert.alert('Success', 'Account created successfully! Welcome to Baghchal Royale!');
+        console.log('Registration completed successfully');
       } else {
         throw new Error(result.message || 'Registration failed');
       }
     } catch (error: any) {
       console.error('Registration error:', error);
       const errorMessage = error.data?.detail || error.message || 'Registration failed. Please try again.';
-      dispatch(registerFailure(errorMessage));
+      dispatch(loginFailure(errorMessage));
       Alert.alert('Registration Failed', errorMessage);
     } finally {
       setLoading(false);
@@ -307,8 +273,12 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogin }) =>
           {/* Login Section */}
           <View style={styles.loginSection}>
             <Text style={styles.loginText}>Already have an account?</Text>
-            <TouchableOpacity onPress={onNavigateToLogin} disabled={loading}>
-              <Text style={[styles.loginLink, loading && styles.disabledText]}>
+            <TouchableOpacity 
+              style={[styles.loginButton, loading && styles.buttonDisabled]}
+              onPress={handleNavigateToLogin}
+              disabled={loading}
+            >
+              <Text style={[styles.loginButtonText, loading && styles.disabledText]}>
                 Sign In
               </Text>
             </TouchableOpacity>
@@ -411,7 +381,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginRight: 8,
   },
-  loginLink: {
+  loginButton: {
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FF6F00',
+  },
+  loginButtonText: {
     color: '#FF6F00',
     fontSize: 16,
     fontWeight: 'bold',

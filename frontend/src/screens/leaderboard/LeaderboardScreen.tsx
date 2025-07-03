@@ -16,6 +16,7 @@ import { useGetLeaderboardQuery } from '../../services/api';
 import { RootState } from '../../store';
 
 interface LeaderboardPlayer {
+  rank: number;
   username: string;
   rating: number;
   games_played: number;
@@ -183,7 +184,7 @@ const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({
         >
           {players.map((player, index) => {
             const isCurrentUser = currentUser?.username === player.username;
-            const rank = index + 1;
+            const rank = player.rank;
             
             return (
               <View

@@ -20,6 +20,10 @@ class User(Base):
     games_won = Column(Integer, default=0, nullable=False)
     tiger_wins = Column(Integer, default=0, nullable=False)
     goat_wins = Column(Integer, default=0, nullable=False)
+    
+    # Profile fields
+    bio = Column(String, nullable=True)
+    country = Column(String, nullable=True)
 
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())

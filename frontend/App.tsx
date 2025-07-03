@@ -8,7 +8,7 @@ import * as SplashScreen from 'expo-splash-screen';
 
 import { store, persistor } from './src/store';
 import { theme } from './src/theme';
-import RootNavigator from './src/navigation/RootNavigator';
+import RootNavigator from './src/navigation/MainNavigator';
 import LoadingScreen from './src/components/LoadingScreen';
 import { NotificationProvider } from './src/contexts/NotificationContext';
 

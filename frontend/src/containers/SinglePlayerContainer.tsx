@@ -21,7 +21,9 @@ interface Player {
 }
 
 const SinglePlayerContainer: React.FC = () => {
+  console.log('SinglePlayerContainer: Before useNavigation');
   const navigation = useNavigation();
+  console.log('SinglePlayerContainer: After useNavigation');
   const dispatch = useDispatch();
   
   // --- Global State & User Info ---
@@ -40,6 +42,7 @@ const SinglePlayerContainer: React.FC = () => {
 
   // --- Backend (Online) State & API Hooks ---
   const [gameId, setGameId] = useState<string | null>(null);
+  const [initialGameState, setInitialGameState] = useState<BackendGameState | null>(null);
   const [backendSelectedPosition, setBackendSelectedPosition] = useState<[number, number] | null>(null);
   const [createGame, { isLoading: isCreatingGame }] = useCreateGameMutation();
   const [makeMove] = useMakeMoveMutation();
@@ -48,7 +51,23 @@ const SinglePlayerContainer: React.FC = () => {
     gameId || '',
     { skip: !gameId || !isOnline, pollingInterval: 2000 }
   );
-  const backendGameState = gameStateResponse?.data as BackendGameState | undefined;
+  const backendGameState = useMemo(() => {
+    if (gameStateResponse) {
+      console.log('Raw gameStateResponse:', JSON.stringify(gameStateResponse, null, 2));
+      // Handle structure - API response may not have nested data key
+      const gameData = gameStateResponse.data ? (gameStateResponse.data.data || gameStateResponse.data) : gameStateResponse;
+      console.log('Extracted gameData:', JSON.stringify(gameData, null, 2));
+      const extractedState = {
+        ...gameData,
+        valid_actions: gameData.valid_actions || []
+      };
+      console.log('Extracted backendGameState:', JSON.stringify(extractedState, null, 2));
+      return extractedState;
+    } else {
+      console.log('gameStateResponse is falsy:', gameStateResponse);
+    }
+    return null;
+  }, [gameStateResponse]);
 
   useEffect(() => {
     if (backendGameState) {
@@ -123,6 +142,11 @@ const SinglePlayerContainer: React.FC = () => {
       try {
         const response = await createGame({ mode: 'pvai', side: playerSide, difficulty: selectedDifficulty }).unwrap();
         setGameId(response.data.game_id);
+        // @ts-ignore
+        if (response.data.game_state) {
+            // @ts-ignore
+            setInitialGameState(response.data.game_state);
+        }
       } catch (error) {
         Alert.alert('Error', 'Failed to start online game.');
         return;
@@ -186,6 +210,7 @@ const SinglePlayerContainer: React.FC = () => {
     }
     setViewMode('setup');
     setGameId(null);
+    setInitialGameState(null);
     setBackendSelectedPosition(null);
   }, [isOnline, dispatch]);
 
@@ -200,26 +225,43 @@ const SinglePlayerContainer: React.FC = () => {
   
   // --- UI & RENDER LOGIC ---
   const validMoves = useMemo(() => {
+    console.log('Calculating validMoves, isOnline:', isOnline);
+    console.log('validMoves: backendGameState:', JSON.stringify(backendGameState, null, 2));
+    console.log('validMoves: gameStateResponse:', JSON.stringify(gameStateResponse, null, 2));
+    console.log('validMoves: initialGameState:', initialGameState);
     if (isOnline) {
-        if (!backendGameState) return [];
+        if (!backendGameState) {
+            console.log('validMoves: backendGameState is falsy, returning empty array');
+            return [];
+        }
+        console.log('validMoves: backendGameState.valid_actions:', backendGameState.valid_actions);
         const mapped = mapBackendStateToGameScreen(backendGameState, backendSelectedPosition);
+        console.log('validMoves: Using backend state, validMoves length:', mapped.validMoves.length);
         return mapped.validMoves;
     } else {
+        console.log('validMoves: Using local state, selectedPosition:', localGameState.selectedPosition);
         const movesToShow: PotentialMove[] = localGameState.selectedPosition
-            ? getMovesForPiece(localGameState, localGameState.selectedPosition)
-            : getAllValidMoves(localGameState);
+            ? getMovesForPiece(localGameState, localGameState.selectedPosition) || []
+            : getAllValidMoves(localGameState) || [];
+        console.log('validMoves: movesToShow length:', movesToShow.length);
 
         if (localGameState.selectedPosition) {
             // If a piece is selected, highlight the destination squares.
+            console.log('validMoves: Piece selected, mapping destination squares');
             return movesToShow.map(move => ({ row: move.to[0], col: move.to[1] }));
         } else {
             // If no piece is selected, highlight the pieces that can be moved.
-            const positionsToHighlight = movesToShow.map(m => m.type === 'place' ? m.to : m.from).filter(p => p);
+            console.log('validMoves: No piece selected, mapping source positions');
+            const positionsToHighlight = movesToShow
+                ?.map(m => (m.type === 'place' ? m.to : m.from))
+                ?.filter((p): p is [number, number] => !!p) || [];
+            console.log('validMoves: positionsToHighlight length:', positionsToHighlight.length);
             const uniquePositions = Array.from(new Set(positionsToHighlight.map(p => `${p[0]},${p[1]}`))).map(s => s.split(',').map(Number));
+            console.log('validMoves: uniquePositions length:', uniquePositions.length);
             return uniquePositions.map(pos => ({ row: pos[0], col: pos[1] }));
         }
     }
-  }, [isOnline, localGameState.selectedPosition, localGameState.board, localGameState.currentPlayer, localGameState.phase, backendGameState, backendSelectedPosition]);
+  }, [isOnline, localGameState, backendGameState, backendSelectedPosition]);
 
 
   if (viewMode === 'setup') {

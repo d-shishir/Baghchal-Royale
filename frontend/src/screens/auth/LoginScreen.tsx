@@ -16,14 +16,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch } from 'react-redux';
 import Constants from 'expo-constants';
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 import { useLoginMutation, useGetProfileQuery } from '../../services/api';
 import { loginStart, loginSuccess, loginFailure, guestLogin } from '../../store/slices/authSlice';
+import { AuthStackParamList } from '../../navigation/MainNavigator';
 
-interface LoginScreenProps {
-  onNavigateToRegister: () => void;
-}
+type LoginScreenNavigationProp = StackNavigationProp<AuthStackParamList, 'Register'>;
 
-const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToRegister }) => {
+const LoginScreen: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -32,6 +33,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToRegister }) => {
 
   const dispatch = useDispatch();
   const [login] = useLoginMutation();
+  const navigation = useNavigation<LoginScreenNavigationProp>();
 
   const validateForm = () => {
     const newErrors: { email?: string; password?: string } = {};
@@ -52,6 +54,10 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToRegister }) => {
     return Object.keys(newErrors).length === 0;
   };
 
+  const handleNavigateToRegister = () => {
+    navigation.navigate('Register');
+  };
+
   const handleLogin = async () => {
     if (!validateForm()) return;
 
@@ -67,15 +73,15 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToRegister }) => {
 
       console.log('Login result:', result);
 
-      if (result.access_token) {
+      // Backend returns { success: true, message: "...", data: { access_token, refresh_token, user_id, username } }
+      if (result.success && result.data && result.data.access_token) {
         console.log('Login successful, creating user object...');
         
-        // Create a basic user object from the token
-        // The actual profile data will be fetched by RTK Query when needed
+        // Create a basic user object from the response
         const basicUser = {
-          id: 'temp-id', // This will be updated when profile loads
+          id: result.data.user_id,
           email: email.trim().toLowerCase(),
-          username: 'Loading...', // This will be updated when profile loads
+          username: result.data.username,
           rating: 1200,
           games_played: 0,
           games_won: 0,
@@ -86,8 +92,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToRegister }) => {
 
         console.log('Dispatching login success...');
         dispatch(loginSuccess({
-          access_token: result.access_token,
-          refresh_token: result.access_token, // Use same token for refresh for now
+          access_token: result.data.access_token,
           user: basicUser,
         }));
         
@@ -249,8 +254,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigateToRegister }) => {
           {/* Register Section */}
           <View style={styles.registerSection}>
             <Text style={styles.registerText}>Don't have an account?</Text>
-            <TouchableOpacity onPress={onNavigateToRegister} disabled={loading}>
-              <Text style={[styles.registerLink, loading && styles.disabledText]}>
+            <TouchableOpacity 
+              style={[styles.registerButton, loading && styles.buttonDisabled]} 
+              onPress={handleNavigateToRegister}
+              disabled={loading}
+            >
+              <Text style={[styles.registerButtonText, loading && styles.disabledText]}>
                 Sign Up
               </Text>
             </TouchableOpacity>
@@ -374,10 +383,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginRight: 8,
   },
-  registerLink: {
-    color: '#FF6F00',
+  registerButton: {
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginBottom: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#666',
+  },
+  registerButtonText: {
+    color: '#CCC',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
   buttonDisabled: {
     opacity: 0.6,
