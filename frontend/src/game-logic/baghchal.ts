@@ -1,9 +1,11 @@
-import { GameState, GameMove, PlayerSide, PieceType, GamePhase } from '../store/slices/gameSlice';
+import { GameState, GameMove } from '../store/slices/gameSlice';
+
+export type PlayerSide = 'tigers' | 'goats';
+export type GamePhase = 'placement' | 'movement';
+export type PieceType = 0 | 1 | 2; // 0 = empty, 1 = tiger, 2 = goat
 
 // Represents a potential move, without session data like player_id or timestamp
-export type PotentialMove = 
-    | { type: 'place'; to: Position }
-    | { type: 'move'; from: Position; to: Position };
+export type PotentialMove = { type: 'place'; to: [number, number] } | { type: 'move'; from: [number, number]; to: [number, number] };
 
 // Represents a position on the board [row, col]
 export type Position = [number, number];

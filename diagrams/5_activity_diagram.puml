@@ -1,0 +1,34 @@
+@startuml
+' skinparam to improve the look and feel
+skinparam activity {
+  BackgroundColor White
+  ArrowColor Black
+  BorderColor Black
+  FontName sans-serif
+}
+skinparam shadowing false
+skinparam monochrome true
+
+title Activity Diagram: User Registration
+
+start
+:User fills out registration form;
+:User submits form;
+:Backend receives registration request;
+if (Data is valid?) then (yes)
+  if (Username or email already exists?) then (yes)
+    :Return error message;
+    stop
+  else (no)
+    :Hash user password;
+    :Create new user in database;
+    :Generate authentication token;
+    :Return token to user;
+    :User is logged in;
+  endif
+else (no)
+  :Return validation error;
+endif
+stop
+
+@enduml 

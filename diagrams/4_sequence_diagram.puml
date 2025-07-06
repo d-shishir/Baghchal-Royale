@@ -1,0 +1,45 @@
+startuml
+' skinparam to improve the look and feel
+skinparam sequence {
+    ParticipantBackgroundColor White
+    ActorBorderColor Black
+    ActorBackgroundColor White
+    ArrowColor Black
+    BorderColor Black
+}
+skinparam shadowing false
+skinparam monochrome true
+
+title Sequence Diagram: Player Makes a Move
+
+actor Player
+participant "Frontend" as FE
+participant "Backend API" as BE
+database "Database" as DB
+
+Player -> FE: Clicks on board to make a move
+FE -> FE: Validate move locally
+FE -> BE: POST /api/v1/games/{id}/move
+activate BE
+
+BE -> BE: Authenticate user
+BE -> DB: Fetch current game state
+activate DB
+DB --> BE: Return game state
+deactivate DB
+
+BE -> BE: Validate move using game logic
+alt move is valid
+    BE -> DB: Update game state (board, turn, etc.)
+    activate DB
+    DB --> BE: Confirm update
+    deactivate DB
+    BE --> FE: 200 OK (move successful)
+else move is invalid
+    BE --> FE: 400 Bad Request (invalid move)
+end
+
+deactivate BE
+FE -> Player: Update UI with new game state or show error
+
+@enduml 

@@ -1,13 +1,48 @@
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from uuid import UUID
+import json
 
 from app.crud.base import CRUDBase
 from app.models.game import Game
+from app.models.room import Room
+from app.models.user import User
 from app.schemas.game import GameCreate, GameUpdate
 
 
 class CRUDGame(CRUDBase[Game, GameCreate, GameUpdate]):
+    def create_game_from_room(self, db: Session, *, room: Room, player1: User, player2: User) -> Game:
+        """
+        Creates a new Game instance based on a matched Room.
+        """
+        initial_board = [
+            [1, 0, 0, 0, 1],
+            [0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0],
+            [1, 0, 0, 0, 1],
+        ]
+
+        if room.host_side == "tigers":
+            tiger_player = room.host
+            goat_player = next(p for p in room.players if p.id != room.host_id)
+        else:
+            goat_player = room.host
+            tiger_player = next(p for p in room.players if p.id != room.host_id)
+        
+        game = Game(
+            player_1_id=tiger_player.id,
+            player_2_id=goat_player.id,
+            board=json.dumps(initial_board),
+            status="active",
+            phase="placement",
+            turn=0, # Goats (player 2) start
+        )
+        db.add(game)
+        db.commit()
+        db.refresh(game)
+        return game
+
     def create_with_owner(
         self, db: Session, *, obj_in: GameCreate, owner_id: UUID
     ) -> Game:

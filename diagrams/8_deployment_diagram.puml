@@ -1,0 +1,30 @@
+@startuml
+' skinparam to improve the look and feel
+skinparam node {
+  BackgroundColor White
+  ArrowColor Black
+  BorderColor Black
+}
+skinparam shadowing false
+skinparam monochrome true
+
+title Deployment Diagram
+
+node "User's Device" {
+  artifact "Mobile App" as App
+}
+
+node "Cloud Provider (e.g., AWS, GCP, Azure)" {
+  node "Web Server" {
+    artifact "Backend API" as API
+  }
+  
+  database "Managed PostgreSQL" {
+    artifact "Baghchal DB" as DB
+  }
+}
+
+App --> API : "HTTPS (API Requests)"
+API --> DB : "TCP/IP"
+
+@enduml 

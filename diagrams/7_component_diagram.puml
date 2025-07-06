@@ -1,0 +1,69 @@
+@startuml
+' skinparam to improve the look and feel
+skinparam component {
+  BackgroundColor White
+  ArrowColor Black
+  BorderColor Black
+}
+skinparam shadowing false
+skinparam monochrome true
+
+title Component Diagram (Thoroughly Refined)
+
+package "Frontend (React Native)" {
+  [UI Components]
+  [State Management (Redux)]
+  [API Service]
+  [Game Logic]
+  [Guest Mode AI]
+}
+
+package "Backend (FastAPI)" {
+  package "API Endpoints" {
+    [Auth API]
+    [Game API]
+    [User API]
+    [Friends API]
+  }
+  
+  package "Core Logic" {
+    [Game Logic Core]
+    [Advanced AI Agents]
+    [ELO Service]
+    [Security Service]
+  }
+
+  package "Data Access" {
+    [CRUD Operations]
+    database "Database (PostgreSQL)"
+  }
+}
+
+' Frontend to Backend relationship
+[API Service] ..> [API Endpoints] : "requests via HTTPS"
+
+' API to Core Logic dependencies
+[Auth API] --> [Security Service]
+[Auth API] --> [CRUD Operations]
+[Game API] --> [Game Logic Core]
+[Game API] --> [ELO Service]
+[User API] --> [CRUD Operations]
+[User API] --> [ELO Service]
+[Friends API] --> [CRUD Operations]
+
+' Core Logic dependencies
+[Game Logic Core] --> [Advanced AI Agents]
+[ELO Service] --> [CRUD Operations]
+
+' Data Access dependency
+[CRUD Operations] --> "Database (PostgreSQL)"
+
+' Frontend dependencies
+[UI Components] --> [State Management (Redux)]
+[UI Components] --> [API Service]
+[API Service] --> [State Management (Redux)]
+[Game Logic] --> [UI Components]
+[Guest Mode AI] --> [Game Logic]
+[UI Components] --> [Guest Mode AI]
+
+@enduml 

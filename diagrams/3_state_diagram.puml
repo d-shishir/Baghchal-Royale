@@ -1,0 +1,30 @@
+@startuml
+' skinparam to improve the look and feel
+skinparam state {
+  BackgroundColor White
+  ArrowColor Black
+  BorderColor Black
+}
+skinparam shadowing false
+skinparam monochrome true
+
+title Game State Diagram
+
+[*] --> Pending: Game Created
+Pending --> Active: Both players join
+Active --> Finished: Game ends (win/draw)
+Active --> Abandoned: Player leaves
+Finished --> [*]
+Abandoned --> [*]
+
+state Active {
+  state Placement
+  state Movement
+
+  [*] --> Placement: Game starts
+  Placement -> Movement: 20 goats placed
+  Movement -> Movement: Player makes move
+  Movement --> Finished: Tiger trapped or 5 goats captured
+}
+
+@enduml 

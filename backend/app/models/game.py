@@ -25,6 +25,7 @@ class Game(Base):
     player1 = relationship("User", foreign_keys=[player_1_id], back_populates="games_as_player1")
     player2 = relationship("User", foreign_keys=[player_2_id], back_populates="games_as_player2")
     moves = relationship("Move", back_populates="game", cascade="all, delete-orphan")
+    room = relationship("Room", back_populates="game", uselist=False, cascade="all, delete-orphan")
 
 class Move(Base):
     __tablename__ = "moves"

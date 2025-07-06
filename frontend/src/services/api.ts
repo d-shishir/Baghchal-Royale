@@ -197,6 +197,176 @@ export const api = createApi({
       providesTags: ['Leaderboard'],
     }),
     
+    // Friend endpoints
+    sendFriendRequest: builder.mutation<
+      {
+        id: string;
+        requester_id: string;
+        addressee_id: string;
+        status: 'pending' | 'accepted' | 'declined' | 'blocked';
+      },
+      { addressee_id: string }
+    >({
+      query: (data) => ({
+        url: '/api/v1/friends/request',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['User'],
+    }),
+    
+    getFriendsList: builder.query<
+      Array<{
+        id: string;
+        status: 'pending' | 'accepted' | 'declined' | 'blocked';
+        friend: {
+          id: string;
+          username: string;
+          rating: number;
+          games_played: number;
+          games_won: number;
+        };
+      }>,
+      void
+    >({
+      query: () => '/api/v1/friends/list',
+      providesTags: ['User'],
+    }),
+    
+    getPendingFriendRequests: builder.query<
+      Array<{
+        id: string;
+        status: 'pending' | 'accepted' | 'declined' | 'blocked';
+        friend: {
+          id: string;
+          username: string;
+          rating: number;
+          games_played: number;
+          games_won: number;
+        };
+      }>,
+      void
+    >({
+      query: () => '/api/v1/friends/requests',
+      providesTags: ['User'],
+    }),
+    
+    respondToFriendRequest: builder.mutation<
+      {
+        id: string;
+        requester_id: string;
+        addressee_id: string;
+        status: 'pending' | 'accepted' | 'declined' | 'blocked';
+      },
+      { friendship_id: string; status: 'accepted' | 'declined' }
+    >({
+      query: ({ friendship_id, status }) => ({
+        url: `/api/v1/friends/request/${friendship_id}`,
+        method: 'PUT',
+        body: { status },
+      }),
+      invalidatesTags: ['User'],
+    }),
+    
+    removeFriend: builder.mutation<
+      {
+        id: string;
+        requester_id: string;
+        addressee_id: string;
+        status: 'pending' | 'accepted' | 'declined' | 'blocked';
+      },
+      { friendship_id: string }
+    >({
+      query: ({ friendship_id }) => ({
+        url: `/api/v1/friends/${friendship_id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['User'],
+    }),
+    
+    // Room endpoints
+    getRooms: builder.query<
+      Array<{
+        id: string;
+        name: string;
+        host: User;
+        status: 'waiting' | 'playing' | 'finished';
+        players_count: number;
+        max_players: number;
+        is_private: boolean;
+        created_at: string;
+        game_id?: string;
+        host_side?: 'tigers' | 'goats';
+      }>,
+      void
+    >({
+      query: () => '/api/v1/rooms/',
+      providesTags: ['Game'],
+    }),
+
+    getFriendsRooms: builder.query<
+      Array<{
+        id: string;
+        name: string;
+        host: User;
+        status: 'waiting' | 'playing' | 'finished';
+        players_count: number;
+        max_players: number;
+        is_private: boolean;
+        created_at: string;
+        game_id?: string;
+        host_side?: 'tigers' | 'goats';
+      }>,
+      void
+    >({
+      query: () => '/api/v1/rooms/friends-rooms',
+      providesTags: ['Game'],
+    }),
+
+    createRoom: builder.mutation<
+      {
+        id: string;
+        name: string;
+        host: User;
+        status: 'waiting' | 'playing' | 'finished';
+        players_count: number;
+        max_players: number;
+        is_private: boolean;
+        created_at: string;
+      },
+      { name: string; is_private: boolean }
+    >({
+      query: (data) => ({
+        url: '/api/v1/rooms/',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Game'],
+    }),
+    
+    quickMatch: builder.mutation<
+      {
+        id: string;
+        game_id?: string;
+        name: string;
+        host: User;
+        status: 'waiting' | 'playing' | 'finished';
+        players_count: number;
+        max_players: number;
+        is_private: boolean;
+        created_at: string;
+        host_side: 'tigers' | 'goats';
+      },
+      { side: 'tigers' | 'goats' }
+    >({
+      query: (data) => ({
+        url: '/api/v1/rooms/quick-match',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Game'],
+    }),
+    
     // Game endpoints
     createGame: builder.mutation<
       {
@@ -340,6 +510,19 @@ export const {
   useGetUserProfileQuery,
   useGetUserStatsQuery,
   useGetLeaderboardQuery,
+  
+  // Friend hooks
+  useSendFriendRequestMutation,
+  useGetFriendsListQuery,
+  useGetPendingFriendRequestsQuery,
+  useRespondToFriendRequestMutation,
+  useRemoveFriendMutation,
+  
+  // Room hooks
+  useGetRoomsQuery,
+  useGetFriendsRoomsQuery,
+  useCreateRoomMutation,
+  useQuickMatchMutation,
   
   // Game hooks
   useCreateGameMutation,

@@ -1,0 +1,56 @@
+@startuml
+' skinparam to improve the look and feel
+skinparam classAttributeIconSize 0
+skinparam monochrome true
+skinparam shadowing false
+skinparam class {
+    BackgroundColor White
+    ArrowColor Black
+    BorderColor Black
+}
+
+title Object Diagram: In-Progress Game
+
+object "player1:User" as P1 {
+  username = "Alice"
+  rating = 1200
+}
+
+object "player2:User" as P2 {
+  username = "Bob"
+  rating = 1250
+}
+
+object "game123:Game" as G {
+  status = "active"
+  phase = "movement"
+  turn = 2
+  goats_captured = 1
+}
+
+object "move1:Move" as M1 {
+  move_number = 1
+  move_data = "{'from': [0,0], 'to': [1,1]}"
+}
+
+object "move2:Move" as M2 {
+  move_number = 2
+  move_data = "{'to': [0,1]}"
+}
+
+object "friendship1:Friendship" as F1 {
+  status = "accepted"
+}
+
+
+' Relationships
+P1 -- G : player1
+P2 -- G : player2
+G *-- M1
+G *-- M2
+P1 -- M1 : made by
+P2 -- M2 : made by
+P1 -- F1 : requester
+P2 -- F1 : addressee
+
+@enduml 

@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { RootState } from '../store';
+import { RootState, AppDispatch } from '../store';
 import GameScreen from '../screens/game/GameScreen';
 import {
   localMove,
@@ -10,65 +10,94 @@ import {
   GameState,
   GameMove,
 } from '../store/slices/gameSlice';
-import { isMoveValid, applyMove, checkWinCondition, getAllValidMoves, getMovesForPiece, PotentialMove } from '../game-logic/baghchal';
-import { useNavigation } from '@react-navigation/native';
+import { useGetGameStateQuery, useMakeMoveMutation } from '../services/api';
+import { isMoveValid, applyMove, checkWinCondition, PotentialMove, PieceType, getAllValidMoves, getMovesForPiece } from '../game-logic/baghchal';
+import { useNavigation, useRoute } from '@react-navigation/native';
 
 const GameContainer = () => {
-  const dispatch = useDispatch();
-  const navigation = useNavigation();
+  const dispatch: AppDispatch = useDispatch();
+  const navigation = useNavigation<any>();
+  const route = useRoute();
   const gameState = useSelector((state: RootState) => state.game);
-  const { gameMode, selectedPosition, board, currentPlayer, phase, winner, gameOver } = gameState;
+  
+  const [makeMove] = useMakeMoveMutation();
+  const { gameId, gameMode } = gameState;
+  
+  const { data: onlineGameState } = useGetGameStateQuery(gameId, {
+    skip: !gameId || gameMode !== 'pvp',
+    pollingInterval: 3000,
+  });
+  
+  const finalGameState: GameState = useMemo(() => {
+    if (gameMode === 'pvp' && onlineGameState) {
+        return {
+            ...gameState,
+            board: onlineGameState.board,
+            currentPlayer: onlineGameState.current_player,
+            phase: onlineGameState.phase,
+            goatsPlaced: onlineGameState.goats_placed,
+            goatsCaptured: onlineGameState.goats_captured,
+            gameOver: onlineGameState.game_over,
+            winner: onlineGameState.winner,
+        };
+    }
+    return gameState;
+  }, [gameMode, onlineGameState, gameState]);
+
+  const {
+    board,
+    currentPlayer,
+    phase,
+    goatsCaptured,
+    selectedPosition,
+    gameOver,
+    winner,
+    userSide,
+    player1,
+    player2
+  } = finalGameState;
 
   const validMoves = useMemo(() => {
     return selectedPosition
-      ? getMovesForPiece(gameState, selectedPosition)
-      : getAllValidMoves(gameState);
+      ? getMovesForPiece(finalGameState, selectedPosition)
+      : getAllValidMoves(finalGameState);
   }, [selectedPosition, board, currentPlayer, phase]);
-  
-  const validMovePositions = useMemo(() => {
-    if (selectedPosition) {
-      // If a piece is selected, highlight the destination squares.
-      return validMoves.map(move => ({ row: (move as any).to[0], col: (move as any).to[1] }));
-    } else {
-      // If no piece is selected, highlight the pieces that can be moved OR the spots for placement.
-      const positionsToHighlight = validMoves.map(m => m.type === 'place' ? m.to : (m as any).from).filter(p => p);
-      const uniquePositions = Array.from(new Set(positionsToHighlight.map(p => `${p[0]},${p[1]}`))).map(s => s.split(',').map(Number));
-      return uniquePositions.map(pos => ({ row: pos[0], col: pos[1] }));
+
+  const handleMove = async (move: PotentialMove) => {
+    if (gameMode === 'pvp-local') {
+      const fullMove: GameMove = { ...move, player_id: currentPlayer, timestamp: new Date().toISOString() };
+      if (isMoveValid(finalGameState, fullMove)) {
+        const stateAfterMove = applyMove(finalGameState, fullMove);
+        const gameResult = checkWinCondition(stateAfterMove);
+        dispatch(localMove({
+          board: stateAfterMove.board,
+          nextPlayer: stateAfterMove.currentPlayer,
+          phase: stateAfterMove.phase,
+          goatsPlaced: stateAfterMove.goatsPlaced,
+          goatsCaptured: stateAfterMove.goatsCaptured,
+          gameOver: gameResult.gameOver,
+          winner: gameResult.winner,
+        }));
+      } else {
+        console.warn("Invalid move attempted:", move);
+      }
+    } else if (gameMode === 'pvp' && gameId) {
+      try {
+        let movePayload;
+        if (move.type === 'place') {
+            movePayload = { game_id: gameId, action_type: 'place' as const, row: move.to[0], col: move.to[1] };
+        } else {
+            movePayload = { game_id: gameId, action_type: 'move' as const, from_row: move.from[0], from_col: move.from[1], to_row: move.to[0], to_col: move.to[1] };
+        }
+        await makeMove(movePayload).unwrap();
+      } catch (error) {
+        console.error('Failed to make move:', error);
+      }
     }
-  }, [validMoves, selectedPosition]);
+  };
 
   const handleSelectPosition = (pos: { row: number, col: number } | null) => {
     dispatch(selectPosition(pos ? [pos.row, pos.col] : null));
-  };
-  
-  const handleMove = (move: PotentialMove) => {
-    if (gameMode !== 'pvp-local') {
-        console.log('Online move:', move);
-        return;
-    }
-
-    const fullMove: GameMove = {
-      ...move,
-      player_id: gameState.currentPlayer,
-      timestamp: new Date().toISOString()
-    };
-
-    if (isMoveValid(gameState, fullMove)) {
-      const stateAfterMove = applyMove(gameState, fullMove);
-      const gameResult = checkWinCondition(stateAfterMove);
-
-      dispatch(localMove({
-        board: stateAfterMove.board,
-        nextPlayer: stateAfterMove.currentPlayer,
-        phase: stateAfterMove.phase,
-        goatsPlaced: stateAfterMove.goatsPlaced,
-        goatsCaptured: stateAfterMove.goatsCaptured,
-        gameOver: gameResult.gameOver,
-        winner: gameResult.winner,
-      }));
-    } else {
-      console.warn("Invalid move attempted:", move);
-    }
   };
 
   const handleQuitGame = () => {
@@ -77,36 +106,42 @@ const GameContainer = () => {
   };
 
   const handleNewGame = () => {
-    dispatch(startLocalPVPGame());
+    if (gameMode === 'pvp-local') {
+      dispatch(startLocalPVPGame());
+    } else {
+      navigation.goBack();
+    }
   };
-
-  // Create player objects for local PVP
-  const player1 = { id: 'tigers', username: 'Tigers', rating: 0, side: 'tigers' as const };
-  const player2 = { id: 'goats', username: 'Goats', rating: 0, side: 'goats' as const };
+  
+  const formattedValidMoves = validMoves.map(move => {
+    if (move.type === 'place') {
+      return { row: move.to[0], col: move.to[1] };
+    }
+    return { row: move.to[0], col: move.to[1] };
+  });
 
   if (!gameMode) {
-    return null;
+    return null; // Or a loading screen
   }
 
   return (
     <GameScreen
       gameMode={gameMode}
-      board={gameState.board}
-      currentPlayer={gameState.currentPlayer}
-      player1={player1}
-      player2={player2}
-      userSide={null} // Not applicable in local PVP
-      selectedPosition={selectedPosition ? { row: selectedPosition[0], col: selectedPosition[1] } : null}
-      validMoves={validMoves}
+      board={board as PieceType[][]}
+      currentPlayer={currentPlayer}
+      phase={phase}
+      goatsCaptured={goatsCaptured}
       onMove={handleMove}
       onSelectPosition={handleSelectPosition}
+      selectedPosition={selectedPosition ? { row: selectedPosition[0], col: selectedPosition[1] } : null}
+      gameOver={gameOver}
+      winner={winner}
       onQuitGame={handleQuitGame}
       onNewGame={handleNewGame}
-      winner={gameState.winner}
-      gameOver={gameState.gameOver}
-      goatsCaptured={gameState.goatsCaptured}
-      phase={gameState.phase}
-      isAIThinking={false} // No AI in this mode
+      userSide={userSide}
+      player1={player1}
+      player2={player2}
+      validMoves={formattedValidMoves}
     />
   );
 };

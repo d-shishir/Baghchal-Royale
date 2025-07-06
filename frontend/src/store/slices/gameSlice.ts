@@ -165,6 +165,26 @@ const gameSlice = createSlice({
       state.userSide = action.payload.userSide;
     },
     
+    startMultiplayerGame: (state, action: PayloadAction<{
+      gameId: string;
+      userSide: PlayerSide;
+      host: { id: string, username: string, rating: number };
+    }>) => {
+      const { gameId, userSide, host } = action.payload;
+      const opponentSide = userSide === 'tigers' ? 'goats' : 'tigers';
+
+      return {
+        ...initialState,
+        gameId,
+        gameMode: 'pvp',
+        status: 'active',
+        userSide,
+        player1: userSide === 'tigers' ? { id: 'user', username: 'You', rating: 1200, side: 'tigers' } : { id: host.id, username: host.username, rating: host.rating, side: 'tigers' },
+        player2: userSide === 'goats' ? { id: 'user', username: 'You', rating: 1200, side: 'goats' } : { id: host.id, username: host.username, rating: host.rating, side: 'goats' },
+        currentPlayer: 'goats',
+      };
+    },
+    
     // Board state updates
     updateBoard: (state, action: PayloadAction<{
       board: PieceType[][];
@@ -250,6 +270,7 @@ export const {
   createGameStart,
   createGameSuccess,
   joinGameSuccess,
+  startMultiplayerGame,
   updateBoard,
   localMove,
   makeMove,

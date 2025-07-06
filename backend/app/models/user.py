@@ -31,3 +31,19 @@ class User(Base):
     # Update relationships to match new field names
     games_as_player1 = relationship("Game", foreign_keys="[Game.player_1_id]", back_populates="player1")
     games_as_player2 = relationship("Game", foreign_keys="[Game.player_2_id]", back_populates="player2") 
+
+    sent_friend_requests = relationship(
+        "Friendship",
+        foreign_keys="[Friendship.requester_id]",
+        back_populates="requester",
+        cascade="all, delete-orphan"
+    )
+    received_friend_requests = relationship(
+        "Friendship",
+        foreign_keys="[Friendship.addressee_id]",
+        back_populates="addressee",
+        cascade="all, delete-orphan"
+    )
+
+    hosted_rooms = relationship("Room", back_populates="host")
+    rooms = relationship("Room", secondary="room_players", back_populates="players") 

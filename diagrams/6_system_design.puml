@@ -1,0 +1,16 @@
+@startuml
+' Using C4-PlantUML library
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+' skinparam to improve the look and feel
+skinparam monochrome true
+skinparam shadowing false
+
+title System Context Diagram for Baghchal Royale
+
+Person(player, "Player", "A user of Baghchal Royale.")
+System(baghchal_royale, "Baghchal Royale", "Allows users to play the Baghchal board game online with friends and AI opponents.")
+
+Rel(player, baghchal_royale, "Plays the game")
+
+@enduml 

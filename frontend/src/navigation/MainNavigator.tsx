@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,7 +7,7 @@ import { Alert } from 'react-native';
 
 // Import actions
 import { logout } from '../store/slices/authSlice';
-import { startLocalPVPGame } from '../store/slices/gameSlice';
+import { startLocalPVPGame, startMultiplayerGame } from '../store/slices/gameSlice';
 import { RootState } from '../store';
 
 // Auth Screens
@@ -18,12 +18,15 @@ import RegisterScreen from '../screens/auth/RegisterScreen';
 import HomeScreen from '../screens/home/HomeScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
 import LeaderboardScreen from '../screens/leaderboard/LeaderboardScreen';
+import FriendsScreen from '../screens/friends/FriendsScreen';
 import SinglePlayerContainer from '../containers/SinglePlayerContainer';
 import GameContainer from '../containers/GameContainer';
 import EditProfileModal from '../components/EditProfileModal';
+import MultiplayerSetupScreen from '../screens/multiplayer/MultiplayerSetupScreen';
+import QuickMatchModal from '../components/game/QuickMatchModal';
 
 // Import API hooks
-import { useGetProfileQuery } from '../services/api';
+import { useGetProfileQuery, useGetRoomsQuery, useCreateRoomMutation, useQuickMatchMutation } from '../services/api';
 
 // Define navigation types
 export type AuthStackParamList = {
@@ -33,6 +36,7 @@ export type AuthStackParamList = {
 
 export type MainTabParamList = {
   Home: undefined;
+  Friends: undefined;
   Leaderboard: undefined;
   Profile: undefined;
 };
@@ -129,6 +133,97 @@ const HomeScreenWrapper = ({ navigation }: any) => {
       onViewLeaderboard={handleViewLeaderboard}
       onShowGameRules={handleShowGameRules}
     />
+  );
+};
+
+const MultiplayerSetupScreenWrapper = ({ navigation }: any) => {
+  const { data: rooms, isLoading, error } = useGetRoomsQuery();
+  const [createRoom, { isLoading: isCreatingRoom }] = useCreateRoomMutation();
+  const [quickMatch, { isLoading: isQuickMatching }] = useQuickMatchMutation();
+  const [isQuickMatchModalVisible, setQuickMatchModalVisible] = useState(false);
+  const dispatch = useDispatch();
+
+  const handleCreateRoom = async (roomName: string, isPrivate: boolean) => {
+    try {
+      const newRoom = await createRoom({ name: roomName, is_private: isPrivate }).unwrap();
+      Alert.alert('Room Created', `Room "${newRoom.name}" has been created.`);
+      navigation.navigate('Game', { gameId: newRoom.id, mode: 'pvp' });
+    } catch (err) {
+      Alert.alert('Error', 'Failed to create room.');
+    }
+  };
+
+  const handleJoinRoom = (roomId: string) => {
+    console.log('Joining room:', roomId);
+    navigation.navigate('Game', { gameId: roomId, mode: 'pvp' });
+  };
+
+  const handleJoinPrivateRoom = (roomCode: string) => {
+    console.log('Joining private room with code:', roomCode);
+    Alert.alert('Joining Private Room', `Attempting to join with code: ${roomCode}`);
+  };
+
+  const handleQuickMatchSelectSide = async (side: 'tigers' | 'goats') => {
+    try {
+      const matchedRoom = await quickMatch({ side }).unwrap();
+      setQuickMatchModalVisible(false);
+
+      dispatch(startMultiplayerGame({
+        gameId: matchedRoom.id,
+        userSide: side,
+        host: matchedRoom.host,
+      }));
+      
+      if (matchedRoom.status === 'playing') {
+        // Matched with an opponent
+        Alert.alert(
+          'Match Found!',
+          `Joining "${matchedRoom.name}" against ${matchedRoom.host.username}. You are playing as ${side}.`,
+          [{ text: 'Start Game', onPress: () => navigation.navigate('Game', { gameId: matchedRoom.id, mode: 'pvp' }) }]
+        );
+      } else {
+        // Created a new room and are waiting
+        Alert.alert(
+          'Waiting for Opponent',
+          `You are waiting for an opponent. You will play as ${side}. The game will start automatically when an opponent joins.`,
+          [{ text: 'OK', onPress: () => navigation.navigate('Game', { gameId: matchedRoom.id, mode: 'pvp' }) }]
+        );
+      }
+    } catch (err) {
+      console.error('Quick match error:', err);
+      Alert.alert('Error', 'Failed to find a match. Please try again.');
+    }
+  };
+
+  const mappedRooms = rooms?.map(room => ({
+    id: room.id,
+    name: room.name,
+    host: room.host.username,
+    players: room.players_count,
+    maxPlayers: room.max_players,
+    status: room.status,
+    isPrivate: room.is_private,
+    created_at: room.created_at,
+  })) || [];
+
+  return (
+    <>
+      <MultiplayerSetupScreen
+        onCreateRoom={handleCreateRoom}
+        onJoinRoom={handleJoinRoom}
+        onJoinPrivateRoom={handleJoinPrivateRoom}
+        onQuickMatch={() => setQuickMatchModalVisible(true)}
+        onBack={() => navigation.goBack()}
+        availableRooms={mappedRooms}
+        isLoading={isLoading || isCreatingRoom}
+      />
+      <QuickMatchModal
+        visible={isQuickMatchModalVisible}
+        onClose={() => setQuickMatchModalVisible(false)}
+        onSelectSide={handleQuickMatchSelectSide}
+        isLoading={isQuickMatching}
+      />
+    </>
   );
 };
 
@@ -260,6 +355,8 @@ const MainTabNavigator = () => {
 
           if (route.name === 'Home') {
             iconName = focused ? 'home' : 'home-outline';
+          } else if (route.name === 'Friends') {
+            iconName = focused ? 'people' : 'people-outline';
           } else if (route.name === 'Leaderboard') {
             iconName = focused ? 'trophy' : 'trophy-outline';
           } else if (route.name === 'Profile') {
@@ -280,6 +377,7 @@ const MainTabNavigator = () => {
       })}
     >
       <MainTab.Screen name="Home" component={HomeScreenWrapper} />
+      <MainTab.Screen name="Friends" component={FriendsScreen} />
       <MainTab.Screen name="Leaderboard" component={LeaderboardScreenWrapper} />
       <MainTab.Screen name="Profile" component={ProfileScreenWrapper} />
     </MainTab.Navigator>
@@ -297,8 +395,7 @@ const MainStackNavigator = () => {
     >
       <MainStack.Screen name="MainTabs" component={MainTabNavigator} />
       <MainStack.Screen name="SinglePlayerSetup" component={SinglePlayerContainer} />
-      {/* TODO: Create Multiplayer setup screen */}
-      {/* <MainStack.Screen name="MultiplayerSetup" component={MultiplayerSetupScreen} /> */}
+      <MainStack.Screen name="MultiplayerSetup" component={MultiplayerSetupScreenWrapper} />
       <MainStack.Screen name="Game" component={GameContainer} />
     </MainStack.Navigator>
   );
