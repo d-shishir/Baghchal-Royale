@@ -29,7 +29,7 @@ export const colors = {
     attackColor: '#F44336',
   },
   dark: {
-    primary: '#FF5252',
+    primary: '#FF6F00',
     onPrimary: '#000000',
     primaryContainer: '#C62828',
     onPrimaryContainer: '#FFCDD2',
@@ -42,20 +42,31 @@ export const colors = {
     tertiaryContainer: '#FF8F00',
     onTertiaryContainer: '#FFE0B2',
     surface: '#1E1E1E',
-    onSurface: '#E0E0E0',
-    surfaceVariant: '#2E2E2E',
-    onSurfaceVariant: '#BDBDBD',
-    outline: '#757575',
+    onSurface: '#FFFFFF',
+    surfaceVariant: '#2C2C2C',
+    onSurfaceVariant: '#9E9E9E',
+    outline: '#424242',
     outlineVariant: '#424242',
     background: '#121212',
-    onBackground: '#E0E0E0',
+    onBackground: '#FFFFFF',
+    card: '#1E1E1E',
+    text: '#FFFFFF',
+    border: '#272727',
+    notification: '#FF8F00',
     // Game-specific colors
     tigerColor: '#FF6F00',
-    goatColor: '#66BB6A',
+    goatColor: '#4CAF50',
     boardColor: '#6D4C41',
     highlightColor: '#FFD54F',
-    validMoveColor: '#4CAF50',
-    attackColor: '#FF5252',
+    validMoveColor: '#66BB6A',
+    attackColor: '#F44336',
+    // Semantic colors
+    player1: '#FF6F00', // Tiger
+    player2: '#4CAF50', // Goat
+    validMove: '#66BB6A',
+    attack: '#F44336',
+    success: '#4CAF50',
+    error: '#F44336',
   },
 };
 

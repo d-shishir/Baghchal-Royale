@@ -1,8 +1,32 @@
-import { GameState, GameMove, PlayerSide } from '../store/slices/gameSlice';
-
-export type { PlayerSide };
+export type PlayerSide = 'Tiger' | 'Goat';
 export type GamePhase = 'placement' | 'movement';
 export type PieceType = 0 | 1 | 2; // 0 = empty, 1 = tiger, 2 = goat
+
+export enum GameStatus {
+  IN_PROGRESS = "IN_PROGRESS",
+  TIGER_WON = "TIGER_WON",
+  GOAT_WON = "GOAT_WON",
+  DRAW = "DRAW",
+}
+
+export interface GameState {
+  board: PieceType[][];
+  currentPlayer: PlayerSide;
+  phase: GamePhase;
+  goatsCaptured: number;
+  goatsPlaced: number;
+  status: GameStatus;
+  // The following are for UI state, not pure game logic
+  selectedPosition: [number, number] | null;
+}
+
+export type GameMove = {
+  type: 'place' | 'move';
+  to: [number, number];
+  from?: [number, number];
+  player_id: string;
+  timestamp: string;
+};
 
 // Represents a potential move, without session data like player_id or timestamp
 export type PotentialMove = { type: 'place'; to: [number, number] } | { type: 'move'; from: [number, number]; to: [number, number] };
@@ -141,16 +165,20 @@ export function applyMove(state: GameState, move: GameMove): GameState {
         newState.phase = 'movement';
     }
 
+    // After applying move, check for win condition and update status
+    const winCheck = checkWinCondition(newState);
+    newState.status = winCheck.status;
+
     return newState;
 }
 
 /**
  * Checks for a win condition.
  */
-export function checkWinCondition(state: GameState): { winner: PlayerSide | 'draw' | null, gameOver: boolean } {
+export function checkWinCondition(state: GameState): { status: GameStatus } {
     // Tiger win condition: 5 goats captured
     if (state.goatsCaptured >= 5) {
-        return { winner: 'Tiger', gameOver: true };
+        return { status: GameStatus.TIGER_WON };
     }
 
     // Goat win condition: Tigers are trapped
@@ -176,11 +204,11 @@ export function checkWinCondition(state: GameState): { winner: PlayerSide | 'dra
         }
 
         if (!canAnyTigerMove) {
-            return { winner: 'Goat', gameOver: true };
+            return { status: GameStatus.GOAT_WON };
         }
     }
 
-    return { winner: null, gameOver: false };
+    return { status: GameStatus.IN_PROGRESS };
 }
 
 /**

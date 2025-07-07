@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -18,131 +18,58 @@ import { useDispatch } from 'react-redux';
 import Constants from 'expo-constants';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { useLoginMutation, useGetProfileQuery } from '../../services/api';
-import { loginStart, loginSuccess, loginFailure, guestLogin } from '../../store/slices/authSlice';
+import { useLoginMutation } from '../../services/api';
+import { setGuest } from '../../store/slices/authSlice';
 import { AuthStackParamList } from '../../navigation/MainNavigator';
+import { User } from '../../services/types';
 
 type LoginScreenNavigationProp = StackNavigationProp<AuthStackParamList, 'Register'>;
 
 const LoginScreen: React.FC = () => {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
-
+  
   const dispatch = useDispatch();
-  const [login] = useLoginMutation();
   const navigation = useNavigation<LoginScreenNavigationProp>();
 
-  const validateForm = () => {
-    const newErrors: { email?: string; password?: string } = {};
+  const [login, { isLoading, error }] = useLoginMutation();
 
-    if (!email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(email) && email !== 'guest') {
-      newErrors.email = 'Invalid email format';
+  useEffect(() => {
+    if (error && 'data' in error) {
+        const errorData = error.data as { detail?: string };
+        Alert.alert('Login Failed', errorData.detail || 'An unknown error occurred.');
+    }
+  }, [error]);
+
+  const handleLogin = async () => {
+    if (!username.trim() || !password.trim()) {
+        Alert.alert('Validation Error', 'Please enter both username and password.');
+        return;
     }
 
-    if (!password.trim()) {
-      newErrors.password = 'Password is required';
-    } else if (password.length < 6 && password !== 'guest') {
-      newErrors.password = 'Password must be at least 6 characters';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    await login({ username, password });
   };
-
+  
+  const handleGuestLogin = () => {
+    const guestUser: User = {
+        user_id: `guest-${Date.now()}`,
+        email: 'guest@baghchal-royale.com',
+        username: 'Guest',
+        role: 'USER', // The UI doesn't distinguish roles, so this is fine.
+        status: 'ONLINE',
+        rating: 0,
+        created_at: new Date().toISOString()
+    };
+    dispatch(setGuest(guestUser));
+  };
+  
   const handleNavigateToRegister = () => {
     navigation.navigate('Register');
   };
 
-  const handleLogin = async () => {
-    if (!validateForm()) return;
-
-    setLoading(true);
-    dispatch(loginStart());
-
-    try {
-      console.log('Starting login...');
-      const result = await login({
-        email: email.trim().toLowerCase(),
-        password,
-      }).unwrap();
-
-      console.log('Login result:', result);
-
-      // Backend returns { success: true, message: "...", data: { access_token, refresh_token, user_id, username } }
-      if (result.success && result.data && result.data.access_token) {
-        console.log('Login successful, creating user object...');
-        
-        // Create a basic user object from the response
-        const basicUser = {
-          id: result.data.user_id,
-          email: email.trim().toLowerCase(),
-          username: result.data.username,
-          rating: 1200,
-          games_played: 0,
-          games_won: 0,
-          tiger_wins: 0,
-          goat_wins: 0,
-          created_at: new Date().toISOString(),
-        };
-
-        console.log('Dispatching login success...');
-        dispatch(loginSuccess({
-          access_token: result.data.access_token,
-          user: basicUser,
-        }));
-        
-        console.log('Login completed successfully');
-      } else {
-        throw new Error('Login failed - no token received');
-      }
-    } catch (error: any) {
-      console.error('Login error:', error);
-      const errorMessage = error.data?.detail || error.message || 'Login failed. Please check your credentials.';
-      dispatch(loginFailure(errorMessage));
-      Alert.alert('Login Failed', errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGuestLogin = () => {
-    Alert.alert(
-      'Guest Mode',
-      'Play as guest? You won\'t be able to save your progress or compete in rankings.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Continue', 
-          onPress: () => {
-            const guestUser = {
-              id: 'guest-' + Date.now(),
-              email: 'guest@baghchal.com',
-              username: 'Guest Player',
-              rating: 1200,
-              games_played: 0,
-              games_won: 0,
-              tiger_wins: 0,
-              goat_wins: 0,
-              created_at: new Date().toISOString(),
-            };
-            dispatch(guestLogin(guestUser));
-          }
-        },
-      ]
-    );
-  };
-
   const handleForgotPassword = () => {
-    Alert.alert(
-      'Forgot Password',
-      'Please contact support to reset your password.\nEmail: support@baghchal.com',
-      [{ text: 'OK' }]
-    );
+    Alert.alert('Forgot Password', 'This feature is not yet implemented.');
   };
 
   return (
@@ -152,7 +79,6 @@ const LoginScreen: React.FC = () => {
         style={styles.keyboardView}
       >
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          {/* Logo Section */}
           <View style={styles.logoSection}>
             <Image
               source={require('../../../assets/br.png')}
@@ -163,46 +89,35 @@ const LoginScreen: React.FC = () => {
             <Text style={styles.subtitle}>Welcome Back!</Text>
           </View>
 
-          {/* Form Section */}
           <View style={styles.formSection}>
             <View style={styles.inputContainer}>
-              <Ionicons name="mail-outline" size={24} color="#666" style={styles.inputIcon} />
+              <Ionicons name="person-outline" size={24} color="#666" style={styles.inputIcon} />
               <TextInput
-                style={[styles.input, errors.email && styles.inputError]}
-                placeholder="Email"
+                style={styles.input}
+                placeholder="Username"
                 placeholderTextColor="#666"
-                value={email}
-                onChangeText={(text) => {
-                  setEmail(text);
-                  if (errors.email) setErrors({...errors, email: undefined});
-                }}
-                keyboardType="email-address"
+                value={username}
+                onChangeText={setUsername}
                 autoCapitalize="none"
-                autoComplete="email"
-                editable={!loading}
+                editable={!isLoading}
               />
             </View>
-            {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
 
             <View style={styles.inputContainer}>
               <Ionicons name="lock-closed-outline" size={24} color="#666" style={styles.inputIcon} />
               <TextInput
-                style={[styles.input, errors.password && styles.inputError]}
+                style={styles.input}
                 placeholder="Password"
                 placeholderTextColor="#666"
                 value={password}
-                onChangeText={(text) => {
-                  setPassword(text);
-                  if (errors.password) setErrors({...errors, password: undefined});
-                }}
+                onChangeText={setPassword}
                 secureTextEntry={!showPassword}
-                autoComplete="password"
-                editable={!loading}
+                editable={!isLoading}
               />
               <TouchableOpacity
                 onPress={() => setShowPassword(!showPassword)}
                 style={styles.eyeIcon}
-                disabled={loading}
+                disabled={isLoading}
               >
                 <Ionicons
                   name={showPassword ? "eye-outline" : "eye-off-outline"}
@@ -211,18 +126,17 @@ const LoginScreen: React.FC = () => {
                 />
               </TouchableOpacity>
             </View>
-            {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
 
             <TouchableOpacity
-              style={[styles.loginButton, loading && styles.buttonDisabled]}
+              style={[styles.loginButton, isLoading && styles.buttonDisabled]}
               onPress={handleLogin}
-              disabled={loading}
+              disabled={isLoading}
             >
               <LinearGradient
-                colors={loading ? ['#666', '#777'] : ['#FF6F00', '#FF8F00']}
+                colors={isLoading ? ['#666', '#777'] : ['#FF6F00', '#FF8F00']}
                 style={styles.buttonGradient}
               >
-                {loading ? (
+                {isLoading ? (
                   <ActivityIndicator color="white" />
                 ) : (
                   <Text style={styles.loginButtonText}>Sign In</Text>
@@ -231,11 +145,11 @@ const LoginScreen: React.FC = () => {
             </TouchableOpacity>
 
             <TouchableOpacity 
-              style={[styles.guestButton, loading && styles.buttonDisabled]} 
+              style={[styles.guestButton, isLoading && styles.buttonDisabled]} 
               onPress={handleGuestLogin}
-              disabled={loading}
+              disabled={isLoading}
             >
-              <Text style={[styles.guestButtonText, loading && styles.disabledText]}>
+              <Text style={[styles.guestButtonText, isLoading && styles.disabledText]}>
                 Play as Guest
               </Text>
             </TouchableOpacity>
@@ -243,24 +157,19 @@ const LoginScreen: React.FC = () => {
             <TouchableOpacity 
               style={styles.forgotPassword} 
               onPress={handleForgotPassword}
-              disabled={loading}
+              disabled={isLoading}
             >
-              <Text style={[styles.forgotPasswordText, loading && styles.disabledText]}>
+              <Text style={[styles.forgotPasswordText, isLoading && styles.disabledText]}>
                 Forgot Password?
               </Text>
             </TouchableOpacity>
           </View>
 
-          {/* Register Section */}
-          <View style={styles.registerSection}>
-            <Text style={styles.registerText}>Don't have an account?</Text>
-            <TouchableOpacity 
-              style={[styles.registerButton, loading && styles.buttonDisabled]} 
-              onPress={handleNavigateToRegister}
-              disabled={loading}
-            >
-              <Text style={[styles.registerButtonText, loading && styles.disabledText]}>
-                Sign Up
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Don't have an account?</Text>
+            <TouchableOpacity onPress={handleNavigateToRegister} disabled={isLoading}>
+              <Text style={[styles.registerLink, isLoading && styles.disabledText]}>
+                Sign Up Now
               </Text>
             </TouchableOpacity>
           </View>
@@ -275,75 +184,67 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   keyboardView: {
-    flex: 1,
+      flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: 20,
+    paddingHorizontal: 30,
   },
   logoSection: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 40,
   },
   logoImage: {
     width: 120,
     height: 120,
-    marginBottom: 16,
+    marginBottom: 10,
   },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#FF6F00',
-    marginBottom: 8,
-    textAlign: 'center',
+    color: '#FFF',
   },
   subtitle: {
     fontSize: 18,
-    color: '#CCC',
-    textAlign: 'center',
+    color: '#999',
+    marginTop: 8,
   },
   formSection: {
-    marginBottom: 30,
+    marginBottom: 20,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#333',
     borderRadius: 12,
-    marginBottom: 16,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: '#444',
+    marginBottom: 15,
+    paddingHorizontal: 15,
   },
   inputIcon: {
-    marginRight: 12,
+    marginRight: 10,
   },
   input: {
     flex: 1,
+    height: 50,
     color: '#FFF',
     fontSize: 16,
-    paddingVertical: 16,
-  },
-  inputError: {
-    borderColor: '#FF4444',
   },
   eyeIcon: {
-    padding: 4,
-  },
-  errorText: {
-    color: '#FF4444',
-    fontSize: 14,
-    marginBottom: 8,
-    marginLeft: 16,
+    padding: 5,
   },
   loginButton: {
-    marginBottom: 16,
     borderRadius: 12,
-    overflow: 'hidden',
+    marginTop: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 8,
   },
   buttonGradient: {
-    paddingVertical: 16,
+    paddingVertical: 15,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -353,54 +254,42 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   guestButton: {
-    paddingVertical: 16,
+    marginTop: 20,
     alignItems: 'center',
-    marginBottom: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#666',
   },
   guestButtonText: {
-    color: '#CCC',
+    color: '#999',
     fontSize: 16,
-    fontWeight: '600',
-  },
-  forgotPassword: {
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  forgotPasswordText: {
-    color: '#FF6F00',
-    fontSize: 16,
-  },
-  registerSection: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  registerText: {
-    color: '#CCC',
-    fontSize: 16,
-    marginRight: 8,
-  },
-  registerButton: {
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginBottom: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#666',
-  },
-  registerButtonText: {
-    color: '#CCC',
-    fontSize: 16,
-    fontWeight: '600',
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   disabledText: {
     color: '#666',
+  },
+  forgotPassword: {
+    marginTop: 15,
+    alignItems: 'center',
+  },
+  forgotPasswordText: {
+    color: '#999',
+    fontSize: 14,
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  footerText: {
+    color: '#999',
+    fontSize: 16,
+  },
+  registerLink: {
+    color: '#FF6F00',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 5,
   },
 });
 

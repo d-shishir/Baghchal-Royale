@@ -1,0 +1,232 @@
+import { GameState, GameStatus } from "../game-logic/baghchal";
+
+// General
+export interface Token {
+    access_token: string;
+    token_type: string;
+}
+
+// User
+export interface User {
+    user_id: string;
+    email: string;
+    username: string;
+    country?: string;
+    role: "USER" | "ADMIN" | "MODERATOR";
+    status: "OFFLINE" | "ONLINE" | "INGAME";
+    rating: number;
+    created_at: string;
+    last_login?: string;
+}
+
+export interface UserCreate {
+    email: string;
+    username: string;
+    password: string;
+    is_superuser?: boolean;
+}
+
+export interface UserUpdate {
+    email?: string;
+    username?: string;
+    country?: string;
+    password?: string;
+}
+
+export interface Login {
+    username: string;
+    password: string;
+}
+
+// GamePlayer - a leaner version of User for game contexts
+export interface GamePlayer {
+    id: string;
+    username: string;
+}
+
+// Friendship
+export interface Friendship {
+    friendship_id: string;
+    user_id_1: string;
+    user_id_2: string;
+    status: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'BLOCKED';
+    created_at: string;
+    user1: User;
+    user2: User;
+}
+
+export interface FriendshipCreate {
+    user_id_1: string;
+    user_id_2: string;
+}
+
+// Game
+export interface Game {
+    game_id: string;
+    player1_id: string | null;
+    player2_id: string | null;
+    status: GameStatus;
+    game_type: 'AI' | 'PVP_LOCAL' | 'PVP_ONLINE';
+    created_at: string;
+    updated_at: string;
+    
+    // These are nested objects that might not always be present
+    player1?: GamePlayer;
+    player2?: GamePlayer;
+    winner_id?: string | null;
+    
+    // The full game state, crucial for local games and reconstructing online games
+    game_state: GameState;
+}
+
+export interface GameCreate {
+    player1_id: string;
+    player2_id: string;
+}
+
+export interface GameUpdate {
+    status?: GameStatus;
+    winner_id?: string;
+}
+
+// Move
+export interface Move {
+    move_id: string;
+    game_id: string;
+    move_number: number;
+    player_id: string;
+    move_type: string;
+    from_row?: number;
+    from_col?: number;
+    to_row: number;
+    to_col: number;
+    created_at: string;
+    player: User;
+}
+
+export interface MoveCreate {
+    game_id: string;
+    move_number: number;
+    player_id: string;
+    move_type: string;
+    from_row?: number;
+    from_col?: number;
+    to_row: number;
+    to_col: number;
+}
+
+// AI Game
+export interface AIGame {
+    ai_game_id: string;
+    user_id: string;
+    difficulty: "EASY" | "MEDIUM" | "HARD";
+    user_side: "TIGER" | "GOAT";
+    status: "IN_PROGRESS" | "COMPLETED";
+    winner?: string;
+    game_duration?: number;
+    started_at: string;
+    user: User;
+}
+
+export interface AIGameCreate {
+    user_id: string;
+    difficulty: "EASY" | "MEDIUM" | "HARD";
+    user_side: "TIGER" | "GOAT";
+}
+
+// Tournament
+export interface Tournament {
+    tournament_id: string;
+    name: string;
+    description?: string;
+    max_participants: number;
+    start_date: string;
+    end_date: string;
+    status: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+    created_at: string;
+}
+
+export interface TournamentCreate {
+    name: string;
+    description?: string;
+    max_participants: number;
+    start_date: string;
+    end_date: string;
+}
+
+export interface TournamentUpdate {
+    name?: string;
+    description?: string;
+    max_participants?: number;
+    start_date?: string;
+    end_date?: string;
+    status?: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+}
+
+export interface TournamentEntry {
+    tournament_entry_id: string;
+    tournament_id: string;
+    user_id: string;
+    joined_at: string;
+    user: User;
+}
+
+export interface TournamentEntryCreate {
+    tournament_id: string;
+    user_id: string;
+}
+
+export interface TournamentMatch {
+    tournament_match_id: string;
+    tournament_id: string;
+    round_number: number;
+    player_1_id: string;
+    player_2_id: string;
+    game_id?: string;
+    player_1: User;
+    player_2: User;
+    game?: Game;
+}
+
+export interface TournamentMatchCreate {
+    tournament_id: string;
+    round_number: number;
+    player_1_id: string;
+    player_2_id: string;
+}
+
+// Report
+export interface Report {
+    report_id: string;
+    reporter_id: string;
+    reported_user_id: string;
+    category: "CHEATING" | "HARASSMENT" | "BUG" | "OTHER";
+    description: string;
+    status: "PENDING" | "REVIEWED" | "RESOLVED" | "DISMISSED";
+    created_at: string;
+    reporter: User;
+    reported_user: User;
+}
+
+export interface ReportCreate {
+    reporter_id: string;
+    reported_user_id: string;
+    category: "CHEATING" | "HARASSMENT" | "BUG" | "OTHER";
+    description: string;
+}
+
+// Feedback
+export interface Feedback {
+    feedback_id: string;
+    user_id: string;
+    subject: string;
+    message: string;
+    created_at: string;
+    user: User;
+}
+
+export interface FeedbackCreate {
+    user_id: string;
+    subject: string;
+    message: string;
+} 

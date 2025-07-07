@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,18 +8,22 @@ import {
   TextInput,
   Alert,
   RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import { useSelector } from 'react-redux';
 import {
-  useGetFriendsListQuery,
-  useGetPendingFriendRequestsQuery,
+  useGetMyFriendsQuery,
   useSearchUsersQuery,
-  useSendFriendRequestMutation,
-  useRespondToFriendRequestMutation,
-  useRemoveFriendMutation,
+  useCreateFriendshipMutation,
+  useUpdateFriendshipMutation,
+  useDeleteFriendshipMutation,
 } from '../../services/api';
+import { RootState } from '../../store';
+import { Friendship, User } from '../../services/types';
 import { theme } from '../../theme';
+import { Ionicons } from '@expo/vector-icons';
 
 type TabType = 'friends' | 'requests' | 'search';
 
@@ -27,41 +31,57 @@ const FriendsScreen = () => {
   const navigation = useNavigation();
   const [activeTab, setActiveTab] = useState<TabType>('friends');
   const [searchQuery, setSearchQuery] = useState('');
-  const [refreshing, setRefreshing] = useState(false);
+  
+  const currentUser = useSelector((state: RootState) => state.auth.user);
+  const isGuest = useSelector((state: RootState) => state.auth.isGuest);
 
   // API hooks
-  const { data: friendsList, isLoading: friendsLoading, refetch: refetchFriends } = useGetFriendsListQuery();
-  const { data: pendingRequests, isLoading: requestsLoading, refetch: refetchRequests } = useGetPendingFriendRequestsQuery();
+  const { data: friendships, isLoading: friendsLoading, refetch } = useGetMyFriendsQuery(undefined, {
+      skip: isGuest,
+  });
   const { data: searchResults, isLoading: searchLoading } = useSearchUsersQuery(
-    { query: searchQuery, limit: 10 },
-    { skip: searchQuery.length < 2 }
+    searchQuery,
+    { skip: searchQuery.length < 2 || isGuest }
   );
   
-  const [sendFriendRequest] = useSendFriendRequestMutation();
-  const [respondToRequest] = useRespondToFriendRequestMutation();
-  const [removeFriend] = useRemoveFriendMutation();
+  const [createFriendship] = useCreateFriendshipMutation();
+  const [updateFriendship] = useUpdateFriendshipMutation();
+  const [deleteFriendship] = useDeleteFriendshipMutation();
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await Promise.all([refetchFriends(), refetchRequests()]);
-    setRefreshing(false);
-  };
+  const { friendsList, pendingRequests } = useMemo(() => {
+    if (!friendships) return { friendsList: [], pendingRequests: [] };
+    
+    const friends: Friendship[] = [];
+    const requests: Friendship[] = [];
+
+    friendships.forEach(f => {
+      if (f.status === 'ACCEPTED') {
+        friends.push(f);
+      } else if (f.status === 'PENDING' && f.user_id_2 === currentUser?.user_id) {
+        requests.push(f);
+      }
+    });
+    
+    return { friendsList: friends, pendingRequests: requests };
+  }, [friendships, currentUser]);
+
 
   const handleSendFriendRequest = async (userId: string) => {
     try {
-      await sendFriendRequest({ addressee_id: userId }).unwrap();
+      await createFriendship({ user_id_2: userId }).unwrap();
       Alert.alert('Success', 'Friend request sent!');
-    } catch (error) {
-      Alert.alert('Error', 'Failed to send friend request');
+    } catch (error: any) {
+        const message = error.data?.detail || 'Failed to send friend request';
+      Alert.alert('Error', message);
     }
   };
 
-  const handleRespondToRequest = async (friendshipId: string, status: 'accepted' | 'declined') => {
+  const handleRespondToRequest = async (friendshipId: string, accepted: boolean) => {
     try {
-      await respondToRequest({ friendship_id: friendshipId, status }).unwrap();
-      Alert.alert('Success', `Friend request ${status}!`);
+      await updateFriendship({ friendship_id: friendshipId, accepted }).unwrap();
+      Alert.alert('Success', `Friend request ${accepted ? 'accepted' : 'declined'}!`);
     } catch (error) {
-      Alert.alert('Error', `Failed to ${status} friend request`);
+      Alert.alert('Error', `Failed to respond to friend request`);
     }
   };
 
@@ -76,7 +96,7 @@ const FriendsScreen = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              await removeFriend({ friendship_id: friendshipId }).unwrap();
+              await deleteFriendship({ friendship_id: friendshipId }).unwrap();
               Alert.alert('Success', 'Friend removed');
             } catch (error) {
               Alert.alert('Error', 'Failed to remove friend');
@@ -86,89 +106,105 @@ const FriendsScreen = () => {
       ]
     );
   };
+  
+  if (isGuest) {
+      return (
+        <SafeAreaView style={styles.container}>
+             <View style={styles.emptyStateContainer}>
+                <Text style={styles.emptyText}>Create an account to add friends!</Text>
+            </View>
+        </SafeAreaView>
+      )
+  }
 
-  const renderFriend = ({ item }: { item: any }) => (
-    <View style={styles.friendItem}>
-      <View style={styles.friendInfo}>
-        <Text style={styles.friendName}>{item.friend.username}</Text>
-        <Text style={styles.friendRating}>Rating: {item.friend.rating}</Text>
-      </View>
-      <TouchableOpacity
-        style={styles.removeButton}
-        onPress={() => handleRemoveFriend(item.id)}
-      >
-        <Text style={styles.removeButtonText}>Remove</Text>
-      </TouchableOpacity>
+  const renderFriend = ({ item }: { item: Friendship }) => {
+    const friend = item.user_id_1 === currentUser?.user_id ? item.user2 : item.user1;
+    return (
+        <View style={styles.listItem}>
+            <View style={styles.friendInfo}>
+                <Text style={styles.friendName}>{friend.username}</Text>
+                <Text style={styles.friendStatus}>{friend.status}</Text>
+            </View>
+            <View style={styles.friendActions}>
+                <TouchableOpacity style={styles.actionButton} onPress={() => {/* Navigate to chat or profile */}}>
+                    <Ionicons name="chatbubbles-outline" size={24} color={theme.colors.primary} />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.actionButton} onPress={() => handleRemoveFriend(item.friendship_id)}>
+                    <Ionicons name="person-remove-outline" size={24} color={theme.colors.error} />
+                </TouchableOpacity>
+            </View>
+        </View>
+    );
+  }
+
+  const renderPendingRequest = ({ item }: { item: Friendship }) => {
+    const requestor = item.user1;
+    return(
+    <View style={styles.listItem}>
+        <View style={styles.friendInfo}>
+            <Text style={styles.friendName}>{requestor.username}</Text>
+            <Text style={styles.friendStatus}>Wants to be your friend</Text>
+        </View>
+        <View style={styles.requestActions}>
+            <TouchableOpacity style={styles.acceptButton} onPress={() => handleRespondToRequest(item.friendship_id, true)}>
+                <Ionicons name="checkmark-circle-outline" size={32} color={theme.colors.success} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.declineButton} onPress={() => handleRespondToRequest(item.friendship_id, false)}>
+                <Ionicons name="close-circle-outline" size={32} color={theme.colors.error} />
+            </TouchableOpacity>
+        </View>
     </View>
-  );
+  )};
 
-  const renderPendingRequest = ({ item }: { item: any }) => (
-    <View style={styles.requestItem}>
-      <View style={styles.friendInfo}>
-        <Text style={styles.friendName}>{item.friend.username}</Text>
-        <Text style={styles.friendRating}>Rating: {item.friend.rating}</Text>
-      </View>
-      <View style={styles.requestActions}>
-        <TouchableOpacity
-          style={styles.acceptButton}
-          onPress={() => handleRespondToRequest(item.id, 'accepted')}
-        >
-          <Text style={styles.acceptButtonText}>Accept</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.declineButton}
-          onPress={() => handleRespondToRequest(item.id, 'declined')}
-        >
-          <Text style={styles.declineButtonText}>Decline</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
-  const renderSearchResult = ({ item }: { item: any }) => (
-    <View style={styles.searchItem}>
+  const renderSearchResult = ({ item }: { item: User }) => (
+    <View style={styles.listItem}>
       <View style={styles.friendInfo}>
         <Text style={styles.friendName}>{item.username}</Text>
-        <Text style={styles.friendRating}>Rating: {item.rating}</Text>
+        <Text style={styles.friendStatus}>Rating: {item.rating}</Text>
       </View>
       <TouchableOpacity
         style={styles.addButton}
-        onPress={() => handleSendFriendRequest(item.id)}
+        onPress={() => handleSendFriendRequest(item.user_id)}
       >
-        <Text style={styles.addButtonText}>Add Friend</Text>
+        <Ionicons name="add-circle-outline" size={32} color={theme.colors.primary} />
       </TouchableOpacity>
     </View>
   );
 
   const renderTabContent = () => {
+    const isLoading = friendsLoading || searchLoading;
+    if (isLoading) {
+        return <ActivityIndicator style={{marginTop: 20}} size="large" color={theme.colors.primary} />
+    }
+      
     switch (activeTab) {
       case 'friends':
         return (
           <FlatList
-            data={friendsList || []}
+            data={friendsList}
             renderItem={renderFriend}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item) => item.friendship_id}
             contentContainerStyle={styles.listContainer}
             refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+              <RefreshControl refreshing={friendsLoading} onRefresh={refetch} />
             }
             ListEmptyComponent={
-              <Text style={styles.emptyText}>No friends yet. Add some friends!</Text>
+              <View style={styles.emptyStateContainer}><Text style={styles.emptyText}>No friends yet. Add some friends!</Text></View>
             }
           />
         );
       case 'requests':
         return (
           <FlatList
-            data={pendingRequests || []}
+            data={pendingRequests}
             renderItem={renderPendingRequest}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item) => item.friendship_id}
             contentContainerStyle={styles.listContainer}
             refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+              <RefreshControl refreshing={friendsLoading} onRefresh={refetch} />
             }
             ListEmptyComponent={
-              <Text style={styles.emptyText}>No pending friend requests</Text>
+                <View style={styles.emptyStateContainer}><Text style={styles.emptyText}>No pending friend requests</Text></View>
             }
           />
         );
@@ -181,17 +217,18 @@ const FriendsScreen = () => {
               value={searchQuery}
               onChangeText={setSearchQuery}
               placeholderTextColor={theme.colors.onSurfaceVariant}
+              autoCapitalize="none"
             />
             <FlatList
               data={searchResults || []}
               renderItem={renderSearchResult}
-              keyExtractor={(item) => item.id}
+              keyExtractor={(item) => item.user_id}
               contentContainerStyle={styles.listContainer}
               ListEmptyComponent={
                 searchQuery.length >= 2 ? (
-                  <Text style={styles.emptyText}>No users found</Text>
+                  <View style={styles.emptyStateContainer}><Text style={styles.emptyText}>No users found</Text></View>
                 ) : (
-                  <Text style={styles.emptyText}>Type at least 2 characters to search</Text>
+                  <View style={styles.emptyStateContainer}><Text style={styles.emptyText}>Type at least 2 characters to search</Text></View>
                 )
               }
             />
@@ -248,23 +285,25 @@ const styles = StyleSheet.create({
   header: {
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: theme.colors.outline,
+    borderBottomColor: theme.colors.surfaceVariant,
+    alignItems: 'center',
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: theme.colors.onBackground,
+    color: theme.colors.onSurface,
   },
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: theme.colors.surface,
+    justifyContent: 'space-around',
     borderBottomWidth: 1,
-    borderBottomColor: theme.colors.outline,
+    borderBottomColor: theme.colors.surfaceVariant,
   },
   tab: {
-    flex: 1,
-    padding: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   activeTab: {
     borderBottomWidth: 2,
@@ -273,121 +312,75 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 16,
     color: theme.colors.onSurfaceVariant,
+    fontWeight: '600',
   },
   activeTabText: {
     color: theme.colors.primary,
-    fontWeight: 'bold',
   },
   listContainer: {
     padding: 16,
   },
-  friendItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: theme.colors.surface,
-    borderRadius: 8,
-    marginBottom: 8,
+  searchContainer: {
+    flex: 1,
   },
-  requestItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: theme.colors.surface,
+  searchInput: {
+    backgroundColor: theme.colors.surfaceVariant,
     borderRadius: 8,
-    marginBottom: 8,
+    padding: 12,
+    fontSize: 16,
+    color: theme.colors.onSurface,
+    margin: 16,
   },
-  searchItem: {
+  listItem: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
     backgroundColor: theme.colors.surface,
     borderRadius: 8,
-    marginBottom: 8,
+    marginBottom: 12,
   },
   friendInfo: {
     flex: 1,
   },
   friendName: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
     color: theme.colors.onSurface,
   },
-  friendRating: {
+  friendStatus: {
     fontSize: 14,
     color: theme.colors.onSurfaceVariant,
-    marginTop: 4,
   },
-  removeButton: {
-    backgroundColor: theme.colors.attackColor,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 4,
-  },
-  removeButtonText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: 'bold',
+  friendActions: {
+      flexDirection: 'row'
   },
   requestActions: {
     flexDirection: 'row',
-    gap: 8,
+    alignItems: 'center',
   },
-  acceptButton: {
-    backgroundColor: theme.colors.validMoveColor,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 4,
-  },
-  acceptButtonText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  declineButton: {
-    backgroundColor: theme.colors.attackColor,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 4,
-  },
-  declineButtonText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: 'bold',
+  actionButton: {
+      marginLeft: 15,
   },
   addButton: {
-    backgroundColor: theme.colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 4,
+    padding: 8,
   },
-  addButtonText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: 'bold',
+  acceptButton: {
+    padding: 8,
+    marginRight: 8,
   },
-  searchContainer: {
+  declineButton: {
+    padding: 8,
+  },
+  emptyStateContainer: {
     flex: 1,
-    padding: 16,
-  },
-  searchInput: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    color: theme.colors.onSurface,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: theme.colors.outline,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
   },
   emptyText: {
-    textAlign: 'center',
-    color: theme.colors.onSurfaceVariant,
     fontSize: 16,
-    marginTop: 32,
+    color: theme.colors.onSurfaceVariant,
+    textAlign: 'center',
   },
 });
 

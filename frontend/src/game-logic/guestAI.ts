@@ -1,10 +1,9 @@
-import { GameState, PlayerSide } from '../store/slices/gameSlice';
-import { PotentialMove, getAllValidMoves, getMovesForPiece } from './baghchal';
+import { GameState, PotentialMove, getAllValidMoves, PlayerSide } from './baghchal';
 
 export enum AIDifficulty {
-  EASY = 'easy',
-  MEDIUM = 'medium', 
-  HARD = 'hard',
+  EASY = 'EASY',
+  MEDIUM = 'MEDIUM', 
+  HARD = 'HARD',
 }
 
 export class GuestModeAI {
@@ -25,7 +24,7 @@ export class GuestModeAI {
     const allValidMoves = getAllValidMoves(gameState);
     if (allValidMoves.length === 0) return null;
 
-    if (gameState.currentPlayer === 'tigers') {
+    if (gameState.currentPlayer === 'Tiger') {
       return this.selectTigerMove(allValidMoves, gameState);
     } else {
       return this.selectGoatMove(allValidMoves, gameState);
@@ -78,7 +77,7 @@ export class GuestModeAI {
    * Check if a move is a capture move (for tigers)
    */
   private isCaptureMove(move: PotentialMove, gameState: GameState): boolean {
-    if (move.type !== 'move') return false;
+    if (move.type !== 'move' || !move.from) return false;
     
     const [fromRow, fromCol] = move.from;
     const [toRow, toCol] = move.to;
@@ -105,7 +104,7 @@ export class GuestModeAI {
    */
   private isMoveDangerous(move: PotentialMove, gameState: GameState): boolean {
     // Simulate the move
-    const newBoard = gameState.board.map(row => [...row]);
+    const newBoard = gameState.board.map((row: number[]) => [...row]);
     const [toRow, toCol] = move.to;
     
     if (move.type === 'place') {
@@ -313,30 +312,24 @@ export class GuestModeAI {
   private selectByDifficulty(moves: PotentialMove[]): PotentialMove {
     if (moves.length === 0) throw new Error('No moves available');
     
-    switch (this.difficulty) {
-      case AIDifficulty.EASY:
-        // 30% best move, 70% random
-        if (Math.random() < 0.3) {
-          return moves[0]; // Best move
-        } else {
-          return moves[Math.floor(Math.random() * moves.length)]; // Random
-        }
-        
-      case AIDifficulty.MEDIUM:
-        // 70% best move, 30% from top 3
-        if (Math.random() < 0.7) {
-          return moves[0]; // Best move
-        } else {
-          const topMoves = moves.slice(0, Math.min(3, moves.length));
-          return topMoves[Math.floor(Math.random() * topMoves.length)];
-        }
-        
-      case AIDifficulty.HARD:
-        // Always best move, with slight randomization for equal scores
+    if (this.difficulty === AIDifficulty.EASY) {
+      // 30% chance to pick the best move, 70% chance for a random move
+      if (Math.random() < 0.3) {
         return moves[0];
-        
-      default:
+      }
+      return moves[Math.floor(Math.random() * moves.length)];
+    } else if (this.difficulty === AIDifficulty.MEDIUM) {
+      // 70% chance for best move, 30% for random
+      if (Math.random() < 0.7) {
         return moves[0];
+      }
+      return moves[Math.floor(Math.random() * moves.length)];
+    } else { // Hard
+      // 95% chance for best move
+      if (Math.random() < 0.95) {
+        return moves[0];
+      }
+      return moves[Math.floor(Math.random() * moves.length)];
     }
   }
 }

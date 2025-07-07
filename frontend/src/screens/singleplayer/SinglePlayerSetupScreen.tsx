@@ -10,26 +10,32 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { useSelector, useDispatch } from 'react-redux';
 
-interface SinglePlayerSetupScreenProps {
-  onStartGame: (playerSide: 'tigers' | 'goats', difficulty: 'easy' | 'medium' | 'hard') => void;
-  onBack: () => void;
-  isLoading?: boolean;
-}
+import { MainStackParamList } from '../../navigation/MainNavigator';
+import { RootState } from '../../store';
+import { startLocalGame } from '../../store/slices/gameSlice';
+import { Game, GamePlayer } from '../../services/types';
+import { GameStatus } from '../../game-logic/baghchal';
+import { initialGameState } from '../../game-logic/initialState';
+
+type NavProps = StackNavigationProp<MainStackParamList, 'SinglePlayerSetup'>;
 
 const { width } = Dimensions.get('window');
 
-const SinglePlayerSetupScreen: React.FC<SinglePlayerSetupScreenProps> = ({
-  onStartGame,
-  onBack,
-  isLoading = false,
-}) => {
-  const [selectedSide, setSelectedSide] = useState<'tigers' | 'goats'>('goats');
-  const [selectedDifficulty, setSelectedDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
+const SinglePlayerSetupScreen: React.FC = () => {
+  const navigation = useNavigation<NavProps>();
+  const dispatch = useDispatch();
+  const user = useSelector((state: RootState) => state.auth.user);
+  
+  const [selectedSide, setSelectedSide] = useState<'TIGER' | 'GOAT'>('GOAT');
+  const [selectedDifficulty, setSelectedDifficulty] = useState<'EASY' | 'MEDIUM' | 'HARD'>('MEDIUM');
 
   const sideOptions = [
     {
-      id: 'tigers' as const,
+      id: 'TIGER' as const,
       title: 'Tigers',
       description: 'Hunt and capture goats',
       icon: 'flash' as 'flash',
@@ -38,7 +44,7 @@ const SinglePlayerSetupScreen: React.FC<SinglePlayerSetupScreenProps> = ({
       color: ['#FF5722', '#FF7043'],
     },
     {
-      id: 'goats' as const,
+      id: 'GOAT' as const,
       title: 'Goats',
       description: 'Block tigers from moving',
       icon: 'shield' as 'shield',
@@ -50,21 +56,21 @@ const SinglePlayerSetupScreen: React.FC<SinglePlayerSetupScreenProps> = ({
 
   const difficultyOptions = [
     {
-      id: 'easy' as const,
+      id: 'EASY' as const,
       title: 'Easy',
       description: 'Perfect for beginners',
       aiLevel: 'Random AI with basic strategy',
       color: '#4CAF50',
     },
     {
-      id: 'medium' as const,
+      id: 'MEDIUM' as const,
       title: 'Medium',
       description: 'Balanced challenge',
       aiLevel: 'Trained Q-Learning AI',
       color: '#FF9800',
     },
     {
-      id: 'hard' as const,
+      id: 'HARD' as const,
       title: 'Hard',
       description: 'Expert level challenge',
       aiLevel: 'Advanced Q-Learning AI',
@@ -73,12 +79,35 @@ const SinglePlayerSetupScreen: React.FC<SinglePlayerSetupScreenProps> = ({
   ];
 
   const handleStartGame = () => {
-    if (!selectedSide || !selectedDifficulty) {
-      Alert.alert('Incomplete Selection', 'Please select both your side and difficulty level.');
-      return;
-    }
+    const gameId = `local-ai-${Date.now()}`;
+    const userPlayer: GamePlayer = { 
+        id: user?.user_id || 'guest-player', 
+        username: user?.username || 'Guest' 
+    };
+    const aiPlayer: GamePlayer = { id: 'ai-player', username: `AI (${selectedDifficulty})` };
 
-    onStartGame(selectedSide, selectedDifficulty);
+    const player1 = selectedSide === 'TIGER' ? userPlayer : aiPlayer;
+    const player2 = selectedSide === 'GOAT' ? userPlayer : aiPlayer;
+
+    const localGame: Game = {
+        game_id: gameId,
+        player1_id: player1.id,
+        player2_id: player2.id,
+        player1,
+        player2,
+        status: GameStatus.IN_PROGRESS,
+        game_state: initialGameState,
+        game_type: 'AI',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+    };
+
+    dispatch(startLocalGame(localGame));
+    navigation.navigate('Game', { 
+        gameId: gameId, 
+        playerSide: selectedSide, 
+        aiDifficulty: selectedDifficulty 
+    });
   };
 
   const renderSideCard = (side: typeof sideOptions[0]) => {
@@ -166,7 +195,7 @@ const SinglePlayerSetupScreen: React.FC<SinglePlayerSetupScreenProps> = ({
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={styles.backButton}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#FFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Single Player Setup</Text>
@@ -225,34 +254,13 @@ const SinglePlayerSetupScreen: React.FC<SinglePlayerSetupScreenProps> = ({
       </ScrollView>
 
       {/* Start Game Button */}
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity
-          style={[
-            styles.startButton,
-            (!selectedSide || !selectedDifficulty || isLoading) && styles.startButtonDisabled
-          ]}
-          onPress={handleStartGame}
-          disabled={!selectedSide || !selectedDifficulty || isLoading}
-        >
+      <View style={styles.footer}>
+        <TouchableOpacity style={styles.startButton} onPress={handleStartGame}>
           <LinearGradient
-            colors={
-              selectedSide && selectedDifficulty && !isLoading
-                ? ['#FF5252', '#FF7043']
-                : ['#333', '#333']
-            }
+            colors={['#FF6F00', '#FF8F00']}
             style={styles.startButtonGradient}
           >
-            {isLoading ? (
-              <>
-                <Ionicons name="hourglass" size={20} color="#FFF" />
-                <Text style={styles.startButtonText}>Starting Game...</Text>
-              </>
-            ) : (
-              <>
-                <Ionicons name="play" size={20} color="#FFF" />
-                <Text style={styles.startButtonText}>Start Game</Text>
-              </>
-            )}
+            <Text style={styles.startButtonText}>Start Game</Text>
           </LinearGradient>
         </TouchableOpacity>
       </View>
@@ -444,16 +452,13 @@ const styles = StyleSheet.create({
     color: '#CCC',
     marginLeft: 8,
   },
-  buttonContainer: {
+  footer: {
     padding: 20,
     paddingTop: 10,
   },
   startButton: {
     borderRadius: 16,
     overflow: 'hidden',
-  },
-  startButtonDisabled: {
-    opacity: 0.5,
   },
   startButtonGradient: {
     flexDirection: 'row',
@@ -465,7 +470,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#FFF',
-    marginLeft: 8,
   },
 });
 

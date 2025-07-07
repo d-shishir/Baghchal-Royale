@@ -1,90 +1,99 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, PayloadAction, isRejectedWithValue } from '@reduxjs/toolkit';
+import { api } from '../../services/api';
+import { User as ApiUser, Token as ApiToken } from '../../services/types';
 
-export interface User {
-  id: string;
-  email: string;
-  username: string;
-  rating: number;
-  games_played: number;
-  games_won: number;
-  tiger_wins: number;
-  goat_wins: number;
-  created_at: string;
-  bio?: string;
-  country?: string;
-}
+export type User = ApiUser;
+export type Token = ApiToken;
 
 interface AuthState {
   isAuthenticated: boolean;
+  isGuest: boolean;
   user: User | null;
   token: string | null;
-  loading: boolean;
+  loading: 'idle' | 'pending';
   error: string | null;
-  guestMode: boolean;
 }
 
 const initialState: AuthState = {
   isAuthenticated: false,
+  isGuest: false,
   user: null,
   token: null,
-  loading: false,
+  loading: 'idle',
   error: null,
-  guestMode: false,
 };
 
 const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    loginStart: (state) => {
-      state.loading = true;
-      state.error = null;
-    },
-    loginSuccess: (state, action: PayloadAction<{ access_token: string; user: User }>) => {
-      state.loading = false;
-      state.isAuthenticated = true;
-      state.token = action.payload.access_token;
-      state.user = action.payload.user;
-      state.error = null;
-      state.guestMode = false;
-    },
-    loginFailure: (state, action: PayloadAction<string>) => {
-      state.loading = false;
-      state.isAuthenticated = false;
-      state.token = null;
-      state.user = null;
-      state.error = action.payload;
-    },
-    guestLogin: (state, action: PayloadAction<User>) => {
-      state.isAuthenticated = true;
-      state.user = action.payload;
-      state.guestMode = true;
-      state.token = 'guest-token';
-      state.loading = false;
-    },
     logout: (state) => {
       state.isAuthenticated = false;
+      state.isGuest = false;
       state.token = null;
       state.user = null;
-      state.loading = false;
-      state.error = null;
-      state.guestMode = false;
     },
-    updateProfile: (state, action: PayloadAction<Partial<User>>) => {
-      if (state.user) {
-        state.user = { ...state.user, ...action.payload };
-      }
-    },
+    setGuest: (state, action: PayloadAction<User>) => {
+        state.isAuthenticated = true;
+        state.isGuest = true;
+        state.user = action.payload;
+        state.token = null;
+    }
+  },
+  extraReducers: (builder) => {
+    builder
+      .addMatcher(
+        api.endpoints.login.matchFulfilled,
+        (state, { payload }: PayloadAction<Token>) => {
+          state.token = payload.access_token;
+          state.isAuthenticated = true;
+          state.isGuest = false;
+          state.loading = 'idle';
+        }
+      )
+      .addMatcher(
+        api.endpoints.getMe.matchFulfilled,
+        (state, { payload }: PayloadAction<User>) => {
+          state.user = payload;
+          state.isAuthenticated = true;
+          state.isGuest = false;
+          state.loading = 'idle';
+        }
+      )
+      .addMatcher(
+        api.endpoints.getMe.matchRejected,
+        (state, action) => {
+            state.isAuthenticated = false;
+            state.isGuest = false;
+            state.token = null;
+            state.user = null;
+        }
+      )
+      .addMatcher(
+        api.endpoints.updateMe.matchFulfilled,
+        (state, { payload }: PayloadAction<User>) => {
+            state.user = payload;
+            state.loading = 'idle';
+        }
+      )
+      .addMatcher(
+        (action) => action.type.endsWith('/pending'),
+        (state) => {
+          state.loading = 'pending';
+          state.error = null;
+        }
+      )
+      .addMatcher(
+        isRejectedWithValue,
+        (state, action) => {
+          state.loading = 'idle';
+          const errorPayload = action.payload as { data?: { detail?: string }; status?: number };
+          state.error = errorPayload.data?.detail || 'An unknown error occurred';
+        }
+      );
   },
 });
 
-export const {
-  loginStart,
-  loginSuccess,
-  loginFailure,
-  guestLogin,
-  logout,
-  updateProfile,
-} = authSlice.actions;
+export const { logout, setGuest } = authSlice.actions;
 
 export default authSlice.reducer; 

@@ -6,37 +6,86 @@ import {
   StyleSheet,
   ScrollView,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useSelector, useDispatch } from 'react-redux';
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 
-interface HomeScreenProps {
-  user?: {
-    username: string;
-    rating: number;
-    games_played: number;
-    games_won: number;
-  };
-  onPlaySinglePlayer: () => void;
-  onPlayLocalPVP: () => void;
-  onPlayMultiplayer: () => void;
-  onViewProfile: () => void;
-  onViewLeaderboard: () => void;
-  onShowGameRules: () => void;
-}
+import { RootState } from '../../store';
+import { MainStackParamList } from '../../navigation/MainNavigator';
+import { startLocalGame } from '../../store/slices/gameSlice';
+import { Game, GamePlayer } from '../../services/types';
+import { GameStatus } from '../../game-logic/baghchal';
+import { initialGameState } from '../../game-logic/initialState';
+
+type HomeScreenNavigationProp = StackNavigationProp<MainStackParamList, 'MainTabs'>;
 
 const { width } = Dimensions.get('window');
 
-const HomeScreen: React.FC<HomeScreenProps> = ({
-  user,
-  onPlaySinglePlayer,
-  onPlayLocalPVP,
-  onPlayMultiplayer,
-  onViewProfile,
-  onViewLeaderboard,
-  onShowGameRules,
-}) => {
-  const winRate = user?.games_played ? ((user.games_won / user.games_played) * 100).toFixed(1) : '0';
+const HomeScreen: React.FC = () => {
+  const navigation = useNavigation<HomeScreenNavigationProp>();
+  const dispatch = useDispatch();
+  const user = useSelector((state: RootState) => state.auth.user);
+  const isAuthenticated = useSelector((state: RootState) => state.auth.isAuthenticated);
+  const isGuest = useSelector((state: RootState) => state.auth.isGuest);
+
+  const handlePlaySinglePlayer = () => {
+    navigation.navigate('SinglePlayerSetup');
+  };
+
+  const handlePlayLocalPVP = () => {
+    const gameId = `local-pvp-${Date.now()}`;
+    const player1: GamePlayer = { id: 'player1', username: 'Player 1 (Tiger)'};
+    const player2: GamePlayer = { id: 'player2', username: 'Player 2 (Goat)'};
+
+    const localGame: Game = {
+        game_id: gameId,
+        player1_id: 'player1',
+        player2_id: 'player2',
+        player1,
+        player2,
+        status: GameStatus.IN_PROGRESS,
+        game_state: initialGameState,
+        game_type: 'PVP_LOCAL',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+    };
+    dispatch(startLocalGame(localGame));
+    navigation.navigate('Game', { gameId });
+  };
+
+  const handlePlayMultiplayer = () => {
+    if (!isAuthenticated || isGuest) {
+      Alert.alert(
+        'Account Required',
+        'Please log in or create an account to play online multiplayer games.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    navigation.navigate('MultiplayerSetup');
+  };
+
+  const handleViewProfile = () => {
+    navigation.navigate('MainTabs', { screen: 'Profile' });
+  };
+
+  const handleViewLeaderboard = () => {
+    navigation.navigate('MainTabs', { screen: 'Leaderboard' });
+  };
+
+  const handleShowGameRules = () => {
+     Alert.alert(
+      'Baghchal Rules',
+      '🐯 4 Tigers vs 🐐 20 Goats\n\n• Tigers move first\n• Tigers win by capturing 5 goats\n• Goats win by blocking all tiger movements\n• Game has 2 phases: placement and movement'
+    );
+  };
+  
+  // TODO: calculate winrate from user's game history
+  const winRate = 'N/A';
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -47,28 +96,10 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
             <Text style={styles.greeting}>Welcome back,</Text>
             <Text style={styles.username}>{user?.username || 'Guest'}</Text>
           </View>
-          <TouchableOpacity onPress={onViewProfile} style={styles.profileButton}>
+          <TouchableOpacity onPress={handleViewProfile} style={styles.profileButton}>
             <Ionicons name="person-circle-outline" size={32} color="#FF5252" />
           </TouchableOpacity>
         </View>
-
-        {/* Quick Stats */}
-        {user && (
-          <View style={styles.statsContainer}>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{user.rating}</Text>
-              <Text style={styles.statLabel}>Rating</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{user.games_played}</Text>
-              <Text style={styles.statLabel}>Games</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{winRate}%</Text>
-              <Text style={styles.statLabel}>Win Rate</Text>
-            </View>
-          </View>
-        )}
       </LinearGradient>
 
       {/* Game Mode Selection */}
@@ -76,7 +107,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
         <Text style={styles.sectionTitle}>Choose Game Mode</Text>
         
         {/* Single Player Mode */}
-        <TouchableOpacity style={styles.gameModeCard} onPress={onPlaySinglePlayer}>
+        <TouchableOpacity style={styles.gameModeCard} onPress={handlePlaySinglePlayer}>
           <LinearGradient colors={['#FF6F00', '#FF8F00']} style={styles.modeGradient}>
             <View style={styles.modeContent}>
               <View style={styles.modeIcon}>
@@ -95,7 +126,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
         </TouchableOpacity>
 
         {/* On-Device PVP Mode */}
-        <TouchableOpacity style={styles.gameModeCard} onPress={onPlayLocalPVP}>
+        <TouchableOpacity style={styles.gameModeCard} onPress={handlePlayLocalPVP}>
           <LinearGradient colors={['#42A5F5', '#1976D2']} style={styles.modeGradient}>
             <View style={styles.modeContent}>
               <View style={styles.modeIcon}>
@@ -114,7 +145,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
         </TouchableOpacity>
 
         {/* Multiplayer Mode */}
-        <TouchableOpacity style={styles.gameModeCard} onPress={onPlayMultiplayer}>
+        <TouchableOpacity style={styles.gameModeCard} onPress={handlePlayMultiplayer}>
           <LinearGradient colors={['#66BB6A', '#4CAF50']} style={styles.modeGradient}>
             <View style={styles.modeContent}>
               <View style={styles.modeIcon}>
@@ -137,21 +168,21 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
       <View style={styles.quickActionsSection}>
         <Text style={styles.sectionTitle}>Quick Actions</Text>
         <View style={styles.actionGrid}>
-          <TouchableOpacity style={styles.actionCard} onPress={onViewLeaderboard}>
+          <TouchableOpacity style={styles.actionCard} onPress={handleViewLeaderboard}>
             <LinearGradient colors={['#FFB74D', '#FFA726']} style={styles.actionGradient}>
               <Ionicons name="trophy-outline" size={28} color="#FFF" />
               <Text style={styles.actionText}>Leaderboard</Text>
             </LinearGradient>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionCard} onPress={onShowGameRules}>
+          <TouchableOpacity style={styles.actionCard} onPress={handleShowGameRules}>
             <LinearGradient colors={['#81C784', '#66BB6A']} style={styles.actionGradient}>
               <Ionicons name="book-outline" size={28} color="#FFF" />
               <Text style={styles.actionText}>Game Rules</Text>
             </LinearGradient>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionCard} onPress={onViewProfile}>
+          <TouchableOpacity style={styles.actionCard} onPress={handleViewProfile}>
             <LinearGradient colors={['#F48FB1', '#E91E63']} style={styles.actionGradient}>
               <Ionicons name="stats-chart-outline" size={28} color="#FFF" />
               <Text style={styles.actionText}>My Stats</Text>
