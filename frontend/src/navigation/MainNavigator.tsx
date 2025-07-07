@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createStackNavigator, StackNavigationProp } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
@@ -26,7 +26,7 @@ import MultiplayerSetupScreen from '../screens/multiplayer/MultiplayerSetupScree
 import QuickMatchModal from '../components/game/QuickMatchModal';
 
 // Import API hooks
-import { useGetProfileQuery, useGetRoomsQuery, useCreateRoomMutation, useQuickMatchMutation } from '../services/api';
+import { useGetProfileQuery } from '../services/api';
 
 // Define navigation types
 export type AuthStackParamList = {
@@ -45,8 +45,18 @@ export type MainStackParamList = {
   MainTabs: undefined;
   SinglePlayerSetup: undefined;
   MultiplayerSetup: undefined;
-  Game: { gameId?: string; mode: 'pvp' | 'pvai' | 'pvp-local' };
+  Game: { 
+    matchId: string;
+    opponentId: string;
+    playerSide: 'Goat' | 'Tiger';
+    gameMode: 'multiplayer';
+  } | {
+    gameId?: string;
+    mode: 'pvai' | 'pvp-local'; 
+  };
 };
+
+export type GameScreenNavigationProp = StackNavigationProp<MainStackParamList, 'Game'>;
 
 export type RootStackParamList = {
   Auth: undefined;
@@ -133,97 +143,6 @@ const HomeScreenWrapper = ({ navigation }: any) => {
       onViewLeaderboard={handleViewLeaderboard}
       onShowGameRules={handleShowGameRules}
     />
-  );
-};
-
-const MultiplayerSetupScreenWrapper = ({ navigation }: any) => {
-  const { data: rooms, isLoading, error } = useGetRoomsQuery();
-  const [createRoom, { isLoading: isCreatingRoom }] = useCreateRoomMutation();
-  const [quickMatch, { isLoading: isQuickMatching }] = useQuickMatchMutation();
-  const [isQuickMatchModalVisible, setQuickMatchModalVisible] = useState(false);
-  const dispatch = useDispatch();
-
-  const handleCreateRoom = async (roomName: string, isPrivate: boolean) => {
-    try {
-      const newRoom = await createRoom({ name: roomName, is_private: isPrivate }).unwrap();
-      Alert.alert('Room Created', `Room "${newRoom.name}" has been created.`);
-      navigation.navigate('Game', { gameId: newRoom.id, mode: 'pvp' });
-    } catch (err) {
-      Alert.alert('Error', 'Failed to create room.');
-    }
-  };
-
-  const handleJoinRoom = (roomId: string) => {
-    console.log('Joining room:', roomId);
-    navigation.navigate('Game', { gameId: roomId, mode: 'pvp' });
-  };
-
-  const handleJoinPrivateRoom = (roomCode: string) => {
-    console.log('Joining private room with code:', roomCode);
-    Alert.alert('Joining Private Room', `Attempting to join with code: ${roomCode}`);
-  };
-
-  const handleQuickMatchSelectSide = async (side: 'tigers' | 'goats') => {
-    try {
-      const matchedRoom = await quickMatch({ side }).unwrap();
-      setQuickMatchModalVisible(false);
-
-      dispatch(startMultiplayerGame({
-        gameId: matchedRoom.id,
-        userSide: side,
-        host: matchedRoom.host,
-      }));
-      
-      if (matchedRoom.status === 'playing') {
-        // Matched with an opponent
-        Alert.alert(
-          'Match Found!',
-          `Joining "${matchedRoom.name}" against ${matchedRoom.host.username}. You are playing as ${side}.`,
-          [{ text: 'Start Game', onPress: () => navigation.navigate('Game', { gameId: matchedRoom.id, mode: 'pvp' }) }]
-        );
-      } else {
-        // Created a new room and are waiting
-        Alert.alert(
-          'Waiting for Opponent',
-          `You are waiting for an opponent. You will play as ${side}. The game will start automatically when an opponent joins.`,
-          [{ text: 'OK', onPress: () => navigation.navigate('Game', { gameId: matchedRoom.id, mode: 'pvp' }) }]
-        );
-      }
-    } catch (err) {
-      console.error('Quick match error:', err);
-      Alert.alert('Error', 'Failed to find a match. Please try again.');
-    }
-  };
-
-  const mappedRooms = rooms?.map(room => ({
-    id: room.id,
-    name: room.name,
-    host: room.host.username,
-    players: room.players_count,
-    maxPlayers: room.max_players,
-    status: room.status,
-    isPrivate: room.is_private,
-    created_at: room.created_at,
-  })) || [];
-
-  return (
-    <>
-      <MultiplayerSetupScreen
-        onCreateRoom={handleCreateRoom}
-        onJoinRoom={handleJoinRoom}
-        onJoinPrivateRoom={handleJoinPrivateRoom}
-        onQuickMatch={() => setQuickMatchModalVisible(true)}
-        onBack={() => navigation.goBack()}
-        availableRooms={mappedRooms}
-        isLoading={isLoading || isCreatingRoom}
-      />
-      <QuickMatchModal
-        visible={isQuickMatchModalVisible}
-        onClose={() => setQuickMatchModalVisible(false)}
-        onSelectSide={handleQuickMatchSelectSide}
-        isLoading={isQuickMatching}
-      />
-    </>
   );
 };
 
@@ -395,7 +314,7 @@ const MainStackNavigator = () => {
     >
       <MainStack.Screen name="MainTabs" component={MainTabNavigator} />
       <MainStack.Screen name="SinglePlayerSetup" component={SinglePlayerContainer} />
-      <MainStack.Screen name="MultiplayerSetup" component={MultiplayerSetupScreenWrapper} />
+      <MainStack.Screen name="MultiplayerSetup" component={MultiplayerSetupScreen} />
       <MainStack.Screen name="Game" component={GameContainer} />
     </MainStack.Navigator>
   );

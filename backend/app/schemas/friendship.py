@@ -1,34 +1,23 @@
 from pydantic import BaseModel
 import uuid
+from datetime import datetime
 from .user import User
-from ..models.friendship import FriendshipStatus
 
 class FriendshipBase(BaseModel):
-    addressee_id: uuid.UUID
+    user_id_1: uuid.UUID
+    user_id_2: uuid.UUID
 
-class FriendshipCreate(FriendshipBase):
-    pass
+class FriendshipCreate(BaseModel):
+    user_id_1: uuid.UUID
+    user_id_2: uuid.UUID
 
-class FriendshipUpdate(BaseModel):
-    status: FriendshipStatus
-
-class FriendshipInDBBase(BaseModel):
-    id: uuid.UUID
-    requester_id: uuid.UUID
-    addressee_id: uuid.UUID
-    status: FriendshipStatus
-
+class FriendshipInDBBase(FriendshipBase):
+    friendship_id: uuid.UUID
+    created_at: datetime
+    
     class Config:
         orm_mode = True
 
 class Friendship(FriendshipInDBBase):
-    requester: User
-    addressee: User
-
-class FriendshipInfo(BaseModel):
-    id: uuid.UUID
-    status: FriendshipStatus
-    friend: User
-    
-    class Config:
-        from_attributes = True 
+    user1: User
+    user2: User 

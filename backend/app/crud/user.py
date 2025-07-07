@@ -1,31 +1,34 @@
 from typing import Any, Dict, Optional, Union
+import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.core.security import get_password_hash, verify_password
 from app.crud.base import CRUDBase
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.schemas.user import UserCreate, UserUpdate
 
 
 class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
+    async def get(self, db: AsyncSession, id: uuid.UUID) -> Optional[User]:
+        result = await db.execute(select(User).filter(User.user_id == id))
+        return result.scalars().first()
+
     async def get_by_email(self, db: AsyncSession, *, email: str) -> Optional[User]:
         result = await db.execute(select(User).filter(User.email == email))
+        return result.scalars().first()
+
+    async def get_by_username(self, db: AsyncSession, *, username: str) -> Optional[User]:
+        result = await db.execute(select(User).filter(User.username == username))
         return result.scalars().first()
 
     async def create(self, db: AsyncSession, *, obj_in: UserCreate) -> User:
         db_obj = User(
             email=obj_in.email,
             username=obj_in.username,
-            hashed_password=get_password_hash(obj_in.password),
-            is_superuser=obj_in.is_superuser,
-            is_active=getattr(obj_in, 'is_active', True),
-            rating=getattr(obj_in, 'rating', 1200),
-            games_played=getattr(obj_in, 'games_played', 0),
-            games_won=getattr(obj_in, 'games_won', 0),
-            tiger_wins=getattr(obj_in, 'tiger_wins', 0),
-            goat_wins=getattr(obj_in, 'goat_wins', 0),
+            password=get_password_hash(obj_in.password),
+            role=UserRole.ADMIN if obj_in.is_superuser else UserRole.USER,
         )
         db.add(db_obj)
         await db.commit()
@@ -47,7 +50,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         if "password" in update_data and update_data["password"]:
             hashed_password = get_password_hash(update_data["password"])
             del update_data["password"]
-            update_data["hashed_password"] = hashed_password
+            update_data["password"] = hashed_password
             
         return await super().update(db, db_obj=db_obj, obj_in=update_data)
 
@@ -57,7 +60,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         user = await self.get_by_email(db, email=email)
         if not user:
             return None
-        if not verify_password(password, user.hashed_password):
+        if not verify_password(password, user.password):
             return None
         return user
 

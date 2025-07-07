@@ -247,7 +247,7 @@ export const api = createApi({
       }>,
       void
     >({
-      query: () => '/api/v1/friends/requests',
+      query: () => '/api/v1/friends/requests/pending',
       providesTags: ['User'],
     }),
     
@@ -355,9 +355,10 @@ export const api = createApi({
         max_players: number;
         is_private: boolean;
         created_at: string;
-        host_side: 'tigers' | 'goats';
+        host_side: 'tigers' | 'goats' | 'any';
+        your_side: 'tigers' | 'goats' | 'any';
       },
-      { side: 'tigers' | 'goats' }
+      { side: 'tigers' | 'goats' | 'any' }
     >({
       query: (data) => ({
         url: '/api/v1/rooms/quick-match',
@@ -498,6 +499,59 @@ export const api = createApi({
     }),
   }),
 });
+
+const getWsBaseUrl = () => {
+  const wsProdUrl = 'wss://api.baghchal-royale.com';
+  const hostUri = Constants.expoConfig?.hostUri;
+  let wsDevUrl = 'ws://localhost:8000';
+
+  if (hostUri) {
+    const hostIP = hostUri.split(':')[0];
+    wsDevUrl = `ws://${hostIP}:8000`;
+  }
+  return __DEV__ ? wsDevUrl : wsProdUrl;
+};
+
+export const matchmakingSocket = {
+  socket: null as WebSocket | null,
+  connect: function(token: string, onMessageCallback: (event: any) => void) {
+    if (this.socket) {
+      return;
+    }
+    const wsUrl = `${getWsBaseUrl()}/api/v1/matchmaking/ws?token=${token}`;
+    console.log("Connecting to WebSocket:", wsUrl);
+    this.socket = new WebSocket(wsUrl);
+
+    this.socket.onopen = () => {
+      console.log('WebSocket connected');
+    };
+
+    this.socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      console.log('WebSocket message received:', data);
+      onMessageCallback(data);
+    };
+
+    this.socket.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+
+    this.socket.onclose = () => {
+      console.log('WebSocket disconnected');
+      this.socket = null;
+    };
+  },
+  sendMessage: function(message: object) {
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      this.socket.send(JSON.stringify(message));
+    }
+  },
+  disconnect: function() {
+    if (this.socket) {
+      this.socket.close();
+    }
+  }
+};
 
 export const {
   // Auth hooks

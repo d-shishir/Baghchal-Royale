@@ -1,7 +1,7 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-export type PlayerSide = 'tigers' | 'goats';
-export type GameMode = 'pvp' | 'pvai' | 'pvp-local';
+export type PlayerSide = 'Goat' | 'Tiger';
+export type GameMode = 'multiplayer' | 'pvai' | 'pvp-local';
 export type GameStatus = 'waiting' | 'active' | 'completed' | 'cancelled';
 export type GamePhase = 'placement' | 'movement';
 export type PieceType = 0 | 1 | 2; // 0 = empty, 1 = tiger, 2 = goat
@@ -25,6 +25,7 @@ export interface GameMove {
 export interface GameState {
   // Current game session
   gameId: string | null;
+  matchId: string | null;
   gameMode: GameMode | null;
   status: GameStatus;
   
@@ -73,12 +74,13 @@ const initialBoard: PieceType[][] = [
 
 const initialState: GameState = {
   gameId: null,
+  matchId: null,
   gameMode: null,
   status: 'waiting',
   
   player1: null,
   player2: null,
-  currentPlayer: 'goats',
+  currentPlayer: 'Goat',
   userSide: null,
   
   board: initialBoard,
@@ -106,6 +108,12 @@ const gameSlice = createSlice({
   name: 'game',
   initialState,
   reducers: {
+    setMultiplayerGame: (state, action: PayloadAction<{ matchId: string, opponentId: string, playerSide: PlayerSide }>) => {
+      state.gameMode = 'multiplayer';
+      state.matchId = action.payload.matchId;
+      state.userSide = action.payload.playerSide;
+      // You can set player names etc. here if you fetch them
+    },
     startAIGame: (state, action: PayloadAction<{ userSide: PlayerSide }>) => {
       return {
         ...initialState,
@@ -113,8 +121,8 @@ const gameSlice = createSlice({
         status: 'active',
         userSide: action.payload.userSide,
         player1: { id: 'user', username: 'You', rating: 1200, side: action.payload.userSide },
-        player2: { id: 'ai', username: 'AI', rating: 1200, side: action.payload.userSide === 'tigers' ? 'goats' : 'tigers' },
-        currentPlayer: 'goats',
+        player2: { id: 'ai', username: 'AI', rating: 1200, side: action.payload.userSide === 'Tiger' ? 'Goat' : 'Tiger' },
+        currentPlayer: 'Goat',
       };
     },
     // Game session management
@@ -123,9 +131,9 @@ const gameSlice = createSlice({
         ...initialState,
         gameMode: 'pvp-local',
         status: 'active',
-        player1: { id: 'tigers', username: 'Tigers', rating: 0, side: 'tigers' },
-        player2: { id: 'goats', username: 'Goats', rating: 0, side: 'goats' },
-        currentPlayer: 'goats', // Goats always start in placement phase
+        player1: { id: 'Tiger', username: 'Tigers', rating: 0, side: 'Tiger' },
+        player2: { id: 'Goat', username: 'Goats', rating: 0, side: 'Goat' },
+        currentPlayer: 'Goat', // Goats always start in placement phase
         userSide: null, // Not relevant for local pvp
       };
     },
@@ -143,9 +151,9 @@ const gameSlice = createSlice({
       state.gameId = action.payload.gameId;
       state.gameMode = action.payload.gameMode;
       state.userSide = action.payload.userSide;
-      state.status = action.payload.gameMode === 'pvp' ? 'waiting' : 'active';
+      state.status = action.payload.gameMode === 'multiplayer' ? 'waiting' : 'active';
       
-      if (action.payload.userSide === 'tigers') {
+      if (action.payload.userSide === 'Tiger') {
         state.player1 = action.payload.player;
       } else {
         state.player2 = action.payload.player;
@@ -158,7 +166,7 @@ const gameSlice = createSlice({
       userSide: PlayerSide;
     }>) => {
       state.gameId = action.payload.gameId;
-      state.gameMode = 'pvp';
+      state.gameMode = 'multiplayer';
       state.status = 'active';
       state.player1 = action.payload.player1;
       state.player2 = action.payload.player2;
@@ -171,33 +179,37 @@ const gameSlice = createSlice({
       host: { id: string, username: string, rating: number };
     }>) => {
       const { gameId, userSide, host } = action.payload;
-      const opponentSide = userSide === 'tigers' ? 'goats' : 'tigers';
+      const opponentSide = userSide === 'Tiger' ? 'Goat' : 'Tiger';
 
       return {
         ...initialState,
         gameId,
-        gameMode: 'pvp',
+        gameMode: 'multiplayer',
         status: 'active',
         userSide,
-        player1: userSide === 'tigers' ? { id: 'user', username: 'You', rating: 1200, side: 'tigers' } : { id: host.id, username: host.username, rating: host.rating, side: 'tigers' },
-        player2: userSide === 'goats' ? { id: 'user', username: 'You', rating: 1200, side: 'goats' } : { id: host.id, username: host.username, rating: host.rating, side: 'goats' },
-        currentPlayer: 'goats',
+        player1: userSide === 'Tiger' ? { id: 'user', username: 'You', rating: 1200, side: 'Tiger' } : { id: host.id, username: host.username, rating: host.rating, side: 'Tiger' },
+        player2: userSide === 'Goat' ? { id: 'user', username: 'You', rating: 1200, side: 'Goat' } : { id: host.id, username: host.username, rating: host.rating, side: 'Goat' },
+        currentPlayer: 'Goat',
       };
     },
     
     // Board state updates
     updateBoard: (state, action: PayloadAction<{
       board: PieceType[][];
-      currentPlayer: PlayerSide;
+      nextPlayer: PlayerSide;
       phase: GamePhase;
       goatsPlaced: number;
       goatsCaptured: number;
+      gameOver: boolean;
+      winner: PlayerSide | 'draw' | null;
     }>) => {
       state.board = action.payload.board;
-      state.currentPlayer = action.payload.currentPlayer;
+      state.currentPlayer = action.payload.nextPlayer;
       state.phase = action.payload.phase;
       state.goatsPlaced = action.payload.goatsPlaced;
       state.goatsCaptured = action.payload.goatsCaptured;
+      state.gameOver = action.payload.gameOver;
+      state.winner = action.payload.winner;
     },
     
     // Move handling
@@ -279,6 +291,7 @@ export const {
   setConnected,
   setAvailableGames,
   resetGame,
+  setMultiplayerGame,
   setError,
   clearError,
 } = gameSlice.actions;

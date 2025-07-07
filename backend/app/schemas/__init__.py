@@ -1,13 +1,48 @@
-from .user import User, UserCreate, UserUpdate, UserInDB
+from .user import User, UserCreate, UserUpdate
+from .friendship import Friendship, FriendshipCreate
+from .game import Game, GameCreate, GameUpdate
+from .move import Move, MoveCreate
+from .ai_game import AIGame, AIGameCreate, AIGameUpdate
+from .ai_move import AIMove, AIMoveCreate
+from .rating_history import RatingHistory, RatingHistoryCreate
+from .tournament import Tournament, TournamentCreate, TournamentUpdate
+from .tournament_entry import TournamentEntry, TournamentEntryCreate
+from .tournament_match import TournamentMatch, TournamentMatchCreate, TournamentMatchUpdate
+from .report import Report, ReportCreate, ReportUpdate
+from .feedback import Feedback, FeedbackCreate
 from .token import Token, TokenPayload
-from .game import Game, GameCreate, GameUpdate, Move, MoveCreate
-from .friendship import Friendship, FriendshipCreate, FriendshipUpdate, FriendshipInfo
-from .room import Room, RoomCreate, RoomUpdate, QuickMatchRequest
 
 __all__ = [
-    "User", "UserCreate", "UserUpdate", "UserInDB",
-    "Token", "TokenPayload",
-    "Game", "GameCreate", "GameUpdate", "Move", "MoveCreate",
-    "Friendship", "FriendshipCreate", "FriendshipUpdate", "FriendshipInfo",
-    "Room", "RoomCreate", "RoomUpdate", "QuickMatchRequest",
+    "User",
+    "UserCreate",
+    "UserUpdate",
+    "Friendship",
+    "FriendshipCreate",
+    "Game",
+    "GameCreate",
+    "GameUpdate",
+    "Move",
+    "MoveCreate",
+    "AIGame",
+    "AIGameCreate",
+    "AIGameUpdate",
+    "AIMove",
+    "AIMoveCreate",
+    "RatingHistory",
+    "RatingHistoryCreate",
+    "Tournament",
+    "TournamentCreate",
+    "TournamentUpdate",
+    "TournamentEntry",
+    "TournamentEntryCreate",
+    "TournamentMatch",
+    "TournamentMatchCreate",
+    "TournamentMatchUpdate",
+    "Report",
+    "ReportCreate",
+    "ReportUpdate",
+    "Feedback",
+    "FeedbackCreate",
+    "Token",
+    "TokenPayload",
 ] 

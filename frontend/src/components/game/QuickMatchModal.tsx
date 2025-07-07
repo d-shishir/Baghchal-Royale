@@ -1,70 +1,77 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useNavigation } from '@react-navigation/native';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../store';
+import { matchmakingSocket } from '../../services/api';
+import { GameScreenNavigationProp } from '../../navigation/MainNavigator';
 
 interface QuickMatchModalProps {
   visible: boolean;
   onClose: () => void;
-  onSelectSide: (side: 'tigers' | 'goats') => void;
-  isLoading: boolean;
 }
 
-const QuickMatchModal: React.FC<QuickMatchModalProps> = ({
-  visible,
-  onClose,
-  onSelectSide,
-  isLoading,
-}) => {
+const QuickMatchModal: React.FC<QuickMatchModalProps> = ({ visible, onClose }) => {
+  const [status, setStatus] = useState('idle'); // idle, waiting, found
+  const token = useSelector((state: RootState) => state.auth.token);
+  const navigation = useNavigation<GameScreenNavigationProp>();
+
+  useEffect(() => {
+    if (visible && token) {
+      setStatus('waiting');
+      matchmakingSocket.connect(token, (data) => {
+        if (data.status === 'match_found') {
+          setStatus('found');
+          // Navigate to game screen
+          navigation.navigate('Game', {
+            matchId: data.match_id,
+            opponentId: data.opponent_id,
+            playerSide: data.side,
+            gameMode: 'multiplayer'
+          });
+          onClose(); // Close the modal
+        }
+      });
+    }
+
+    return () => {
+      // Disconnect when the modal is closed or component unmounts
+      matchmakingSocket.disconnect();
+      setStatus('idle');
+    };
+  }, [visible, token, navigation, onClose]);
+
+  const handleCancel = () => {
+    matchmakingSocket.disconnect();
+    onClose();
+  };
+
   return (
     <Modal
       animationType="fade"
       transparent={true}
       visible={visible}
-      onRequestClose={onClose}
+      onRequestClose={handleCancel}
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+          <TouchableOpacity style={styles.closeButton} onPress={handleCancel}>
             <Ionicons name="close" size={24} color="#FFF" />
           </TouchableOpacity>
-          <Text style={styles.modalTitle}>Choose Your Side</Text>
-          <Text style={styles.modalSubtitle}>
-            You'll be matched with an opponent who chose the opposite side.
-          </Text>
-
-          <View style={styles.optionsContainer}>
-            {/* Tiger Option */}
-            <TouchableOpacity
-              style={styles.optionButton}
-              onPress={() => onSelectSide('tigers')}
-              disabled={isLoading}
-            >
-              <LinearGradient colors={['#FF8F00', '#FF6F00']} style={styles.gradient}>
-                <Ionicons name="flash" size={48} color="#FFF" />
-                <Text style={styles.optionTitle}>Tigers</Text>
-                <Text style={styles.optionDescription}>Play offensively</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-
-            {/* Goat Option */}
-            <TouchableOpacity
-              style={styles.optionButton}
-              onPress={() => onSelectSide('goats')}
-              disabled={isLoading}
-            >
-              <LinearGradient colors={['#4CAF50', '#66BB6A']} style={styles.gradient}>
-                <Ionicons name="shield" size={48} color="#FFF" />
-                <Text style={styles.optionTitle}>Goats</Text>
-                <Text style={styles.optionDescription}>Play defensively</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-          {isLoading && (
-            <View style={styles.loadingContainer}>
-              <Text style={styles.loadingText}>Finding match...</Text>
-            </View>
+          <Text style={styles.modalTitle}>Quick Match</Text>
+          
+          {status === 'waiting' && (
+            <>
+              <ActivityIndicator size="large" color="#FFF" />
+              <Text style={styles.statusText}>Waiting for an opponent...</Text>
+              <Text style={styles.subText}>This shouldn't take long.</Text>
+            </>
           )}
+          
+          <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </Modal>
@@ -94,49 +101,31 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#FFF',
-    marginBottom: 8,
-  },
-  modalSubtitle: {
-    fontSize: 14,
-    color: '#999',
-    textAlign: 'center',
     marginBottom: 24,
   },
-  optionsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%',
-  },
-  optionButton: {
-    width: '45%',
-    borderRadius: 16,
-    elevation: 4,
-  },
-  gradient: {
-    borderRadius: 16,
-    padding: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  optionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+  statusText: {
+    fontSize: 18,
     color: '#FFF',
+    marginTop: 16,
+  },
+  subText: {
+    fontSize: 14,
+    color: '#999',
     marginTop: 8,
+    marginBottom: 24,
   },
-  optionDescription: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginTop: 4,
+  cancelButton: {
+    backgroundColor: '#333',
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    borderRadius: 25,
+    marginTop: 16,
   },
-  loadingContainer: {
-    marginTop: 20,
-  },
-  loadingText: {
-    fontSize: 16,
+  cancelButtonText: {
     color: '#FFF',
-    fontStyle: 'italic',
-  },
+    fontSize: 16,
+    fontWeight: 'bold',
+  }
 });
 
 export default QuickMatchModal; 

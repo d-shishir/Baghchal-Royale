@@ -25,7 +25,20 @@ from os.path import abspath, dirname
 sys.path.insert(0, dirname(dirname(abspath(__file__))))
 
 # Import all models to ensure they are registered with Base.metadata
-from app.models import User, Game  # Import the models
+from app.models import (
+    User,
+    Friendship,
+    Game,
+    Move,
+    AIGame,
+    AIMove,
+    RatingHistory,
+    Tournament,
+    TournamentEntry,
+    TournamentMatch,
+    Report,
+    Feedback,
+)
 
 target_metadata = Base.metadata
 
