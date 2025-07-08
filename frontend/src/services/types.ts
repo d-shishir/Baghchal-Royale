@@ -15,6 +15,13 @@ export interface User {
     role: "USER" | "ADMIN" | "MODERATOR";
     status: "OFFLINE" | "ONLINE" | "INGAME";
     rating: number;
+    level: number;
+    xp: number;
+    achievements: string[];
+    games_played?: number;
+    wins?: number;
+    losses?: number;
+    win_rate?: number;
     created_at: string;
     last_login?: string;
 }
@@ -24,6 +31,10 @@ export interface UserCreate {
     username: string;
     password: string;
     is_superuser?: boolean;
+    country?: string;
+    level?: number;
+    xp?: number;
+    achievements?: string[];
 }
 
 export interface UserUpdate {
@@ -45,11 +56,17 @@ export interface GamePlayer {
 }
 
 // Friendship
+export enum FriendshipStatus {
+    PENDING = 'PENDING',
+    ACCEPTED = 'ACCEPTED',
+    DECLINED = 'DECLINED',
+}
+
 export interface Friendship {
     friendship_id: string;
     user_id_1: string;
     user_id_2: string;
-    status: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'BLOCKED';
+    status: FriendshipStatus;
     created_at: string;
     user1: User;
     user2: User;

@@ -6,6 +6,7 @@ import { useSelector } from 'react-redux';
 
 import { RootState } from '../store';
 import { useGetMeQuery } from '../services/api';
+import { GameState } from '../game-logic/baghchal';
 
 // Screens
 import LoginScreen from '../screens/auth/LoginScreen';
@@ -40,10 +41,14 @@ export type MainStackParamList = {
   MainTabs: { screen?: keyof MainTabParamList };
   SinglePlayerSetup: undefined;
   MultiplayerSetup: undefined;
-  Game: { 
+  Game: {
     gameId: string;
     playerSide?: 'TIGER' | 'GOAT';
     aiDifficulty?: 'EASY' | 'MEDIUM' | 'HARD';
+    matchId?: string;
+    opponentId?: string;
+    gameMode?: 'ai' | 'online' | 'local';
+    initialGameState?: GameState;
   };
   TournamentDetails: { tournamentId: string };
   Feedback: undefined;
@@ -54,6 +59,9 @@ export type RootStackParamList = {
   Main: undefined;
   Loading: undefined;
 };
+
+// Navigation prop types
+export type GameScreenNavigationProp = StackNavigationProp<MainStackParamList, 'Game'>;
 
 const AuthStack = createStackNavigator<AuthStackParamList>();
 const MainTab = createBottomTabNavigator<MainTabParamList>();

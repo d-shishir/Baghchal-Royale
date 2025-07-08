@@ -2,14 +2,25 @@ from typing import List, Optional
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import joinedload, noload
 from app.crud.base import CRUDBase
 from app.models.friendship import Friendship
+from app.models.user import User
 from app.schemas.friendship import FriendshipCreate
 
 class CRUDFriendship(CRUDBase[Friendship, FriendshipCreate, FriendshipCreate]):
     async def get(self, db: AsyncSession, id: uuid.UUID) -> Optional[Friendship]:
-        result = await db.execute(select(Friendship).filter(Friendship.friendship_id == id))
+        result = await db.execute(
+            select(Friendship).filter(Friendship.friendship_id == id)
+            .options(
+                joinedload(self.model.user1).options(
+                    noload(User.sent_friend_requests), noload(User.received_friend_requests)
+                ),
+                joinedload(self.model.user2).options(
+                    noload(User.sent_friend_requests), noload(User.received_friend_requests)
+                )
+            )
+        )
         return result.scalars().first()
 
     async def get_friendship_by_users(
@@ -21,17 +32,21 @@ class CRUDFriendship(CRUDBase[Friendship, FriendshipCreate, FriendshipCreate]):
                     (self.model.user_id_1 == user1_id) & (self.model.user_id_2 == user2_id),
                     (self.model.user_id_1 == user2_id) & (self.model.user_id_2 == user1_id)
                 )
+            ).options(
+                joinedload(self.model.user1).options(
+                    noload(User.sent_friend_requests), noload(User.received_friend_requests)
+                ),
+                joinedload(self.model.user2).options(
+                    noload(User.sent_friend_requests), noload(User.received_friend_requests)
+                )
             )
         )
         return result.scalars().first()
 
     async def create(self, db: AsyncSession, *, obj_in: FriendshipCreate) -> Friendship:
-        # Ensure user_id_1 < user_id_2 to maintain uniqueness
-        user_ids = sorted([str(obj_in.user_id_1), str(obj_in.user_id_2)])
-        
         db_obj = Friendship(
-            user_id_1=uuid.UUID(user_ids[0]),
-            user_id_2=uuid.UUID(user_ids[1])
+            user_id_1=obj_in.user_id_1,
+            user_id_2=obj_in.user_id_2
         )
         db.add(db_obj)
         await db.commit()
@@ -49,7 +64,14 @@ class CRUDFriendship(CRUDBase[Friendship, FriendshipCreate, FriendshipCreate]):
         result = await db.execute(
             select(self.model)
             .where((self.model.user_id_1 == user_id) | (self.model.user_id_2 == user_id))
-            .options(selectinload(self.model.user1), selectinload(self.model.user2))
+            .options(
+                joinedload(self.model.user1).options(
+                    noload(User.sent_friend_requests), noload(User.received_friend_requests)
+                ),
+                joinedload(self.model.user2).options(
+                    noload(User.sent_friend_requests), noload(User.received_friend_requests)
+                )
+            )
         )
         return result.scalars().all()
 

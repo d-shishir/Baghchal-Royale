@@ -1,24 +1,12 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import Constants from 'expo-constants';
 import { RootState } from '../store';
 import * as T from './types';
+import { aPI_URL } from '../config';
 
-const getBaseUrl = () => {
-  const prodUrl = 'https://api.baghchal-royale.com';
-  const hostUri = Constants.expoConfig?.hostUri;
-  let devUrl = 'http://localhost:8000';
-  if (hostUri) {
-    const hostIP = hostUri.split(':')[0];
-    devUrl = `http://${hostIP}:8000`;
-  }
-  return __DEV__ ? devUrl : prodUrl;
-};
-
-const baseUrl = getBaseUrl();
-console.log('🚀 API requests will be sent to:', baseUrl);
+console.log('🚀 API requests will be sent to:', aPI_URL);
 
 const baseQuery = fetchBaseQuery({
-  baseUrl,
+  baseUrl: aPI_URL,
   timeout: 15000,
   prepareHeaders: (headers, { getState }) => {
     const token = (getState() as RootState).auth.token;
@@ -46,11 +34,19 @@ export const api = createApi({
       }),
     }),
     login: builder.mutation<T.Token, T.Login>({
-      query: (credentials) => ({
-        url: '/api/v1/auth/login',
-        method: 'POST',
-        body: credentials,
-      }),
+      query: (credentials) => {
+        const body = new URLSearchParams();
+        body.append('username', credentials.username);
+        body.append('password', credentials.password);
+        return {
+          url: '/api/v1/auth/login',
+          method: 'POST',
+          body: body.toString(),
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        };
+      },
     }),
     getMe: builder.query<T.User, void>({
       query: () => '/api/v1/users/me',
@@ -89,7 +85,7 @@ export const api = createApi({
             ]
           : [{ type: 'Friendship', id: 'LIST' }],
     }),
-    createFriendship: builder.mutation<T.Friendship, { user_id_2: string }>({
+    createFriendship: builder.mutation<T.Friendship, { user_id_1: string; user_id_2: string }>({
       query: (body) => ({
         url: '/api/v1/friends/',
         method: 'POST',
@@ -97,13 +93,13 @@ export const api = createApi({
       }),
       invalidatesTags: [{ type: 'Friendship', id: 'LIST' }],
     }),
-    updateFriendship: builder.mutation<T.Friendship, { friendship_id: string; accepted: boolean }>({
-        query: ({ friendship_id, accepted }) => ({
+    updateFriendship: builder.mutation<T.Friendship, { friendship_id: string; status: T.FriendshipStatus }>({
+        query: ({ friendship_id, status }) => ({
             url: `/api/v1/friends/${friendship_id}`,
             method: 'PUT',
-            body: { accepted }
+            body: { status }
         }),
-        invalidatesTags: (result, error, { friendship_id }) => [{ type: 'Friendship', id: friendship_id }, { type: 'Friendship', id: 'LIST' }],
+        invalidatesTags: (result, error, { friendship_id }) => [{ type: 'Friendship', id: 'LIST' }],
     }),
     deleteFriendship: builder.mutation<void, { friendship_id: string }>({
       query: ({ friendship_id }) => ({
@@ -262,4 +258,7 @@ export const {
     useGetTournamentMatchesQuery,
     useCreateReportMutation,
     useCreateFeedbackMutation,
-} = api; 
+} = api;
+
+// Export WebSocket services
+export { matchmakingSocket, gameSocket } from './websocket'; 

@@ -1,5 +1,5 @@
-from pydantic import BaseModel
-from typing import Optional
+from pydantic import BaseModel, Field
+from typing import Optional, Dict, Any
 import uuid
 from datetime import datetime
 from .user import User
@@ -21,13 +21,15 @@ class GameUpdate(BaseModel):
     status: Optional[GameStatus] = None
     winner_id: Optional[uuid.UUID] = None
     game_duration: Optional[int] = None
+    game_state: Optional[Dict[str, Any]] = None
 
 class GameInDBBase(GameBase):
     game_id: uuid.UUID
     status: GameStatus
     winner_id: Optional[uuid.UUID] = None
     game_duration: Optional[int] = None
-    started_at: datetime
+    created_at: datetime
+    game_state: Dict[str, Any] = Field(default_factory=dict)
     
     class Config:
         orm_mode = True

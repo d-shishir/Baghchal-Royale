@@ -17,13 +17,13 @@ class MoveType(str, enum.Enum):
 class AIMove(Base):
     __tablename__ = "ai_moves"
 
-    move_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    ai_move_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     ai_game_id = Column(UUID(as_uuid=True), ForeignKey("ai_games.ai_game_id"), nullable=False)
     player = Column(SQLAlchemyEnum(AIPlayer), nullable=False)
     move_number = Column(Integer, nullable=False)
     from_pos = Column(String, nullable=False)
     to_pos = Column(String, nullable=False)
     move_type = Column(SQLAlchemyEnum(MoveType), nullable=False)
-    created_at = Column(DateTime, default=func.now())
+    timestamp = Column(DateTime(timezone=True), default=func.now())
 
     ai_game = relationship("AIGame", back_populates="moves") 

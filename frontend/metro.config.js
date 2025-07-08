@@ -2,7 +2,7 @@ const { getDefaultConfig } = require('expo/metro-config');
 
 const config = getDefaultConfig(__dirname);
 
-// Add support for custom file extensions if needed
-config.resolver.assetExts.push('db', 'mp3', 'ttf', 'obj', 'png', 'jpg');
+// Add any custom asset extensions to the default configuration.
+config.resolver.assetExts.push('db', 'mp3', 'ttf', 'obj');
 
 module.exports = config; 

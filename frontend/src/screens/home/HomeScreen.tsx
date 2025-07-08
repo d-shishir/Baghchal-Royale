@@ -7,6 +7,7 @@ import {
   ScrollView,
   Dimensions,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,6 +21,7 @@ import { startLocalGame } from '../../store/slices/gameSlice';
 import { Game, GamePlayer } from '../../services/types';
 import { GameStatus } from '../../game-logic/baghchal';
 import { initialGameState } from '../../game-logic/initialState';
+import { useGetGamesQuery } from '../../services/api';
 
 type HomeScreenNavigationProp = StackNavigationProp<MainStackParamList, 'MainTabs'>;
 
@@ -54,7 +56,7 @@ const HomeScreen: React.FC = () => {
         updated_at: new Date().toISOString(),
     };
     dispatch(startLocalGame(localGame));
-    navigation.navigate('Game', { gameId });
+    navigation.navigate('Game', { gameId, gameMode: 'local' });
   };
 
   const handlePlayMultiplayer = () => {
@@ -84,6 +86,14 @@ const HomeScreen: React.FC = () => {
     );
   };
   
+  const { data: games = [], isLoading: isLoadingGames } = useGetGamesQuery(undefined, {
+    skip: !isAuthenticated || isGuest,
+    pollingInterval: 30000, // Poll for new games every 30 seconds
+  });
+
+  const ongoingGames = games.filter(g => g.status === 'IN_PROGRESS');
+  const finishedGames = games.filter(g => g.status !== 'IN_PROGRESS');
+
   // TODO: calculate winrate from user's game history
   const winRate = 'N/A';
 
@@ -198,6 +208,37 @@ const HomeScreen: React.FC = () => {
         </View>
       </View>
 
+      {/* Recent Games */}
+      {isAuthenticated && !isGuest && (
+        <View style={styles.recentGamesSection}>
+          <Text style={styles.sectionTitle}>Recent Games</Text>
+          {isLoadingGames && <ActivityIndicator color="#FFF" />}
+          {ongoingGames.length > 0 && (
+            <View>
+              <Text style={styles.subSectionTitle}>Ongoing</Text>
+              {ongoingGames.map(game => (
+                <TouchableOpacity key={game.game_id} style={styles.gameCard} onPress={() => navigation.navigate('Game', { gameId: game.game_id, gameMode: 'multiplayer' })}>
+                  <Text style={styles.gameText}>vs {game.player1?.username === user?.username ? game.player2?.username : game.player1?.username}</Text>
+                  <Text style={styles.gameStatus}>In Progress</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+          {finishedGames.length > 0 && (
+            <View>
+              <Text style={styles.subSectionTitle}>Finished</Text>
+              {finishedGames.map(game => (
+                <View key={game.game_id} style={styles.gameCard}>
+                  <Text style={styles.gameText}>vs {game.player1?.username === user?.username ? game.player2?.username : game.player1?.username}</Text>
+                  <Text style={styles.gameStatus}>{game.winner_id === user?.user_id ? 'Won' : 'Lost'}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+          {games.length === 0 && !isLoadingGames && <Text style={styles.noGamesText}>No recent games found.</Text>}
+        </View>
+      )}
+
       {/* Game Info */}
       <View style={styles.gameInfoSection}>
         <Text style={styles.sectionTitle}>About Baghchal</Text>
@@ -270,17 +311,26 @@ const styles = StyleSheet.create({
     color: '#999',
   },
   gameModesSection: {
-    padding: 20,
+    paddingHorizontal: 20,
+    marginTop: 20,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#FFF',
     marginBottom: 16,
   },
+  subSectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#ccc',
+    marginBottom: 10,
+    marginTop: 10,
+  },
   gameModeCard: {
     marginBottom: 16,
     borderRadius: 16,
+    overflow: 'hidden',
     elevation: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -311,28 +361,28 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#FFF',
-    marginBottom: 4,
   },
   modeDescription: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginBottom: 8,
+    fontSize: 13,
+    color: '#E0E0E0',
+    marginTop: 4,
   },
   modeBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(0,0,0,0.2)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
     alignSelf: 'flex-start',
+    marginTop: 8,
   },
   badgeText: {
-    fontSize: 12,
     color: '#FFF',
-    fontWeight: '500',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   quickActionsSection: {
     paddingHorizontal: 20,
-    marginBottom: 20,
+    marginTop: 20,
   },
   actionGrid: {
     flexDirection: 'row',
@@ -341,30 +391,50 @@ const styles = StyleSheet.create({
   },
   actionCard: {
     width: (width - 60) / 2,
-    marginBottom: 12,
-    borderRadius: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.22,
-    shadowRadius: 2.22,
+    marginBottom: 20,
+    borderRadius: 16,
+    overflow: 'hidden',
   },
   actionGradient: {
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    minHeight: 80,
+    padding: 20,
     justifyContent: 'center',
+    alignItems: 'center',
+    height: 120,
   },
   actionText: {
     color: '#FFF',
-    fontSize: 14,
-    fontWeight: '600',
+    fontWeight: 'bold',
     marginTop: 8,
+  },
+  recentGamesSection: {
+    paddingHorizontal: 20,
+    marginTop: 20,
+  },
+  gameCard: {
+    backgroundColor: '#2d2d2d',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  gameText: {
+    color: '#FFF',
+    fontSize: 16,
+  },
+  gameStatus: {
+    color: '#999',
+    fontSize: 14,
+  },
+  noGamesText: {
+    color: '#999',
     textAlign: 'center',
+    marginTop: 10,
   },
   gameInfoSection: {
     paddingHorizontal: 20,
+    marginTop: 20,
     paddingBottom: 40,
   },
   infoCard: {

@@ -12,7 +12,7 @@ class RatingHistory(Base):
     game_id = Column(UUID(as_uuid=True), ForeignKey("games.game_id"), nullable=False)
     rating_before = Column(Integer, nullable=False)
     rating_after = Column(Integer, nullable=False)
-    changed_at = Column(DateTime, default=func.now())
+    changed_at = Column(DateTime(timezone=True), nullable=True, default=func.now())
 
     user = relationship("User")
     game = relationship("Game") 

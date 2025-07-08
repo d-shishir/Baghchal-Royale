@@ -1,15 +1,14 @@
 import uuid
 import enum
-from sqlalchemy import Column, ForeignKey, DateTime, func, Enum as SQLAlchemyEnum
+from sqlalchemy import Column, ForeignKey, DateTime, func, Enum as SQLAlchemyEnum, Integer, JSON
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.db.base_class import Base
 
-class GameResult(str, enum.Enum):
-    GOAT_WIN = "goat_win"
-    TIGER_WIN = "tiger_win"
-    DRAW = "draw"
-    ABORTED = "aborted"
+class GameStatus(str, enum.Enum):
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+    ABANDONED = "ABANDONED"
 
 class Game(Base):
     __tablename__ = "games"
@@ -19,10 +18,12 @@ class Game(Base):
     player_tiger_id = Column(UUID(as_uuid=True), ForeignKey("users.user_id"), nullable=False)
     winner_id = Column(UUID(as_uuid=True), ForeignKey("users.user_id"), nullable=True)
     
-    result = Column(SQLAlchemyEnum(GameResult), nullable=True)
+    status = Column(SQLAlchemyEnum(GameStatus), nullable=False, default=GameStatus.IN_PROGRESS)
+    game_duration = Column(Integer, nullable=True)
+    game_state = Column(JSON, nullable=False, default=lambda: {})
     
-    started_at = Column(DateTime, default=func.now())
-    ended_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=func.now())
+    ended_at = Column(DateTime(timezone=True), nullable=True)
 
     player_goat = relationship("User", back_populates="games_as_goat", foreign_keys=[player_goat_id])
     player_tiger = relationship("User", back_populates="games_as_tiger", foreign_keys=[player_tiger_id])

@@ -8,6 +8,7 @@ class FeedbackBase(BaseModel):
     user_id: uuid.UUID
     subject: str
     message: str
+    type: str
     
 class FeedbackCreate(FeedbackBase):
     pass

@@ -1,322 +1,414 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
+  TouchableOpacity,
   Alert,
   Modal,
-  Dimensions,
-  ScrollView,
+  SafeAreaView,
+  ImageBackground,
+  ActivityIndicator,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
-import { useSelector, useDispatch } from 'react-redux';
 
 import GameBoard from '../../components/game/GameBoard';
-import { MainStackParamList } from '../../navigation/MainNavigator';
+import { GameState, PieceType, PlayerSide, GamePhase, isMoveValid, applyMove, getMovesForPiece, PotentialMove, GameStatus as GameStatusEnum } from '../../game-logic/baghchal';
+import { getGuestAIMove } from '../../game-logic/guestAI';
+import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
-import {
-  useGetGameByIdQuery,
-  useGetMovesQuery,
-  useCreateMoveMutation,
-  useUpdateGameMutation,
-} from '../../services/api';
-import * as BaghchalLogic from '../../game-logic/baghchal';
-import { GameState, PieceType, PlayerSide } from '../../game-logic/baghchal';
-import LoadingScreen from '../../components/LoadingScreen';
-import { updateLocalGame } from '../../store/slices/gameSlice';
-import { getGuestAIMove, AIDifficulty } from '../../game-logic/guestAI';
+import { Game, GamePlayer, MoveCreate } from '../../services/types';
+import { useCreateMoveMutation, useGetGameByIdQuery } from '../../services/api';
+import { gameSocket, GameMoveData } from '../../services/websocket';
+import { initialGameState } from '../../game-logic/initialState';
+import { mapServerGameToBaghchalState } from '../../utils/gameStateMapper';
+import GameOverModal from '../../components/game/GameOverModal';
 
-type GameScreenRouteProp = RouteProp<MainStackParamList, 'Game'>;
-
-const { width, height } = Dimensions.get('window');
+type GameScreenRouteProp = RouteProp<{
+  Game: {
+    gameId: string;
+    gameMode?: 'local' | 'ai' | 'online';
+    playerSide: PlayerSide;
+    initialGameState?: GameState; // For local games
+    aiDifficulty?: 'EASY' | 'MEDIUM' | 'HARD';
+  };
+}, 'Game'>;
 
 const GameScreen: React.FC = () => {
-  const navigation = useNavigation();
-  const dispatch = useDispatch();
   const route = useRoute<GameScreenRouteProp>();
-  const { gameId, playerSide, aiDifficulty } = route.params;
+  const navigation = useNavigation<any>();
+  const { gameId, gameMode, playerSide, initialGameState: localInitialState, aiDifficulty } = route.params;
 
-  const isLocalGame = gameId.startsWith('local');
-  const user = useSelector((state: RootState) => state.auth.user);
-  
-  // For online games
-  const { data: onlineGame, isLoading: isLoadingGame, error: gameError } = useGetGameByIdQuery(gameId, { skip: isLocalGame, pollingInterval: 3000 });
-  const { data: moves, isLoading: isLoadingMoves } = useGetMovesQuery(gameId, { pollingInterval: 3000 });
-  const [createMove] = useCreateMoveMutation();
-  
-  // For local games
-  const activeGame = useSelector((state: RootState) => state.game.activeGame);
-  
-  const game = isLocalGame ? activeGame?.game : onlineGame;
-  const clientGameState = isLocalGame ? activeGame?.game.game_state : onlineGame?.game_state;
+  const authUser = useSelector((state: RootState) => state.auth.user);
+  const token = useSelector((state: RootState) => state.auth.token);
+  const [createMove, { isLoading: isMoveLoading, error: moveError }] = useCreateMoveMutation();
 
+  const { data: game, error: gameError, isLoading: isGameLoading } = useGetGameByIdQuery(gameId, {
+    skip: !gameId || gameId.startsWith('local-'),
+  });
+
+  const [currentGameState, setCurrentGameState] = useState<GameState>(localInitialState || initialGameState);
   const [selectedPosition, setSelectedPosition] = useState<{ row: number; col: number } | null>(null);
-
-  // AI move logic
+  const [isAiThinking, setIsAiThinking] = useState(false);
+  const [isGameOverModalVisible, setGameOverModalVisible] = useState(false);
+  
   useEffect(() => {
-    if (game?.game_type === 'AI' && clientGameState?.currentPlayer !== playerSide) {
+    if (gameMode === 'online' && gameId && token && !gameSocket.isConnected()) {
+      gameSocket.connect(gameId, token, (data: GameMoveData) => {
+        if (data.game_state) {
+          setCurrentGameState(data.game_state as GameState);
+        } else if (data.status === 'error' && data.message) {
+          Alert.alert('Error', data.message);
+        }
+      });
+
+      return () => {
+        gameSocket.disconnect();
+      };
+    }
+  }, [gameId, token, gameMode]);
+
+  useEffect(() => {
+    const isLocalAiTurn =
+      !!aiDifficulty &&
+      currentGameState.currentPlayer.toLowerCase() !== playerSide.toLowerCase() &&
+      currentGameState.status === GameStatusEnum.IN_PROGRESS;
+
+    if (isLocalAiTurn) {
+      setIsAiThinking(true);
       setTimeout(() => {
-        if (!clientGameState) return;
-        const difficulty = (aiDifficulty as AIDifficulty) || AIDifficulty.MEDIUM;
-        const aiMove = getGuestAIMove(clientGameState, difficulty);
-        if (aiMove) {
-          handleLocalMove(aiMove);
+        const aiPotentialMove = getGuestAIMove(currentGameState);
+        if (aiPotentialMove) {
+          const aiMove = { ...aiPotentialMove, player_id: currentGameState.currentPlayer, timestamp: new Date().toISOString() };
+          const newState = applyMove(currentGameState, aiMove);
+          setCurrentGameState(newState);
         }
-      }, 500); // Small delay for UX
+        setIsAiThinking(false);
+      }, 500);
     }
-  }, [clientGameState, game?.game_type, playerSide, aiDifficulty]);
+  }, [currentGameState, aiDifficulty, playerSide]);
 
-
-  const handleLocalMove = (move: BaghchalLogic.PotentialMove) => {
-    if (!clientGameState) return;
-
-    const logicMove: BaghchalLogic.GameMove = {
-      ...move,
-      player_id: clientGameState.currentPlayer === 'Tiger' ? game?.player1?.id! : game?.player2?.id!,
-      timestamp: new Date().toISOString(),
-    };
-    
-    if (BaghchalLogic.isMoveValid(clientGameState, logicMove)) {
-      const newState = BaghchalLogic.applyMove(clientGameState, logicMove);
-      dispatch(updateLocalGame(newState));
-      setSelectedPosition(null);
+  useEffect(() => {
+    if (game) {
+      setCurrentGameState(mapServerGameToBaghchalState(game));
     }
-  };
+  }, [game]);
 
-
-  const handlePositionPress = async (position: { row: number; col: number }) => {
-    if (!game || !user || !clientGameState || clientGameState.status !== 'IN_PROGRESS') return;
-
-    // Check if it's the user's turn
-    const isOurTurn = isLocalGame
-      ? (game.game_type !== 'AI' || clientGameState.currentPlayer === playerSide)
-      : clientGameState.currentPlayer === (user.user_id === game.player1_id ? 'Tiger' : 'Goat');
-      
-    if (!isOurTurn) return;
-
-    const { row, col } = position;
-    
-    let potentialMove: BaghchalLogic.PotentialMove | null = null;
-    
-    if (clientGameState.phase === 'placement') {
-        potentialMove = { type: 'place', to: [row, col] };
-    } else { // Movement phase
-        if (selectedPosition) {
-            potentialMove = { type: 'move', from: [selectedPosition.row, selectedPosition.col], to: [row, col] };
-        }
+  useEffect(() => {
+    const status = currentGameState.status;
+    if (status === GameStatusEnum.TIGER_WON || status === GameStatusEnum.GOAT_WON) {
+      const timer = setTimeout(() => {
+        setGameOverModalVisible(true);
+      }, 1000);
+      return () => clearTimeout(timer);
     }
+  }, [currentGameState.status]);
 
-    if (potentialMove) {
-      if (isLocalGame) {
-        handleLocalMove(potentialMove);
-      } else {
-        await createMove({
-            game_id: gameId,
-            player_id: user.user_id,
-            move_type: potentialMove.type === 'place' ? 'PLACE' : 'MOVE',
-            from_row: potentialMove.type === 'move' ? potentialMove.from?.[0] : undefined,
-            from_col: potentialMove.type === 'move' ? potentialMove.from?.[1] : undefined,
-            to_row: potentialMove.to[0],
-            to_col: potentialMove.to[1],
-        });
-        setSelectedPosition(null);
-      }
-    } else {
-        if (!isLocalGame) {
-             const piece = clientGameState.board[row][col];
-            const isOurPiece = clientGameState.currentPlayer === (user.user_id === game.player1_id ? 'Tiger' : 'Goat');
-            if (isOurPiece) {
-                setSelectedPosition({row, col});
-            } else {
-                setSelectedPosition(null);
-            }
-        } else {
-            setSelectedPosition({row, col});
-        }
-    }
-  };
+  const player1 = useMemo(() => (gameMode === 'local' ? { username: 'Player 1' } : (playerSide === 'Tiger' ? authUser : game?.player2)), [game, playerSide, authUser, gameMode]);
+  const player2 = useMemo(() => (gameMode === 'local' ? { username: 'Player 2' } : (playerSide === 'Goat' ? authUser : game?.player1)), [game, playerSide, authUser, gameMode]);
 
-  const handleQuitGame = () => {
-    // For local games, just go back. For online, forfeit.
-    if(isLocalGame) {
-      navigation.goBack();
+  const ourSide = gameMode === 'local' ? currentGameState.currentPlayer : playerSide;
+
+  const handlePress = useCallback(async (position: { row: number, col: number }) => {
+    if (!currentGameState || isMoveLoading || isAiThinking || !ourSide || currentGameState.currentPlayer.toLowerCase() !== ourSide.toLowerCase()) {
       return;
     }
 
+    const piece = currentGameState.board[position.row][position.col];
+    
+    if (selectedPosition) {
+        const aMove: PotentialMove = {
+            from: [selectedPosition.row, selectedPosition.col],
+            to: [position.row, position.col],
+            type: 'move',
+        };
+      if (isMoveValid(currentGameState, aMove)) {
+        if (gameMode === 'online' && gameId) {
+            gameSocket.makeMove(aMove);
+        } else {
+            const gameMove = { ...aMove, player_id: ourSide, timestamp: new Date().toISOString() };
+            const newState = applyMove(currentGameState, gameMove);
+            setCurrentGameState(newState);
+        }
+      }
+      setSelectedPosition(null);
+      return;
+    }
+
+    if (ourSide.toLowerCase() === 'goat') {
+      if (currentGameState.phase === 'placement') {
+        if (piece === PieceType.EMPTY) {
+          const aMove: PotentialMove = { to: [position.row, position.col], type: 'place' };
+          if (isMoveValid(currentGameState, aMove)) {
+            if (gameMode === 'online' && gameId) {
+                gameSocket.makeMove(aMove);
+            } else {
+                const gameMove = { ...aMove, player_id: ourSide, timestamp: new Date().toISOString() };
+                const newState = applyMove(currentGameState, gameMove);
+                setCurrentGameState(newState);
+            }
+          }
+        }
+      } else {
+        if (piece === PieceType.GOAT) {
+          setSelectedPosition(position);
+        }
+      }
+    } else if (ourSide.toLowerCase() === 'tiger') {
+      if (piece === PieceType.TIGER) {
+        setSelectedPosition(position);
+      }
+    }
+  }, [currentGameState, selectedPosition, gameMode, gameId, isMoveLoading, isAiThinking, ourSide]);
+
+  const handleGoHome = () => {
+    setGameOverModalVisible(false);
+    navigation.navigate('MainTabs', { screen: 'Home' });
+  };
+
+  const handleRestart = () => {
+    setGameOverModalVisible(false);
+    setTimeout(() => {
+      setCurrentGameState(initialGameState);
+    }, 200);
+  };
+
+  const handleQuitGame = () => {
     Alert.alert(
-      'Forfeit Game',
-      'Are you sure you want to forfeit? This will result in a loss.',
+      "Forfeit Game",
+      "Are you sure you want to forfeit?",
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Forfeit', style: 'destructive', onPress: async () => {
-            // Forfeit logic for online game would go here
-            navigation.goBack();
-        }},
+        { text: "Cancel", style: "cancel" },
+        { text: "Forfeit", onPress: () => {
+          gameSocket.forfeit();
+          navigation.goBack();
+        }, style: 'destructive' }
       ]
     );
   };
-  
-  if (isLoadingGame || isLoadingMoves || !clientGameState || !game) return <LoadingScreen />;
-  if (gameError) return <View><Text>Error loading game.</Text></View>;
-  
-  const player1 = game.player1;
-  const player2 = game.player2;
+
+  const winnerText = useMemo(() => {
+    const status = currentGameState.status;
+    const winner = status === GameStatusEnum.TIGER_WON ? 'Tiger' : 'Goat';
+
+    if (!!aiDifficulty) {
+      if (winner.toLowerCase() === playerSide.toLowerCase()) {
+        return 'You Win!';
+      } else {
+        return 'You Lose!';
+      }
+    }
+
+    return `${winner} Wins!`;
+  }, [currentGameState.status, aiDifficulty, playerSide]);
 
   const validMovesForSelection = useMemo(() => {
-      if (!selectedPosition || !clientGameState) return [];
-      return BaghchalLogic.getMovesForPiece(clientGameState, [selectedPosition.row, selectedPosition.col]);
-  }, [selectedPosition, clientGameState])
+    if (!currentGameState) return [];
+
+    if (currentGameState.phase === 'placement' && currentGameState.currentPlayer.toUpperCase() === 'GOAT') {
+      const placements: { row: number, col: number }[] = [];
+      for (let r = 0; r < 5; r++) {
+        for (let c = 0; c < 5; c++) {
+          if (currentGameState.board[r][c] === PieceType.EMPTY) {
+            placements.push({ row: r, col: c });
+          }
+        }
+      }
+      return placements;
+    }
+
+    if (selectedPosition) {
+      return getMovesForPiece(currentGameState, [selectedPosition.row, selectedPosition.col]).map(m => ({ row: m.to[0], col: m.to[1] }));
+    }
+
+    return [];
+  }, [currentGameState, selectedPosition]);
+
+  if (isGameLoading) {
+    return (
+      <LinearGradient colors={['#1a1a2e', '#16213e']} style={styles.container}>
+        <ActivityIndicator size="large" color="#fff" />
+      </LinearGradient>
+    );
+  }
+
+  if (gameError || !currentGameState) {
+    return (
+      <LinearGradient colors={['#1a1a2e', '#16213e']} style={styles.container}>
+        <Text style={styles.errorText}>Error loading game.</Text>
+      </LinearGradient>
+    );
+  }
 
   return (
-    <LinearGradient colors={['#1a1a2e', '#16213e']} style={styles.container}>
-      {/* Header: Player Info */}
-      <View style={styles.header}>
-          {/* Player 1 Info */}
-          <View style={[styles.playerInfo, clientGameState.currentPlayer === 'Tiger' && styles.activePlayer]}>
-             <Text style={styles.playerName}>{player1?.username} (Tigers)</Text>
-          </View>
-          {/* Player 2 Info */}
-          <View style={[styles.playerInfo, clientGameState.currentPlayer === 'Goat' && styles.activePlayer]}>
-              <Text style={styles.playerName}>{player2?.username} (Goats)</Text>
-          </View>
-      </View>
-      
-      {/* Game Board */}
-      <GameBoard
-        board={clientGameState.board}
-        onPositionPress={handlePositionPress}
-        selectedPosition={selectedPosition}
-        validMoves={validMovesForSelection.map(m => ({row: m.to[0], col: m.to[1]}))}
-        currentPlayer={clientGameState.currentPlayer}
-        phase={clientGameState.phase}
-      />
-      
-      {/* Footer: Game Info & Actions */}
-      <View style={styles.footer}>
-          <Text style={styles.gameInfoText}>Goats Captured: {clientGameState.goatsCaptured}</Text>
-          <Text style={styles.gameInfoText}>Phase: {clientGameState.phase}</Text>
-          <Text style={styles.gameInfoText}>Turn: {clientGameState.currentPlayer}</Text>
-          <TouchableOpacity style={styles.quitButton} onPress={handleQuitGame}>
-              <Ionicons name="exit-outline" size={20} color="#FF5252" />
-              <Text style={styles.quitButtonText}>Forfeit Game</Text>
-          </TouchableOpacity>
-      </View>
+    <LinearGradient colors={['#1a1a2e', '#16213e', '#1a1a2e']} style={styles.container}>
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.header}>
+          <PlayerInfo
+            player={gameMode === 'local' ? { username: 'Tiger' } : (ourSide === 'Tiger' ? player1 : player2) || null}
+            side="Tiger"
+            isActive={currentGameState.currentPlayer === 'Tiger'}
+            goatsCaptured={currentGameState.goatsCaptured}
+            goatsToPlace={0}
+            phase={currentGameState.phase}
+          />
+        </View>
 
-      {/* Game Over Modal */}
-      {clientGameState.status !== 'IN_PROGRESS' && (
-        <Modal transparent={true} visible={true} animationType="fade">
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Game Over</Text>
-              <Text style={styles.modalText}>
-                  {clientGameState.status === 'TIGER_WON' ? 'Tigers win!' : 'Goats win!'}
-              </Text>
-              <TouchableOpacity style={styles.modalButton} onPress={() => navigation.goBack()}>
-                <Text style={styles.modalButtonText}>Back to Home</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-      )}
+        <View style={styles.boardContainer}>
+          <GameBoard
+            board={currentGameState.board}
+            selectedPosition={selectedPosition}
+            validMoves={validMovesForSelection}
+            onPositionPress={handlePress}
+            isMoveLoading={isMoveLoading || isAiThinking}
+            currentPlayer={currentGameState.currentPlayer}
+            phase={currentGameState.phase}
+          />
+        </View>
+
+        <View style={styles.footer}>
+          <PlayerInfo
+            player={gameMode === 'local' ? { username: 'Goat' } : (ourSide === 'Goat' ? player1 : player2) || null}
+            side="Goat"
+            isActive={currentGameState.currentPlayer === 'Goat'}
+            goatsToPlace={20 - currentGameState.goatsPlaced}
+            phase={currentGameState.phase}
+            goatsCaptured={0}
+          />
+          <GameStatus winner={currentGameState.status !== GameStatusEnum.IN_PROGRESS ? currentGameState.status : null} turn={currentGameState.currentPlayer} />
+        </View>
+      </SafeAreaView>
+      <GameOverModal
+        visible={isGameOverModalVisible}
+        winner={winnerText}
+        onRestart={handleRestart}
+        onGoHome={handleGoHome}
+      />
     </LinearGradient>
+  );
+};
+
+const PlayerInfo: React.FC<{
+  player: GamePlayer | { username: string } | null;
+  side: PlayerSide;
+  isActive: boolean;
+  goatsCaptured: number;
+  goatsToPlace: number;
+  phase: GamePhase;
+}> = ({ player, side, isActive, goatsCaptured, goatsToPlace, phase }) => {
+  const isTiger = side === 'Tiger';
+  return (
+    <View style={[styles.playerInfo, isActive && styles.activePlayer]}>
+      <FontAwesome5 name={isTiger ? "cat" : "dot-circle"} size={24} color={isTiger ? '#FFC107' : '#FFF'} />
+      <Text style={styles.playerName}>{player?.username || 'Player'}</Text>
+      {isTiger ? (
+        <Text style={styles.playerDetails}>Captured: {goatsCaptured}</Text>
+      ) : (
+        <Text style={styles.playerDetails}>
+          {phase === 'placement' ? `To Place: ${goatsToPlace}` : ''}
+        </Text>
+      )}
+    </View>
+  );
+};
+
+const GameStatus: React.FC<{
+  winner: GameStatusEnum | null;
+  turn: PlayerSide;
+}> = ({ winner, turn }) => {
+  if (winner) {
+    return (
+      <View style={styles.gameStatus}>
+        <Text style={styles.statusText}>{winner.replace('_', ' ')}!</Text>
+      </View>
+    );
+  }
+  return (
+    <View style={styles.gameStatus}>
+      <Text style={styles.statusText}>{turn}'s Turn</Text>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
+  },
+  safeArea: {
+    flex: 1,
+    justifyContent: 'space-between',
     alignItems: 'center',
+    paddingVertical: 20,
   },
   header: {
-      flex: 0.2,
-      flexDirection: 'row',
-      justifyContent: 'space-around',
-      width: '100%',
-      alignItems: 'center'
+    width: '100%',
+    paddingHorizontal: 20,
+    alignItems: 'center',
   },
-  footer: {
-      flex: 0.2,
-      width: '100%',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 10
-  },
-  playerInfo: {
-    padding: 10,
-    margin: 10,
-    borderWidth: 2,
-    borderColor: 'gray',
-    borderRadius: 10,
-  },
-  playerName: {
-      color: 'white',
-      fontSize: 16
-  },
-  activePlayer: {
-    borderColor: '#FFD700',
-    shadowColor: '#FFD700',
-    shadowRadius: 10,
-    shadowOpacity: 0.8
-  },
-  gameInfoText: {
-      color: 'white',
-      fontSize: 16,
-      marginBottom: 5
-  },
-  quitButton: {
-      flexDirection: 'row',
-      marginTop: 15,
-      paddingVertical: 10,
-      paddingHorizontal: 20,
-      backgroundColor: 'rgba(255, 82, 82, 0.2)',
-      borderRadius: 20,
-      borderWidth: 1,
-      borderColor: '#FF5252'
-  },
-  quitButtonText: {
-    color: '#FF5252',
-    marginLeft: 10,
-    fontWeight: 'bold'
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+  boardContainer: {
     justifyContent: 'center',
     alignItems: 'center',
+    marginVertical: 20,
   },
-  modalContent: {
-    backgroundColor: '#2c2c54',
-    padding: 30,
-    borderRadius: 15,
+  footer: {
+    width: '100%',
+    paddingHorizontal: 20,
     alignItems: 'center',
+  },
+  playerInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    width: '90%',
+    marginVertical: 5,
+  },
+  activePlayer: {
+    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+    borderColor: '#FFD700',
     borderWidth: 1,
-    borderColor: '#FFD700'
   },
-  modalTitle: {
-      fontSize: 24,
-      fontWeight: 'bold',
-      color: 'white',
-      marginBottom: 10,
+  playerName: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginLeft: 10,
   },
-  modalText: {
-      fontSize: 18,
-      color: 'white',
-      marginBottom: 20,
+  playerDetails: {
+    color: '#FFF',
+    fontSize: 14,
+    marginLeft: 'auto',
   },
-  modalButton: {
-      backgroundColor: '#FFD700',
-      paddingVertical: 10,
-      paddingHorizontal: 30,
-      borderRadius: 10
+  gameStatus: {
+    marginTop: 15,
+    padding: 10,
+    borderRadius: 5,
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
-  modalButtonText: {
-      color: '#1a1a2e',
-      fontWeight: 'bold'
-  }
+  statusText: {
+    color: '#FFF',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  errorText: {
+    color: '#FF5252',
+    fontSize: 18,
+  },
+  forfeitButton: {
+    marginTop: 20,
+    backgroundColor: '#C62828',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 5,
+  },
+  forfeitButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
 });
 
-export default GameScreen; 
+export default GameScreen;

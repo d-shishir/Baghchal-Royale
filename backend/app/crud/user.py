@@ -1,16 +1,61 @@
 from typing import Any, Dict, Optional, Union
 import uuid
-
+from sqlalchemy import func, select, case
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
 
 from app.core.security import get_password_hash, verify_password
 from app.crud.base import CRUDBase
+from app.models import Game
 from app.models.user import User, UserRole
-from app.schemas.user import UserCreate, UserUpdate
+from app.schemas.user import UserCreate, UserUpdate, UserWithStats
+from app.schemas.game import GameStatus
 
 
 class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
+    async def get_with_stats(self, db: AsyncSession, *, user_id: uuid.UUID) -> Optional[UserWithStats]:
+        """
+        Get a user by ID and calculate their game statistics.
+        """
+        user = await self.get(db, id=user_id)
+        if not user:
+            return None
+
+        stmt = (
+            select(
+                func.count(Game.game_id).label("games_played"),
+                func.sum(
+                    case(
+                        (Game.winner_id == user_id, 1),
+                        else_=0
+                    )
+                ).label("wins"),
+            )
+            .where(
+                (Game.player_goat_id == user_id) | (Game.player_tiger_id == user_id),
+                Game.status == GameStatus.COMPLETED,
+            )
+        )
+        
+        result = await db.execute(stmt)
+        stats = result.first()
+        
+        games_played = stats.games_played or 0
+        wins = stats.wins or 0
+        losses = games_played - wins
+        
+        if games_played > 0:
+            win_rate = round((wins / games_played) * 100, 2)
+        else:
+            win_rate = 0.0
+            
+        return UserWithStats(
+            **user.__dict__,
+            games_played=games_played,
+            wins=wins,
+            losses=losses,
+            win_rate=win_rate
+        )
+
     async def get(self, db: AsyncSession, id: uuid.UUID) -> Optional[User]:
         result = await db.execute(select(User).filter(User.user_id == id))
         return result.scalars().first()
@@ -29,6 +74,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             username=obj_in.username,
             password=get_password_hash(obj_in.password),
             role=UserRole.ADMIN if obj_in.is_superuser else UserRole.USER,
+            country=obj_in.country,
         )
         db.add(db_obj)
         await db.commit()

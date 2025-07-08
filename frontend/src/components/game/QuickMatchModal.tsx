@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
-import { matchmakingSocket } from '../../services/api';
+import { matchmakingSocket, MatchmakingResponse } from '../../services/websocket';
 import { GameScreenNavigationProp } from '../../navigation/MainNavigator';
 
 interface QuickMatchModalProps {
@@ -17,30 +17,50 @@ const QuickMatchModal: React.FC<QuickMatchModalProps> = ({ visible, onClose }) =
   const token = useSelector((state: RootState) => state.auth.token);
   const navigation = useNavigation<GameScreenNavigationProp>();
 
+  // Use a ref to store the message handler to avoid issues with stale closures in useEffect
+  const messageHandlerRef = useRef<((data: MatchmakingResponse) => void) | undefined>(undefined);
+
+  useEffect(() => {
+    // Keep the ref updated with the latest handler logic
+    messageHandlerRef.current = (data: MatchmakingResponse) => {
+      if (data.status === 'match_found' && data.game_id && data.match_id && data.opponent && data.player_side) {
+        setStatus('found');
+        onClose();
+        navigation.navigate('Game', {
+          gameId: data.game_id,
+          matchId: data.match_id,
+          opponentId: data.opponent.id,
+          playerSide: data.player_side.toUpperCase() as 'TIGER' | 'GOAT',
+          gameMode: 'online',
+        });
+      } else if (data.status === 'error') {
+        console.error('Matchmaking error:', data.message);
+        setStatus('idle');
+        onClose();
+      } else if (data.status === 'searching') {
+        setStatus('waiting');
+      }
+    };
+  }, [navigation, onClose]);
+
   useEffect(() => {
     if (visible && token) {
-      setStatus('waiting');
-      matchmakingSocket.connect(token, (data) => {
-        if (data.status === 'match_found') {
-          setStatus('found');
-          // Navigate to game screen
-          navigation.navigate('Game', {
-            matchId: data.match_id,
-            opponentId: data.opponent_id,
-            playerSide: data.side,
-            gameMode: 'multiplayer'
-          });
-          onClose(); // Close the modal
+      // A wrapper function that calls the latest handler from the ref
+      const wrappedHandler = (data: MatchmakingResponse) => {
+        if (messageHandlerRef.current) {
+          messageHandlerRef.current(data);
         }
-      });
-    }
+      };
 
-    return () => {
-      // Disconnect when the modal is closed or component unmounts
-      matchmakingSocket.disconnect();
-      setStatus('idle');
-    };
-  }, [visible, token, navigation, onClose]);
+      matchmakingSocket.connect(token, wrappedHandler);
+
+      // Return a cleanup function that disconnects when the modal is closed
+      return () => {
+        matchmakingSocket.disconnect();
+        setStatus('idle');
+      };
+    }
+  }, [visible, token]);
 
   const handleCancel = () => {
     matchmakingSocket.disconnect();

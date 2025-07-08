@@ -21,7 +21,7 @@ import {
   useDeleteFriendshipMutation,
 } from '../../services/api';
 import { RootState } from '../../store';
-import { Friendship, User } from '../../services/types';
+import { Friendship, User, FriendshipStatus } from '../../services/types';
 import { theme } from '../../theme';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -48,27 +48,45 @@ const FriendsScreen = () => {
   const [updateFriendship] = useUpdateFriendshipMutation();
   const [deleteFriendship] = useDeleteFriendshipMutation();
 
-  const { friendsList, pendingRequests } = useMemo(() => {
-    if (!friendships) return { friendsList: [], pendingRequests: [] };
+  const { friendsList, pendingRequests, sentRequests } = useMemo(() => {
+    console.log('Friendships data:', friendships);
+    console.log('Current User:', currentUser);
+
+    if (!friendships || !currentUser?.user_id) {
+      return { friendsList: [], pendingRequests: [], sentRequests: [] };
+    }
     
     const friends: Friendship[] = [];
     const requests: Friendship[] = [];
+    const sent: Friendship[] = [];
 
     friendships.forEach(f => {
       if (f.status === 'ACCEPTED') {
         friends.push(f);
-      } else if (f.status === 'PENDING' && f.user_id_2 === currentUser?.user_id) {
-        requests.push(f);
+      } else if (f.status === 'PENDING') {
+          if (f.user_id_2 === currentUser?.user_id) {
+            requests.push(f);
+          } else if (f.user_id_1 === currentUser?.user_id) {
+            sent.push(f);
+          }
       }
     });
     
-    return { friendsList: friends, pendingRequests: requests };
+    return { friendsList: friends, pendingRequests: requests, sentRequests: sent };
   }, [friendships, currentUser]);
 
+  const onRefresh = () => {
+    console.log('Refreshing friend list...');
+    refetch();
+  };
 
   const handleSendFriendRequest = async (userId: string) => {
+    if (!currentUser) {
+        Alert.alert('Error', 'You must be logged in to send friend requests.');
+        return;
+    }
     try {
-      await createFriendship({ user_id_2: userId }).unwrap();
+      await createFriendship({ user_id_1: currentUser.user_id, user_id_2: userId }).unwrap();
       Alert.alert('Success', 'Friend request sent!');
     } catch (error: any) {
         const message = error.data?.detail || 'Failed to send friend request';
@@ -78,7 +96,8 @@ const FriendsScreen = () => {
 
   const handleRespondToRequest = async (friendshipId: string, accepted: boolean) => {
     try {
-      await updateFriendship({ friendship_id: friendshipId, accepted }).unwrap();
+      const status = accepted ? FriendshipStatus.ACCEPTED : FriendshipStatus.DECLINED;
+      await updateFriendship({ friendship_id: friendshipId, status }).unwrap();
       Alert.alert('Success', `Friend request ${accepted ? 'accepted' : 'declined'}!`);
     } catch (error) {
       Alert.alert('Error', `Failed to respond to friend request`);
@@ -156,20 +175,55 @@ const FriendsScreen = () => {
     </View>
   )};
 
-  const renderSearchResult = ({ item }: { item: User }) => (
-    <View style={styles.listItem}>
-      <View style={styles.friendInfo}>
-        <Text style={styles.friendName}>{item.username}</Text>
-        <Text style={styles.friendStatus}>Rating: {item.rating}</Text>
-      </View>
+  const renderSearchResult = ({ item }: { item: User }) => {
+    const existingFriendship = friendships?.find(
+        f => f.user_id_1 === item.user_id || f.user_id_2 === item.user_id
+    );
+
+    let buttonContent = (
       <TouchableOpacity
         style={styles.addButton}
         onPress={() => handleSendFriendRequest(item.user_id)}
       >
         <Ionicons name="add-circle-outline" size={32} color={theme.colors.primary} />
       </TouchableOpacity>
-    </View>
-  );
+    );
+
+    if (existingFriendship) {
+      const status = existingFriendship.status;
+      let text = '';
+      if (status === 'ACCEPTED') {
+        text = 'Friends';
+      } else if (status === 'PENDING') {
+        if (existingFriendship.user_id_1 === currentUser?.user_id) {
+            text = 'Request Sent';
+        } else {
+            text = 'Pending';
+        }
+      } else if (status === 'DECLINED') {
+        text = 'Declined';
+      }
+      
+      if (text) {
+          buttonContent = (
+            <View style={styles.pendingContainer}>
+                <Text style={styles.pendingText}>{text}</Text>
+            </View>
+          );
+      }
+    }
+
+
+    return (
+        <View style={styles.listItem}>
+          <View style={styles.friendInfo}>
+            <Text style={styles.friendName}>{item.username}</Text>
+            <Text style={styles.friendStatus}>Rating: {item.rating}</Text>
+          </View>
+          {buttonContent}
+        </View>
+      );
+  }
 
   const renderTabContent = () => {
     const isLoading = friendsLoading || searchLoading;
@@ -186,7 +240,7 @@ const FriendsScreen = () => {
             keyExtractor={(item) => item.friendship_id}
             contentContainerStyle={styles.listContainer}
             refreshControl={
-              <RefreshControl refreshing={friendsLoading} onRefresh={refetch} />
+              <RefreshControl refreshing={friendsLoading} onRefresh={onRefresh} />
             }
             ListEmptyComponent={
               <View style={styles.emptyStateContainer}><Text style={styles.emptyText}>No friends yet. Add some friends!</Text></View>
@@ -201,7 +255,7 @@ const FriendsScreen = () => {
             keyExtractor={(item) => item.friendship_id}
             contentContainerStyle={styles.listContainer}
             refreshControl={
-              <RefreshControl refreshing={friendsLoading} onRefresh={refetch} />
+              <RefreshControl refreshing={friendsLoading} onRefresh={onRefresh} />
             }
             ListEmptyComponent={
                 <View style={styles.emptyStateContainer}><Text style={styles.emptyText}>No pending friend requests</Text></View>
@@ -370,6 +424,16 @@ const styles = StyleSheet.create({
   },
   declineButton: {
     padding: 8,
+  },
+  pendingContainer: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+    backgroundColor: theme.colors.surfaceVariant,
+  },
+  pendingText: {
+      color: theme.colors.onSurface,
+      fontWeight: 'bold',
   },
   emptyStateContainer: {
     flex: 1,

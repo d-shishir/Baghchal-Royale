@@ -8,14 +8,16 @@ from app.api import deps
 
 router = APIRouter()
 
-@router.get("/me", response_model=schemas.User)
-def read_user_me(
+@router.get("/me", response_model=schemas.UserWithStats)
+async def read_user_me(
+    db: AsyncSession = Depends(deps.get_db),
     current_user: models.User = Depends(deps.get_current_active_user),
 ) -> Any:
     """
-    Get current user.
+    Get current user with stats.
     """
-    return current_user
+    user_data = await crud.user.get_with_stats(db, user_id=current_user.user_id)
+    return user_data
 
 @router.put("/me", response_model=schemas.User)
 async def update_user_me(
@@ -64,16 +66,15 @@ async def get_leaderboard(
     users = result.scalars().all()
     return users
 
-@router.get("/{user_id}", response_model=schemas.User)
+@router.get("/{user_id}", response_model=schemas.UserWithStats)
 async def read_user_by_id(
     user_id: uuid.UUID,
     db: AsyncSession = Depends(deps.get_db),
-    current_user: models.User = Depends(deps.get_current_active_user),
 ) -> Any:
     """
-    Get a specific user by id.
+    Get a specific user by id with stats.
     """
-    user = await crud.user.get(db, id=user_id)
+    user = await crud.user.get_with_stats(db, user_id=user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user 

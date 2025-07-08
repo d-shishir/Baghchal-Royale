@@ -1,5 +1,5 @@
-from pydantic import BaseModel, EmailStr
-from typing import Optional
+from pydantic import BaseModel, EmailStr, Field
+from typing import Optional, List, Dict, Any
 import uuid
 from datetime import datetime
 from enum import Enum
@@ -31,12 +31,18 @@ class UserUpdate(BaseModel):
     username: Optional[str] = None
     country: Optional[str] = None
     password: Optional[str] = None
+    level: Optional[int] = None
+    xp: Optional[int] = None
+    achievements: Optional[List[str]] = None
 
 class UserInDBBase(UserBase):
     user_id: uuid.UUID
     role: UserRole
     status: UserStatus
     rating: int
+    level: int = 1
+    xp: int = 0
+    achievements: List[str] = Field(default_factory=list)
     created_at: datetime
     last_login: Optional[datetime] = None
     
@@ -46,6 +52,22 @@ class UserInDBBase(UserBase):
 # Additional properties to return via API
 class User(UserInDBBase):
     pass
+
+class UserFriendInfo(BaseModel):
+    user_id: uuid.UUID
+    username: str
+    status: UserStatus
+    rating: int
+    level: int
+
+    class Config:
+        from_attributes = True
+
+class UserWithStats(User):
+    games_played: int = 0
+    wins: int = 0
+    losses: int = 0
+    win_rate: float = 0.0
 
 # Additional properties stored in DB
 class UserInDB(UserInDBBase):

@@ -1,6 +1,6 @@
 export type PlayerSide = 'Tiger' | 'Goat';
 export type GamePhase = 'placement' | 'movement';
-export type PieceType = 0 | 1 | 2; // 0 = empty, 1 = tiger, 2 = goat
+export enum PieceType { EMPTY = 0, TIGER = 1, GOAT = 2 }
 
 export enum GameStatus {
   IN_PROGRESS = "IN_PROGRESS",
@@ -83,7 +83,7 @@ export function isMoveValid(state: GameState, move: PotentialMove | GameMove): b
         if (currentPlayer === 'Goat') {
             if (type !== 'place') return false;
             const [toRow, toCol] = to;
-            return board[toRow][toCol] === 0; // Can only place on empty spots
+            return board[toRow][toCol] === PieceType.EMPTY; // Can only place on empty spots
         }
         // If it's the tiger's turn during placement, their moves are validated like in the movement phase.
     }
@@ -94,9 +94,9 @@ export function isMoveValid(state: GameState, move: PotentialMove | GameMove): b
     const [toRow, toCol] = to;
 
     // General movement rules
-    if (board[toRow][toCol] !== 0) return false; // Must move to an empty spot
+    if (board[toRow][toCol] !== PieceType.EMPTY) return false; // Must move to an empty spot
     const piece = board[fromRow][fromCol];
-    if ((currentPlayer === 'Tiger' && piece !== 1) || (currentPlayer === 'Goat' && piece !== 2)) {
+    if ((currentPlayer === 'Tiger' && piece !== PieceType.TIGER) || (currentPlayer === 'Goat' && piece !== PieceType.GOAT)) {
         return false; // Not your piece
     }
 
@@ -114,7 +114,7 @@ export function isMoveValid(state: GameState, move: PotentialMove | GameMove): b
     // Check for a valid tiger capture (jump over a goat to a connected, empty spot)
     const [midRow, midCol] = [(fromRow + toRow) / 2, (fromCol + toCol) / 2];
     if (Number.isInteger(midRow) && Number.isInteger(midCol)) {
-        const isJumpOverGoat = board[midRow][midCol] === 2;
+        const isJumpOverGoat = board[midRow][midCol] === PieceType.GOAT;
         if (isJumpOverGoat) {
             // A capture is valid if the path from->mid->to exists.
             const isPathValid = getConnections(from).some(p => p[0] === midRow && p[1] === midCol) &&
@@ -136,11 +136,11 @@ export function applyMove(state: GameState, move: GameMove): GameState {
     const { type, from, to } = move;
 
     if (type === 'place') {
-        board[to[0]][to[1]] = 2; // Place goat
+        board[to[0]][to[1]] = PieceType.GOAT; // Place goat
         newState.goatsPlaced++;
     } else if (type === 'move' && from) {
         const piece = board[from[0]][from[1]];
-        board[from[0]][from[1]] = 0;
+        board[from[0]][from[1]] = PieceType.EMPTY;
         board[to[0]][to[1]] = piece;
 
         // isMoveValid has already confirmed this is a valid move.
@@ -151,7 +151,7 @@ export function applyMove(state: GameState, move: GameMove): GameState {
             if (dx > 1 || dy > 1) { // A jump is any move greater than 1 unit away
                 const midRow = (from[0] + to[0]) / 2;
                 const midCol = (from[1] + to[1]) / 2;
-                board[midRow][midCol] = 0; // Remove captured goat
+                board[midRow][midCol] = PieceType.EMPTY; // Remove captured goat
                 newState.goatsCaptured++;
             }
         }
@@ -185,7 +185,7 @@ export function checkWinCondition(state: GameState): { status: GameStatus } {
     const tigers = [];
     for (let r = 0; r < 5; r++) {
         for (let c = 0; c < 5; c++) {
-            if (state.board[r][c] === 1) {
+            if (state.board[r][c] === PieceType.TIGER) {
                 tigers.push([r, c]);
             }
         }
@@ -218,7 +218,7 @@ export function getMovesForPiece(state: GameState, pos: Position): PotentialMove
     const { board, currentPlayer } = state;
     const piece = board[pos[0]][pos[1]];
 
-    const pieceBelongsToPlayer = (currentPlayer === 'Tiger' && piece === 1) || (currentPlayer === 'Goat' && piece === 2);
+    const pieceBelongsToPlayer = (currentPlayer === 'Tiger' && piece === PieceType.TIGER) || (currentPlayer === 'Goat' && piece === PieceType.GOAT);
 
     if (!pieceBelongsToPlayer) {
         return []; // Not the current player's piece
@@ -229,7 +229,7 @@ export function getMovesForPiece(state: GameState, pos: Position): PotentialMove
     } else { // Goats
         const moves: PotentialMove[] = [];
         for (const to of getConnections(pos)) {
-            if (board[to[0]][to[1]] === 0) {
+            if (board[to[0]][to[1]] === PieceType.EMPTY) {
                  moves.push({ type: 'move', from: pos, to });
             }
         }
@@ -246,17 +246,17 @@ function getValidTigerMoves(pos: Position, board: PieceType[][]): PotentialMove[
     
     // Standard moves
     for (const to of getConnections(pos)) {
-        if (board[to[0]][to[1]] === 0) {
+        if (board[to[0]][to[1]] === PieceType.EMPTY) {
             moves.push({ type: 'move', from: pos, to });
         }
     }
     
     // Capture moves
     for (const mid of getConnections(pos)) {
-        if (board[mid[0]][mid[1]] === 2) { // Is there a goat to jump?
+        if (board[mid[0]][mid[1]] === PieceType.GOAT) { // Is there a goat to jump?
             const to: Position = [mid[0] + (mid[0] - r), mid[1] + (mid[1] - c)];
             if (to[0] >= 0 && to[0] < 5 && to[1] >= 0 && to[1] < 5) { // Is landing on board?
-                if (board[to[0]][to[1]] === 0) { // Is landing spot empty?
+                if (board[to[0]][to[1]] === PieceType.EMPTY) { // Is landing spot empty?
                     // Is the jump valid? (i.e., is the landing spot connected to the spot being jumped?)
                     if (getConnections(mid).some(p => p[0] === to[0] && p[1] === to[1])) {
                          moves.push({ type: 'move', from: pos, to });
@@ -279,7 +279,7 @@ export function getAllValidMoves(state: GameState): PotentialMove[] {
         if (currentPlayer === 'Goat') {
             for (let r = 0; r < 5; r++) {
                 for (let c = 0; c < 5; c++) {
-                    if (board[r][c] === 0) {
+                    if (board[r][c] === PieceType.EMPTY) {
                         moves.push({ type: 'place', to: [r,c] });
                     }
                 }
@@ -293,12 +293,12 @@ export function getAllValidMoves(state: GameState): PotentialMove[] {
     for (let r = 0; r < 5; r++) {
         for (let c = 0; c < 5; c++) {
             const piece = board[r][c];
-            if ((currentPlayer === 'Tiger' && piece === 1) || (currentPlayer === 'Goat' && piece === 2)) {
+            if ((currentPlayer === 'Tiger' && piece === PieceType.TIGER) || (currentPlayer === 'Goat' && piece === PieceType.GOAT)) {
                  if (currentPlayer === 'Tiger') {
                     moves.push(...getValidTigerMoves([r, c], board));
                  } else { // Goats
                     for (const to of getConnections([r,c])) {
-                        if (board[to[0]][to[1]] === 0) {
+                        if (board[to[0]][to[1]] === PieceType.EMPTY) {
                              moves.push({ type: 'move', from: [r, c], to });
                         }
                     }

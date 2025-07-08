@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -17,7 +17,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 
 import { RootState } from '../../store';
 import { logout } from '../../store/slices/authSlice';
-import { useGetGamesQuery } from '../../services/api';
+import { useGetGamesQuery, useGetMeQuery } from '../../services/api';
 import { MainStackParamList } from '../../navigation/MainNavigator';
 import LoadingScreen from '../../components/LoadingScreen';
 import EditProfileModal from '../../components/EditProfileModal';
@@ -31,7 +31,7 @@ const ProfileScreen: React.FC = () => {
   const dispatch = useDispatch();
   const navigation = useNavigation<StackNavigationProp<MainStackParamList>>();
   
-  const user = useSelector((state: RootState) => state.auth.user);
+  const { data: user, isLoading: isUserLoading } = useGetMeQuery();
   const isGuest = useSelector((state: RootState) => state.auth.isGuest);
   const { data: gameHistory, isLoading: isLoadingGames } = useGetGamesQuery(undefined, {
       skip: isGuest, // Don't fetch for guests
@@ -74,23 +74,20 @@ const ProfileScreen: React.FC = () => {
       )
   }
   
-  if (isLoadingGames || !user) {
+  if (isUserLoading || isLoadingGames || !user) {
       return <LoadingScreen />;
   }
-
-  const gamesPlayed = gameHistory?.length || 0;
-  const gamesWon = gameHistory?.filter(g => g.winner_id === user.user_id).length || 0;
-  const tigerGames = gameHistory?.filter(g => g.player1_id === user.user_id) || [];
-  const goatGames = gameHistory?.filter(g => g.player2_id === user.user_id) || [];
-  const tigerWins = tigerGames.filter(g => g.winner_id === user.user_id).length;
-  const goatWins = goatGames.filter(g => g.winner_id === user.user_id).length;
   
-  const winRate = gamesPlayed > 0 ? (gamesWon / gamesPlayed * 100).toFixed(1) : '0';
-  const tigerWinRate = tigerGames.length > 0 ? (tigerWins / tigerGames.length * 100).toFixed(1) : '0';
-  const goatWinRate = goatGames.length > 0 ? (goatWins / goatGames.length * 100).toFixed(1) : '0';
+  const totalXpForLevel = (level: number) => {
+    if (level <= 1) return 0;
+    return Math.floor(100 * Math.pow(level - 1, 1.5));
+  }
 
-  const level = Math.floor(user.rating / 100) + 1;
-  const experience = (gamesPlayed * 50) + (gamesWon * 100);
+  const xpForCurrentLevel = totalXpForLevel(user.level);
+  const xpForNextLevel = totalXpForLevel(user.level + 1);
+  const xpNeededForNextLevel = xpForNextLevel - xpForCurrentLevel;
+  const xpProgressInCurrentLevel = user.xp - xpForCurrentLevel;
+  const xpProgress = xpNeededForNextLevel > 0 ? (xpProgressInCurrentLevel / xpNeededForNextLevel) * 100 : 0;
 
   const renderStatsTab = () => (
     <View style={styles.tabContent}>
@@ -110,7 +107,7 @@ const ProfileScreen: React.FC = () => {
           <View style={styles.statCard}>
             <LinearGradient colors={['#333', '#404040']} style={styles.statCardGradient}>
               <Ionicons name="game-controller" size={24} color="#FF6F00" style={styles.statIcon} />
-              <Text style={styles.statValue}>{gamesPlayed}</Text>
+              <Text style={styles.statValue}>{user.games_played}</Text>
               <Text style={styles.statLabel}>Games Played</Text>
             </LinearGradient>
           </View>
@@ -118,7 +115,7 @@ const ProfileScreen: React.FC = () => {
           <View style={styles.statCard}>
             <LinearGradient colors={['#333', '#404040']} style={styles.statCardGradient}>
               <Ionicons name="trophy" size={24} color="#FF6F00" style={styles.statIcon} />
-              <Text style={styles.statValue}>{winRate}%</Text>
+              <Text style={styles.statValue}>{user.win_rate}%</Text>
               <Text style={styles.statLabel}>Win Rate</Text>
             </LinearGradient>
           </View>
@@ -126,7 +123,7 @@ const ProfileScreen: React.FC = () => {
           <View style={styles.statCard}>
             <LinearGradient colors={['#333', '#404040']} style={styles.statCardGradient}>
               <Ionicons name="trending-up" size={24} color="#FF6F00" style={styles.statIcon} />
-              <Text style={styles.statValue}>{level}</Text>
+              <Text style={styles.statValue}>{user.level}</Text>
               <Text style={styles.statLabel}>Level</Text>
             </LinearGradient>
           </View>
@@ -144,8 +141,8 @@ const ProfileScreen: React.FC = () => {
                 <Ionicons name="flash" size={32} color="#FFF" />
               </View>
               <Text style={styles.sideTitle}>Tigers</Text>
-              <Text style={styles.sideWins}>{tigerWins} wins</Text>
-              <Text style={styles.sideRate}>{tigerWinRate}% win rate</Text>
+              <Text style={styles.sideWins}>{user.wins} wins</Text>
+              <Text style={styles.sideRate}>{user.win_rate}% win rate</Text>
             </LinearGradient>
           </View>
           
@@ -155,8 +152,8 @@ const ProfileScreen: React.FC = () => {
                 <Ionicons name="leaf" size={32} color="#FFF" />
               </View>
               <Text style={styles.sideTitle}>Goats</Text>
-              <Text style={styles.sideWins}>{goatWins} wins</Text>
-              <Text style={styles.sideRate}>{goatWinRate}% win rate</Text>
+              <Text style={styles.sideWins}>{user.wins} wins</Text>
+              <Text style={styles.sideRate}>{user.win_rate}% win rate</Text>
             </LinearGradient>
           </View>
         </View>
@@ -170,21 +167,21 @@ const ProfileScreen: React.FC = () => {
             <View style={styles.progressHeader}>
               <View style={styles.levelContainer}>
                 <Ionicons name="cellular" size={20} color="#FF6F00" />
-                <Text style={styles.progressLabel}>Level {level}</Text>
+                <Text style={styles.progressLabel}>Level {user.level}</Text>
               </View>
-              <Text style={styles.progressXP}>{experience} XP</Text>
+              <Text style={styles.progressXP}>{user.xp} XP</Text>
             </View>
             <View style={styles.progressBar}>
               <LinearGradient 
                 colors={['#FF6F00', '#FF8F00']}
                 style={[
                   styles.progressFill, 
-                  { width: `${(experience % 1000) / 10}%` }
+                  { width: `${xpProgress}%` }
                 ]} 
               />
             </View>
             <Text style={styles.nextLevelText}>
-              {1000 - (experience % 1000)} XP to next level
+              {xpForNextLevel - user.xp} XP to next level
             </Text>
           </LinearGradient>
         </View>
@@ -251,13 +248,27 @@ const ProfileScreen: React.FC = () => {
   const renderAchievementsTab = () => (
     <View style={styles.tabContent}>
       <Text style={styles.sectionTitle}>Achievements</Text>
+      {user.achievements.length === 0 ? (
         <View style={styles.emptyState}>
-            <View style={styles.emptyStateIconContainer}>
-                <Ionicons name="trophy-outline" size={64} color="#666" />
-            </View>
-            <Text style={styles.emptyStateText}>No achievements yet</Text>
-            <Text style={styles.emptyStateSubtext}>Coming soon!</Text>
+          <View style={styles.emptyStateIconContainer}>
+            <Ionicons name="trophy-outline" size={64} color="#666" />
+          </View>
+          <Text style={styles.emptyStateText}>No achievements unlocked yet</Text>
         </View>
+      ) : (
+        <ScrollView style={styles.achievementList} showsVerticalScrollIndicator={false}>
+          {user.achievements.map((achievement, index) => (
+            <TouchableOpacity key={index} onPress={() => handleViewAchievement({ name: achievement })}>
+              <LinearGradient colors={['#333', '#404040']} style={styles.achievementCard}>
+                <Ionicons name="trophy" size={24} color="#FFD700" style={styles.achievementIcon} />
+                <View style={styles.achievementInfo}>
+                  <Text style={styles.achievementName}>{achievement}</Text>
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      )}
     </View>
   );
 
@@ -624,6 +635,24 @@ const styles = StyleSheet.create({
     xpText: {
         color: '#FF6F00',
         fontWeight: 'bold',
+    },
+    achievementList: {
+        // styles for the list container if needed
+    },
+    achievementCard: {
+        borderRadius: 16,
+        marginBottom: 15,
+    },
+    achievementIcon: {
+        marginBottom: 10,
+    },
+    achievementInfo: {
+        // styles
+    },
+    achievementName: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#FFF',
     },
 });
 

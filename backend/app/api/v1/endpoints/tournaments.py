@@ -69,19 +69,24 @@ async def create_tournament_entry(
     *,
     db: AsyncSession = Depends(deps.get_db),
     tournament_id: uuid.UUID,
-    entry_in: schemas.TournamentEntryCreate,
     current_user: models.User = Depends(deps.get_current_active_user),
 ) -> Any:
     """
     Create new tournament entry.
     """
-    if current_user.user_id != entry_in.user_id:
-        raise HTTPException(status_code=403, detail="Not enough permissions")
-
     tournament = await crud.tournament.get(db, id=tournament_id)
     if not tournament:
         raise HTTPException(status_code=404, detail="Tournament not found")
 
+    existing_entry = await crud.tournament_entry.get_entries_by_tournament(
+        db, tournament_id=tournament_id
+    )
+    if any(e.user_id == current_user.user_id for e in existing_entry):
+        raise HTTPException(
+            status_code=400, detail="User already registered in the tournament"
+        )
+    
+    entry_in = schemas.TournamentEntryCreate(tournament_id=tournament_id, user_id=current_user.user_id, score=0)
     entry = await crud.tournament_entry.create_tournament_entry(db, obj_in=entry_in)
     return entry
 

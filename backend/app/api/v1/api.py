@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from app.api.v1.endpoints import (
     auth, users, games, friends, matchmaking, moves, 
-    ai_games, ai_moves, tournaments, reports, feedback
+    ai_games, ai_moves, tournaments, reports, feedback, game_websocket
 )
 
 api_router = APIRouter()
@@ -16,3 +16,4 @@ api_router.include_router(ai_moves.router, prefix="/ai-moves", tags=["ai-moves"]
 api_router.include_router(tournaments.router, prefix="/tournaments", tags=["tournaments"])
 api_router.include_router(reports.router, prefix="/reports", tags=["reports"])
 api_router.include_router(feedback.router, prefix="/feedback", tags=["feedback"])
+api_router.include_router(game_websocket.router, prefix="/games", tags=["game-websocket"])

@@ -26,7 +26,7 @@ import { User } from '../../services/types';
 type LoginScreenNavigationProp = StackNavigationProp<AuthStackParamList, 'Register'>;
 
 const LoginScreen: React.FC = () => {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   
@@ -43,12 +43,12 @@ const LoginScreen: React.FC = () => {
   }, [error]);
 
   const handleLogin = async () => {
-    if (!username.trim() || !password.trim()) {
-        Alert.alert('Validation Error', 'Please enter both username and password.');
+    if (!email.trim() || !password.trim()) {
+        Alert.alert('Validation Error', 'Please enter both email and password.');
         return;
     }
 
-    await login({ username, password });
+    await login({ username: email, password });
   };
   
   const handleGuestLogin = () => {
@@ -91,14 +91,15 @@ const LoginScreen: React.FC = () => {
 
           <View style={styles.formSection}>
             <View style={styles.inputContainer}>
-              <Ionicons name="person-outline" size={24} color="#666" style={styles.inputIcon} />
+              <Ionicons name="mail-outline" size={24} color="#666" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Username"
+                placeholder="Email Address"
                 placeholderTextColor="#666"
-                value={username}
-                onChangeText={setUsername}
+                value={email}
+                onChangeText={setEmail}
                 autoCapitalize="none"
+                keyboardType="email-address"
                 editable={!isLoading}
               />
             </View>

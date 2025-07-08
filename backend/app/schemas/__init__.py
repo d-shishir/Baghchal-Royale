@@ -1,6 +1,6 @@
-from .user import User, UserCreate, UserUpdate
-from .friendship import Friendship, FriendshipCreate
-from .game import Game, GameCreate, GameUpdate
+from .user import User, UserCreate, UserUpdate, UserWithStats, UserFriendInfo
+from .friendship import Friendship, FriendshipCreate, FriendshipUpdate
+from .game import Game, GameCreate, GameUpdate, GameStatus
 from .move import Move, MoveCreate
 from .ai_game import AIGame, AIGameCreate, AIGameUpdate
 from .ai_move import AIMove, AIMoveCreate
@@ -16,11 +16,15 @@ __all__ = [
     "User",
     "UserCreate",
     "UserUpdate",
+    "UserWithStats",
+    "UserFriendInfo",
     "Friendship",
     "FriendshipCreate",
+    "FriendshipUpdate",
     "Game",
     "GameCreate",
     "GameUpdate",
+    "GameStatus",
     "Move",
     "MoveCreate",
     "AIGame",

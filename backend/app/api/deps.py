@@ -49,7 +49,7 @@ async def get_current_user(
     # Eagerly load necessary fields to prevent MissingGreenlet error
     stmt = (
         select(models.User)
-        .where(models.User.id == token_data.sub)
+        .where(models.User.user_id == token_data.sub)
         .options(selectinload('*'))
     )
     result = await db.execute(stmt)
@@ -81,7 +81,7 @@ async def get_current_user_ws(
     
     stmt = (
         select(models.User)
-        .where(models.User.id == token_data.sub)
+        .where(models.User.user_id == token_data.sub)
     )
     result = await db.execute(stmt)
     user = result.scalars().first()
@@ -93,14 +93,12 @@ async def get_current_user_ws(
 async def get_current_active_user(
     current_user: models.User = Depends(get_current_user),
 ) -> models.User:
-    if not current_user.is_active:
-        raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
 async def get_current_active_superuser(
     current_user: models.User = Depends(get_current_user),
 ) -> models.User:
-    if not current_user.is_superuser:
+    if current_user.role != models.user.UserRole.ADMIN:
         raise HTTPException(
             status_code=400, detail="The user doesn't have enough privileges"
         )
@@ -134,7 +132,7 @@ def get_current_user_sync(
     
     # Use raw SQL query for sync operation - UUID values should be passed directly
     result = db.execute(
-        text("SELECT id, email, username, hashed_password, is_active, is_superuser FROM users WHERE id = :user_id"),
+        text("SELECT user_id, email, username, password, is_active, is_superuser FROM users WHERE user_id = :user_id"),
         {"user_id": token_data.sub}  # Don't convert UUID to string
     ).fetchone()
     
@@ -143,10 +141,10 @@ def get_current_user_sync(
     
     # Create user model from result
     user = models.User(
-        id=result.id,
+        user_id=result.user_id,
         email=result.email,
         username=result.username,
-        hashed_password=result.hashed_password,
+        password=result.password,
         is_active=result.is_active,
         is_superuser=result.is_superuser
     )
@@ -157,15 +155,13 @@ def get_current_active_user_sync(
     current_user: models.User = Depends(get_current_user_sync),
 ) -> models.User:
     """Get current active user with sync database session."""
-    if not current_user.is_active:
-        raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
 def get_current_active_superuser_sync(
     current_user: models.User = Depends(get_current_user_sync),
 ) -> models.User:
     """Get current active superuser with sync database session."""
-    if not current_user.is_superuser:
+    if current_user.role != models.user.UserRole.ADMIN:
         raise HTTPException(
             status_code=400, detail="The user doesn't have enough privileges"
         )

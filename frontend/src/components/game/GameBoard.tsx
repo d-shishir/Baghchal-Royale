@@ -1,13 +1,25 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
-  TouchableOpacity,
   StyleSheet,
   Dimensions,
-  Animated,
+  ImageBackground,
+  TouchableOpacity,
+  LayoutAnimation,
+  UIManager,
+  Platform,
+  ColorValue,
 } from 'react-native';
-import Svg, { Line, Circle, G } from 'react-native-svg';
-import { colors } from '../../theme';
+import Svg, { Line } from 'react-native-svg';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useAudioPlayer } from 'expo-audio';
+import { FontAwesome5 } from '@expo/vector-icons';
+
+import { PieceType, PlayerSide, GamePhase } from '../../game-logic/baghchal';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 interface Position {
   row: number;
@@ -15,331 +27,203 @@ interface Position {
 }
 
 interface GameBoardProps {
-  board: number[][];
+  board: PieceType[][];
   selectedPosition: Position | null;
   validMoves: Position[];
   onPositionPress: (position: Position) => void;
-  disabled?: boolean;
-  showValidMoves?: boolean;
-  currentPlayer: string;
-  phase: string;
+  isMoveLoading?: boolean;
+  currentPlayer: PlayerSide;
+  phase: GamePhase;
 }
 
 const { width: screenWidth } = Dimensions.get('window');
-const BOARD_SIZE = Math.min(screenWidth - 40, 400);
-const CELL_SIZE = BOARD_SIZE / 4;
-const PIECE_SIZE = 24;
-
-// Theme colors for consistent highlighting using the app's color scheme
-const THEME_COLORS = {
-  // Piece colors using theme
-  tiger: colors.dark.tigerColor, // '#FF6F00'
-  goat: '#FFFFFF',
-  
-  // Highlight colors for placement
-  goatPlacement: 'rgba(33, 150, 243, 0.2)', // Blue for goat placement
-  goatPlacementBorder: '#2196F3',
-  
-  // Highlight colors for movement destinations
-  tigerDestination: 'rgba(255, 193, 7, 0.2)', // Gold for tiger moves
-  tigerDestinationBorder: colors.dark.highlightColor, // '#FFD54F'
-  goatDestination: 'rgba(76, 175, 80, 0.2)', // Green for goat moves  
-  goatDestinationBorder: colors.dark.validMoveColor, // '#4CAF50'
-  
-  // Selection indicators
-  tigerSelection: colors.dark.highlightColor, // '#FFD54F' - Gold for selected tigers
-  goatSelection: colors.dark.goatColor, // '#66BB6A' - Light green for selected goats
-  
-  // Board elements
-  boardLine: colors.dark.boardColor, // '#6D4C41'
-  boardBackground: 'transparent',
-}
+const BOARD_CONTAINER_SIZE = screenWidth - 50;
+const PADDING = 20;
+const BOARD_GRID_SIZE = BOARD_CONTAINER_SIZE - PADDING * 2;
+const CELL_SIZE = BOARD_GRID_SIZE / 4;
+const PIECE_DIAMETER = CELL_SIZE * 0.6;
 
 const GameBoard: React.FC<GameBoardProps> = ({
   board,
   selectedPosition,
   validMoves,
   onPositionPress,
-  disabled = false,
-  showValidMoves = true,
+  isMoveLoading = false,
   currentPlayer,
   phase,
 }) => {
-  const [animatedValues] = useState(() => {
-    const values: { [key: string]: Animated.Value } = {};
-    for (let row = 0; row < 5; row++) {
-      for (let col = 0; col < 5; col++) {
-        values[`${row}-${col}`] = new Animated.Value(1);
-      }
+  const moveSoundPlayer = useAudioPlayer(require('../../../assets/audio/move_sound.mp3'));
+  const captureSoundPlayer = useAudioPlayer(require('../../../assets/audio/capture_sound.mp3'));
+
+  useEffect(() => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
+  }, [board]);
+
+  const playMoveSound = useCallback(async () => {
+    moveSoundPlayer.seekTo(0);
+    moveSoundPlayer.play();
+  }, [moveSoundPlayer]);
+  
+  const playCaptureSound = useCallback(async () => {
+    captureSoundPlayer.seekTo(0);
+    captureSoundPlayer.play();
+  }, [captureSoundPlayer]);
+
+  const handlePositionPress = (row: number, col: number) => {
+    if (isMoveLoading) return;
+
+    const piece = board[row][col];
+    const isCapture = validMoves.some(m => m.row === row && m.col === col) && 
+                      selectedPosition && 
+                      Math.abs(selectedPosition.row - row) > 1;
+
+    if (isCapture) {
+      playCaptureSound();
+    } else {
+      playMoveSound();
     }
-    return values;
-  });
-
-  const animatePiece = useCallback((row: number, col: number) => {
-    const key = `${row}-${col}`;
-    Animated.sequence([
-      Animated.timing(animatedValues[key], {
-        toValue: 1.2,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-      Animated.timing(animatedValues[key], {
-        toValue: 1,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [animatedValues]);
-
-  const handlePositionPress = useCallback((row: number, col: number) => {
-    console.log('🎯 GameBoard click detected:', row, col, 'disabled:', disabled);
-    if (disabled) return;
-    
-    animatePiece(row, col);
     onPositionPress({ row, col });
-  }, [disabled, onPositionPress, animatePiece]);
+  };
 
-  const isValidMove = useCallback((row: number, col: number) => {
-    return validMoves.some(move => move.row === row && move.col === col);
-  }, [validMoves]);
-
-  const isSelected = useCallback((row: number, col: number) => {
-    return selectedPosition?.row === row && selectedPosition?.col === col;
-  }, [selectedPosition]);
-
-  const renderBoardLines = () => {
+  const renderLines = () => {
     const lines = [];
-    const drawnConnections = new Set<string>();
+    const connections = [
+      // Horizontal and vertical lines
+      ...Array.from({ length: 5 }, (_, i) => ({ x1: PADDING, y1: i * CELL_SIZE + PADDING, x2: BOARD_GRID_SIZE + PADDING, y2: i * CELL_SIZE + PADDING })),
+      ...Array.from({ length: 5 }, (_, i) => ({ x1: i * CELL_SIZE + PADDING, y1: PADDING, x2: i * CELL_SIZE + PADDING, y2: BOARD_GRID_SIZE + PADDING })),
+      // Diagonal lines
+      { x1: PADDING, y1: PADDING, x2: BOARD_GRID_SIZE + PADDING, y2: BOARD_GRID_SIZE + PADDING },
+      { x1: BOARD_GRID_SIZE + PADDING, y1: PADDING, x2: PADDING, y2: BOARD_GRID_SIZE + PADDING },
+      { x1: PADDING, y1: 2 * CELL_SIZE + PADDING, x2: 2 * CELL_SIZE + PADDING, y2: PADDING },
+      { x1: 2 * CELL_SIZE + PADDING, y1: PADDING, x2: BOARD_GRID_SIZE + PADDING, y2: 2 * CELL_SIZE + PADDING },
+      { x1: PADDING, y1: 2 * CELL_SIZE + PADDING, x2: 2 * CELL_SIZE + PADDING, y2: BOARD_GRID_SIZE + PADDING },
+      { x1: 2 * CELL_SIZE + PADDING, y1: BOARD_GRID_SIZE + PADDING, x2: BOARD_GRID_SIZE + PADDING, y2: 2 * CELL_SIZE + PADDING },
+    ];
 
-    // This data is sourced from `baghchal.ts` to ensure the rendered board
-    // perfectly matches the game's logical structure.
-    const allConnections: { [key: string]: [number, number][] } = {
-      '0,0': [[0,1], [1,0], [1,1]],
-      '0,1': [[0,0], [0,2], [1,1]],
-      '0,2': [[0,1], [0,3], [1,2], [1,1], [1,3]],
-      '0,3': [[0,2], [0,4], [1,3]],
-      '0,4': [[0,3], [1,4], [1,3]],
-
-      '1,0': [[0,0], [2,0], [1,1]],
-      '1,1': [[1,0], [0,1], [1,2], [2,1], [2,2], [0,0], [0,2], [2,0]],
-      '1,2': [[0,2], [1,1], [1,3], [2,2]],
-      '1,3': [[0,3], [0,4], [1,2], [1,4], [2,2], [2,3], [2,4]],
-      '1,4': [[0,4], [1,3], [2,4]],
-
-      '2,0': [[1,0], [3,0], [2,1], [1,1], [3,1]],
-      '2,1': [[2,0], [1,1], [3,1], [2,2]],
-      '2,2': [[1,1], [1,2], [1,3], [2,1], [2,3], [3,1], [3,2], [3,3]],
-      '2,3': [[2,2], [1,3], [3,3], [2,4]],
-      '2,4': [[1,4], [1,3], [2,3], [3,3], [3,4]],
-
-      '3,0': [[2,0], [4,0], [3,1]],
-      '3,1': [[3,0], [2,0], [2,1], [3,2], [4,0], [4,2], [2,2], [4,1]],
-      '3,2': [[3,1], [2,2], [3,3], [4,2]],
-      '3,3': [[3,2], [2,3], [2,4], [3,4], [4,2], [4,3], [4,4], [2,2]],
-      '3,4': [[2,4], [3,3], [4,4]],
-
-      '4,0': [[3,0], [4,1], [3,1]],
-      '4,1': [[4,0], [4,2], [3,1]],
-      '4,2': [[4,1], [3,1], [3,2], [3,3], [4,3]],
-      '4,3': [[4,2], [3,3], [4,4]],
-      '4,4': [[3,4], [4,3], [3,3]]
-    };
-
-    for (const posKey in allConnections) {
-      const [fromRow, fromCol] = posKey.split(',').map(Number);
-      const connections = allConnections[posKey];
-
-      for (const to of connections) {
-        const [toRow, toCol] = to;
-        
-        // Create a canonical key for the connection to avoid drawing lines twice
-        // e.g., '0,0-0,1' is the same as '0,1-0,0'
-        const fromKey = `${fromRow},${fromCol}`;
-        const toKey = `${toRow},${toCol}`;
-        const connectionKey = [fromKey, toKey].sort().join('-');
-
-        if (!drawnConnections.has(connectionKey)) {
-          lines.push(
-            <Line
-              key={connectionKey}
-              x1={fromCol * CELL_SIZE}
-              y1={fromRow * CELL_SIZE}
-              x2={toCol * CELL_SIZE}
-              y2={toRow * CELL_SIZE}
-              stroke={THEME_COLORS.boardLine}
-              strokeWidth={2}
-            />
-          );
-          drawnConnections.add(connectionKey);
-        }
-      }
+    for (const line of connections) {
+      lines.push(<Line {...line} stroke="rgba(0,0,0,0.2)" strokeWidth={2} key={`${line.x1}-${line.y1}-${line.x2}-${line.y2}`} />);
     }
     return lines;
   };
 
-  const renderBoardPositions = () => {
-    const positions = [];
-    const tigerSelected = selectedPosition && board[selectedPosition.row][selectedPosition.col] === 1;
-    const goatSelected = selectedPosition && board[selectedPosition.row][selectedPosition.col] === 2;
-    const goatPlacement = !selectedPosition && currentPlayer === 'goats' && phase === 'placement';
-    const goatSelection = currentPlayer === 'goats' && phase === 'movement';
-    const tigerSelection = currentPlayer === 'tigers';
-    
-    for (let row = 0; row < 5; row++) {
-      for (let col = 0; col < 5; col++) {
-        let isValid = false;
-        let highlightColor = 'transparent';
-        let borderColor = 'transparent';
-        let borderWidth = 0;
-        
-        // Determine highlight based on game state
-        if (goatPlacement && board[row][col] === 0) {
-          // Goat placement: highlight empty squares where goats can be placed
-          isValid = validMoves.some(m => m.row === row && m.col === col);
-          if (isValid) {
-            highlightColor = THEME_COLORS.goatPlacement;
-            borderColor = THEME_COLORS.goatPlacementBorder;
-            borderWidth = 2;
-          }
-        } else if (tigerSelected) {
-          // Tiger move: highlight valid destinations for selected tiger
-          isValid = validMoves.some(m => m.row === row && m.col === col);
-          if (isValid) {
-            highlightColor = THEME_COLORS.tigerDestination;
-            borderColor = THEME_COLORS.tigerDestinationBorder;
-            borderWidth = 2;
-          }
-        } else if (goatSelected) {
-          // Goat move: highlight valid destinations for selected goat
-          isValid = validMoves.some(m => m.row === row && m.col === col);
-          if (isValid) {
-            highlightColor = THEME_COLORS.goatDestination;
-            borderColor = THEME_COLORS.goatDestinationBorder;
-            borderWidth = 2;
-          }
-        }
-        
-        // Allow piece selection
-        if (tigerSelection && board[row][col] === 1) {
-          isValid = true; // Tigers can always be selected
-        }
-        if (goatSelection && board[row][col] === 2) {
-          isValid = true; // Goats can always be selected during movement
-        }
-        
-        positions.push(
-          <TouchableOpacity
-            key={`pos-${row}-${col}`}
-            style={{
-              position: 'absolute',
-              left: col * CELL_SIZE - 12,
-              top: row * CELL_SIZE - 12,
-              width: 24,
-              height: 24,
-              borderRadius: 12,
-              backgroundColor: highlightColor,
-              borderWidth: borderWidth,
-              borderColor: borderColor,
-              zIndex: 3,
-            }}
-            onPress={() => isValid && handlePositionPress(row, col)}
-            disabled={disabled || !isValid}
-            activeOpacity={0.7}
-          />
-        );
-      }
-    }
-    return positions;
-  };
-
-  const renderPieces = () => {
-    const pieces = [];
-    
+  const renderPiecesAndHighlights = () => {
+    const elements = [];
     for (let row = 0; row < 5; row++) {
       for (let col = 0; col < 5; col++) {
         const piece = board[row][col];
-        if (piece === 0) continue;
-        
-        const isSelected = selectedPosition && selectedPosition.row === row && selectedPosition.col === col;
-        const isTiger = piece === 1;
-        const selectionColor = isTiger ? THEME_COLORS.tigerSelection : THEME_COLORS.goatSelection;
-        
-        pieces.push(
-          <Animated.View
-            key={`piece-${row}-${col}`}
-            style={{
-              position: 'absolute',
-              left: col * CELL_SIZE - PIECE_SIZE / 2,
-              top: row * CELL_SIZE - PIECE_SIZE / 2,
-              width: PIECE_SIZE,
-              height: PIECE_SIZE,
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: isSelected ? 4 : 2,
-              borderWidth: isSelected ? 3 : 0,
-              borderColor: isSelected ? selectionColor : 'transparent',
-              borderRadius: PIECE_SIZE / 2,
-              shadowColor: isSelected ? selectionColor : 'transparent',
-              shadowOpacity: isSelected ? 0.8 : 0,
-              shadowRadius: isSelected ? 8 : 0,
-              shadowOffset: { width: 0, height: 0 },
-              transform: [{ scale: animatedValues[`${row}-${col}`] }],
-            }}
+        const isSelected = selectedPosition?.row === row && selectedPosition?.col === col;
+        const isValidMove = validMoves.some(m => m.row === row && m.col === col);
+
+        elements.push(
+          <TouchableOpacity
+            key={`cell-${row}-${col}`}
+            style={[
+              styles.touchableIntersection,
+              {
+                left: col * CELL_SIZE + PADDING,
+                top: row * CELL_SIZE + PADDING,
+                width: PIECE_DIAMETER,
+                height: PIECE_DIAMETER,
+                transform: [{ translateX: -PIECE_DIAMETER / 2 }, { translateY: -PIECE_DIAMETER / 2 }],
+              },
+            ]}
+            onPress={() => handlePositionPress(row, col)}
+            activeOpacity={0.7}
           >
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => handlePositionPress(row, col)}
-              disabled={disabled}
-            >
-              <Svg width={PIECE_SIZE} height={PIECE_SIZE}>
-                <Circle
-                  cx={PIECE_SIZE / 2}
-                  cy={PIECE_SIZE / 2}
-                  r={PIECE_SIZE / 2 - 2}
-                  fill={isTiger ? THEME_COLORS.tiger : THEME_COLORS.goat}
-                  stroke={THEME_COLORS.boardLine}
-                  strokeWidth={2}
-                />
-              </Svg>
-            </TouchableOpacity>
-          </Animated.View>
+            {isValidMove && piece === PieceType.EMPTY && <View style={styles.validMoveIndicator} />}
+            {piece !== PieceType.EMPTY && (
+              <Piece isTiger={piece === PieceType.TIGER} isSelected={isSelected} />
+            )}
+          </TouchableOpacity>
         );
       }
     }
-    return pieces;
+    return elements;
   };
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.board, { width: BOARD_SIZE, height: BOARD_SIZE }]}>
-        <Svg
-          width={BOARD_SIZE}
-          height={BOARD_SIZE}
-          style={styles.boardLines}
-        >
-          <G>{renderBoardLines()}</G>
+    <View style={styles.gameWrapper}>
+      <View style={styles.boardContainer}>
+        <Svg height={BOARD_CONTAINER_SIZE} width={BOARD_CONTAINER_SIZE}>
+          {renderLines()}
         </Svg>
-        {showValidMoves && renderBoardPositions()}
-        {renderPieces()}
+      </View>
+      <View style={StyleSheet.absoluteFillObject} pointerEvents="box-none">
+        {renderPiecesAndHighlights()}
       </View>
     </View>
   );
 };
 
+const Piece = ({ isTiger, isSelected }: { isTiger: boolean; isSelected: boolean }) => {
+  const gradientColors = isTiger
+    ? (['#FF8F00', '#FF6F00'] as [string, string])
+    : (['#E0E0E0', '#BDBDBD'] as [string, string]);
+
+  const iconName = isTiger ? 'cat' : 'dot-circle';
+  const iconColor = isTiger ? '#FFF' : '#424242';
+
+  return (
+    <View style={[styles.pieceContainer, isSelected && styles.selectedPiece]}>
+      <LinearGradient colors={gradientColors} style={styles.piece}>
+        <FontAwesome5 name={iconName} size={PIECE_DIAMETER * 0.5} color={iconColor} />
+      </LinearGradient>
+    </View>
+  );
+};
+
 const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
+  gameWrapper: {
+    width: BOARD_CONTAINER_SIZE,
+    height: BOARD_CONTAINER_SIZE,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 20,
   },
-  board: {
-    position: 'relative',
-    backgroundColor: 'transparent',
+  boardContainer: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 10,
+    backgroundColor: '#C8A479',
+    overflow: 'hidden',
   },
-  boardLines: {
+  touchableIntersection: {
     position: 'absolute',
-    top: 0,
-    left: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  validMoveIndicator: {
+    width: PIECE_DIAMETER * 0.4,
+    height: PIECE_DIAMETER * 0.4,
+    borderRadius: PIECE_DIAMETER * 0.2,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+  },
+  pieceContainer: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  selectedPiece: {
+    transform: [{ scale: 1.1 }],
+    shadowColor: '#FFD700',
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
+    elevation: 15,
+  },
+  piece: {
+    width: '100%',
+    height: '100%',
+    borderRadius: PIECE_DIAMETER / 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
   },
 });
 

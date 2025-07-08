@@ -4,6 +4,11 @@ import uuid
 from datetime import datetime
 from enum import Enum
 from .user import User
+from .tournament_entry import TournamentEntry
+
+class TournamentType(str, Enum):
+    ROUND_ROBIN = "ROUND_ROBIN"
+    KNOCKOUT = "KNOCKOUT"
 
 class TournamentStatus(str, Enum):
     PENDING = "PENDING"
@@ -15,8 +20,9 @@ class TournamentBase(BaseModel):
     name: str
     description: Optional[str] = None
     max_participants: int
+    tournament_type: TournamentType
     start_date: datetime
-    end_date: datetime
+    end_date: Optional[datetime] = None
 
 class TournamentCreate(TournamentBase):
     pass
@@ -33,6 +39,7 @@ class TournamentInDBBase(TournamentBase):
     tournament_id: uuid.UUID
     status: TournamentStatus
     created_at: datetime
+    entries: List[TournamentEntry] = []
     
     class Config:
         orm_mode = True

@@ -103,10 +103,12 @@ const SinglePlayerSetupScreen: React.FC = () => {
     };
 
     dispatch(startLocalGame(localGame));
-    navigation.navigate('Game', { 
-        gameId: gameId, 
-        playerSide: selectedSide, 
-        aiDifficulty: selectedDifficulty 
+    navigation.navigate('Game', {
+      gameId: gameId,
+      playerSide: selectedSide,
+      aiDifficulty: selectedDifficulty,
+      initialGameState: localGame.game_state,
+      gameMode: 'ai',
     });
   };
 

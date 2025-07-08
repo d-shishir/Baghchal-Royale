@@ -6,29 +6,20 @@ from enum import Enum
 from .user import User
 
 class ReportStatus(str, Enum):
-    PENDING = "PENDING"
+    OPEN = "OPEN"
     REVIEWED = "REVIEWED"
-    RESOLVED = "RESOLVED"
     DISMISSED = "DISMISSED"
-
-class ReportCategory(str, Enum):
-    CHEATING = "CHEATING"
-    HARASSMENT = "HARASSMENT"
-    BUG = "BUG"
-    OTHER = "OTHER"
 
 class ReportBase(BaseModel):
     reporter_id: uuid.UUID
-    reported_user_id: uuid.UUID
-    category: ReportCategory
-    description: str
+    reported_id: uuid.UUID
+    reason: str
 
 class ReportCreate(ReportBase):
     pass
 
 class ReportUpdate(BaseModel):
     status: Optional[ReportStatus] = None
-    reviewer_notes: Optional[str] = None
 
 class ReportInDBBase(ReportBase):
     report_id: uuid.UUID
@@ -40,4 +31,4 @@ class ReportInDBBase(ReportBase):
 
 class Report(ReportInDBBase):
     reporter: User
-    reported_user: User 
+    reported: User 

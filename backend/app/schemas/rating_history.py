@@ -5,14 +5,14 @@ from datetime import datetime
 class RatingHistoryBase(BaseModel):
     user_id: uuid.UUID
     game_id: uuid.UUID
-    old_rating: int
-    new_rating: int
+    rating_before: int
+    rating_after: int
 
 class RatingHistoryCreate(RatingHistoryBase):
     pass
 
 class RatingHistoryInDBBase(RatingHistoryBase):
-    rating_history_id: uuid.UUID
+    id: uuid.UUID
     changed_at: datetime
     
     class Config:
