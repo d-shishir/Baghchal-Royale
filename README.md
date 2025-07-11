@@ -19,11 +19,12 @@ Baghchal is a strategic board game from Nepal played between 4 Tigers and 20 Goa
 - **Real-time Gameplay**: Seamless frontend-backend integration
 
 ### ✅ Enhanced AI System (COMPLETED)
-- **Double Q-Learning** implementation with trained models
-- **Feature Engineering** with 13-dimensional state representation
-- **Strategic Gameplay** with confidence-based move selection
-- **Multiple Difficulty Levels** (Easy, Medium, Hard)
-- **Fallback Rule-based AI** when models unavailable
+- **Double Q-Learning** implementation with advanced reward functions
+- **Strategic Feature Engineering** with 15+ dimensional state representation
+- **Self-Play Training** with adaptive exploration phases
+- **Confidence-Based Move Selection** with Q-value analysis
+- **Multiple Difficulty Levels** with both Q-learning and rule-based agents
+- **Intelligent Fallback System** prioritizing Q-learning over rule-based AI
 
 ### ✅ Comprehensive Analysis System (COMPLETED)
 - **12+ Visualization Types**: Performance metrics, learning curves, distributions
@@ -213,21 +214,40 @@ Baghchal Royale/
 ## 🤖 Enhanced AI Implementation
 
 ### Double Q-Learning Algorithm
-The AI uses two Q-tables to reduce overestimation bias:
+The AI uses two Q-tables to reduce overestimation bias with player-specific reward functions:
 ```python
+# Tiger AI focuses on: captures, pressure, mobility
+# Goat AI focuses on: survival, formation building, tiger blocking
+
 Q_A[state][action] += α * (reward + γ * Q_B[state'][argmax(Q_A[state'])] - Q_A[state][action])
 Q_B[state][action] += α * (reward + γ * Q_A[state'][argmax(Q_B[state'])] - Q_B[state][action])
 ```
 
 ### AI Features
-- **Strategic Feature Engineering**: 13-dimensional state vectors
-- **Confidence-based Selection**: High-confidence moves preferred
-- **Multiple Difficulty Levels**: Configurable AI strength
-- **Fallback Rule-based AI**: Ensures system reliability
+- **Advanced State Encoding**: Strategic features including formations, threats, mobility
+- **Player-Specific Rewards**: Tigers rewarded for captures/pressure, Goats for blocking/survival  
+- **Self-Play Training**: Agents learn through competitive gameplay
+- **Confidence-based Selection**: Q-value analysis for move confidence
+- **Adaptive Learning Phases**: Exploration → Intermediate → Exploitation
+- **Intelligent Fallback**: Q-learning agents with rule-based backup
 
-### Trained Models
-- `enhanced_tiger_dual.pkl` - Expert Tiger AI (923KB)
-- `enhanced_goat_dual.pkl` - Expert Goat AI (424KB)
+### Training System
+- **Configurable Training**: Episodes, learning rates, exploration phases
+- **Progress Monitoring**: Win rates, Q-value evolution, epsilon decay
+- **Automatic Visualization**: Training curves, performance metrics
+- **Model Persistence**: Save/load trained agents
+
+### Usage
+```bash
+# Quick training (1000 episodes)
+python backend/train_q_learning.py --quick
+
+# Standard training (5000 episodes)  
+python backend/train_q_learning.py --episodes 5000
+
+# Custom training
+python backend/train_q_learning.py --episodes 10000 --learning-rate 0.2
+```
 
 ## 📱 Frontend Features
 
