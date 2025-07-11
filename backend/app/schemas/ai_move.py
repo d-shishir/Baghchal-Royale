@@ -1,27 +1,23 @@
-from pydantic import BaseModel
-from typing import Optional
+from pydantic import BaseModel, ConfigDict
 import uuid
-from datetime import datetime
+from typing import Optional
 
 class AIMoveBase(BaseModel):
     ai_game_id: uuid.UUID
     move_number: int
-    player_type: str
+    player: str # Should be 'user' or 'ai'
     move_type: str
-    from_row: Optional[int] = None
-    from_col: Optional[int] = None
-    to_row: int
-    to_col: int
+    from_pos: str
+    to_pos: str
 
 class AIMoveCreate(AIMoveBase):
     pass
 
-class AIMoveInDBBase(AIMoveBase):
-    ai_move_id: uuid.UUID
-    created_at: datetime
-    
-    class Config:
-        orm_mode = True
+class AIMoveUpdate(BaseModel):
+    pass
 
-class AIMove(AIMoveInDBBase):
-    pass 
+class AIMove(AIMoveBase):
+    ai_move_id: uuid.UUID
+    timestamp: str
+
+    model_config = ConfigDict(from_attributes=True) 

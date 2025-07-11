@@ -1,4 +1,13 @@
-import { GameState, GameStatus } from "../game-logic/baghchal";
+import { GameState, PotentialMove } from "../game-logic/baghchal";
+
+export type { GameState, PotentialMove };
+
+export enum BackendGameStatus {
+  IN_PROGRESS = "IN_PROGRESS",
+  COMPLETED = "COMPLETED",
+  ABANDONED = "ABANDONED",
+}
+
 
 // General
 export interface Token {
@@ -49,9 +58,9 @@ export interface Login {
     password: string;
 }
 
-// GamePlayer - a leaner version of User for game contexts
-export interface GamePlayer {
-    id: string;
+// Player - a leaner version of User for game contexts
+export interface Player {
+    user_id: string;
     username: string;
 }
 
@@ -80,16 +89,15 @@ export interface FriendshipCreate {
 // Game
 export interface Game {
     game_id: string;
-    player1_id: string | null;
-    player2_id: string | null;
-    status: GameStatus;
-    game_type: 'AI' | 'PVP_LOCAL' | 'PVP_ONLINE';
+    player_goat_id: string;
+    player_tiger_id: string;
+    status: BackendGameStatus;
     created_at: string;
-    updated_at: string;
+    ended_at?: string;
     
     // These are nested objects that might not always be present
-    player1?: GamePlayer;
-    player2?: GamePlayer;
+    player_goat: Player;
+    player_tiger: Player;
     winner_id?: string | null;
     
     // The full game state, crucial for local games and reconstructing online games
@@ -97,12 +105,12 @@ export interface Game {
 }
 
 export interface GameCreate {
-    player1_id: string;
-    player2_id: string;
+    player_goat_id: string;
+    player_tiger_id: string;
 }
 
 export interface GameUpdate {
-    status?: GameStatus;
+    status?: BackendGameStatus;
     winner_id?: string;
 }
 

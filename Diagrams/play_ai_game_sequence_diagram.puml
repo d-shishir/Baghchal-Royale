@@ -1,0 +1,20 @@
+@startuml
+top to bottom direction
+skinparam linetype ortho
+
+actor User
+participant Frontend
+participant APIServer
+participant AIGame
+participant AIMove
+
+User -> Frontend : Play move
+Frontend -> APIServer : POST /aigame/{id}/move
+APIServer -> AIGame : validateMove()
+AIGame -> AIMove : create()
+AIMove --> AIGame : AIMove created
+AIGame -> APIServer : updateState()
+APIServer -> Frontend : Response (new state, result)
+Frontend -> User : Show updated board/result
+
+@enduml 

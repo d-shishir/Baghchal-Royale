@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from app.crud.base import CRUDBase
-from app.models.game import Game
+from app.models.game import Game, GameStatus
 from app.schemas.game import GameCreate, GameUpdate
 import uuid
 
@@ -28,20 +28,23 @@ class CRUDGame(CRUDBase[Game, GameCreate, GameUpdate]):
         return await self.get(db, id=db_obj.game_id)
 
     async def get_games_by_user(
-        self, db: AsyncSession, *, user_id: UUID, skip: int = 0, limit: int = 100
+        self, db: AsyncSession, *, user_id: UUID, status: Optional[GameStatus] = None, skip: int = 0, limit: int = 100
     ) -> List[Game]:
-        result = await db.execute(
+        query = (
             select(self.model)
             .where(
                 (self.model.player_goat_id == user_id) | 
                 (self.model.player_tiger_id == user_id)
             )
+            .order_by(self.model.created_at.desc())
             .options(
                 selectinload(Game.player_goat), selectinload(Game.player_tiger)
             )
-            .offset(skip)
-            .limit(limit)
         )
+        if status:
+            query = query.where(self.model.status == status)
+        
+        result = await db.execute(query.offset(skip).limit(limit))
         return result.scalars().all()
 
     async def update(

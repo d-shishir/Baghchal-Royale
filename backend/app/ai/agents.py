@@ -29,6 +29,8 @@ class GoatStrategy(Enum):
     CENTER_CONTROL = "center_control"
     FORMATION_BUILD = "formation_build"
     TIGER_CONTAINMENT = "tiger_containment"
+    ADVANCED_TRAPPING = "advanced_trapping"
+    WALL_BUILDER = "wall_builder"
 
 class AdvancedTigerAI:
     """Advanced Tiger AI with sophisticated hunting strategies."""
@@ -118,7 +120,7 @@ class AdvancedTigerAI:
         return best_action if best_action else random.choice(valid_actions)
 
 class AdvancedGoatAI:
-    """Advanced Goat AI with sophisticated defensive strategies."""
+    """Advanced Goat AI with sophisticated defensive and trapping strategies."""
     
     def __init__(self, strategy: GoatStrategy = GoatStrategy.DEFENSIVE_BLOCK, difficulty: str = "expert"):
         self.strategy = strategy
@@ -126,149 +128,258 @@ class AdvancedGoatAI:
         print(f"🐐 Advanced Goat AI initialized: {strategy.value} ({difficulty})")
     
     def select_action(self, env, state: Dict) -> Optional[Tuple]:
-        """Selects an action based on the goat's strategy."""
+        """Enhanced action selection with priority-based decision making."""
         valid_actions = env.get_valid_actions(Player.GOAT)
         if not valid_actions:
             return None
         
-        # Simple defensive placement: avoid placing next to a tiger if possible.
-        if state.get('phase') == GamePhase.PLACEMENT:
-            best_placement = None
-            best_score = -float('inf')
+        # PRIORITY 1: Avoid immediate capture threats
+        safe_actions = self._filter_safe_actions(valid_actions, state)
+        if not safe_actions:
+            print("⚠️ GOAT AI: No safe moves available, looking for escape moves.")
+            # Try to find moves that at least improve the situation
+            escape_actions = self._find_escape_moves(valid_actions, state)
+            safe_actions = escape_actions if escape_actions else valid_actions
+        
+        # PRIORITY 2: Among safe moves, find trapping opportunities
+        trapping_actions = self._find_trapping_moves(safe_actions, state)
+        if trapping_actions:
+            print(f"🎯 GOAT AI: Found {len(trapping_actions)} tiger trapping opportunities!")
+            return self._select_best_trapping_move(trapping_actions, state)
+        
+        # PRIORITY 3: Formation building and strategic positioning
+        return self._select_strategic_move(safe_actions, state)
+    
+    def _filter_safe_actions(self, valid_actions: List[Tuple], state: Dict) -> List[Tuple]:
+        """Filter out moves that would result in immediate capture."""
+        safe_actions = []
+        board = state['board']
+        
+        tiger_positions = []
+        for r in range(5):
+            for c in range(5):
+                if board[r, c] == PieceType.TIGER.value:
+                    tiger_positions.append((r, c))
+        
+        for action in valid_actions:
+            if action[0] == 'place':
+                target_pos = (action[1], action[2])
+            elif action[0] == 'move':
+                target_pos = (action[3], action[4])
+            else:
+                continue
             
-            # Find all empty spots for placement
-            for r in range(env.board_size):
-                for c in range(env.board_size):
-                    if state['board'][r, c] == PieceType.EMPTY.value:
-                        action = ('place', r, c)
-                        score = self._score_placement((r, c), state['board'], env)
-                        if score > best_score:
-                            best_score = score
-                            best_placement = action
-            
-            return best_placement
-
-        # Movement phase: prioritize moves that block tigers
-        elif state.get('phase') == GamePhase.MOVEMENT:
-            board = state['board']
-            
-            # --- New blocking logic ---
-            best_move = None
-            min_tiger_moves = float('inf')
-
-            # Evaluate each valid move
-            for action in valid_actions:
-                if action[0] != 'move': continue
-
-                from_pos, to_pos = action[1], action[2]
+            if self._is_position_safe(target_pos, tiger_positions, board):
+                safe_actions.append(action)
+        
+        return safe_actions
+    
+    def _find_escape_moves(self, valid_actions: List[Tuple], state: Dict) -> List[Tuple]:
+        """Find moves that increase distance from tigers."""
+        escape_moves = []
+        board = state['board']
+        
+        tiger_positions = []
+        for r in range(5):
+            for c in range(5):
+                if board[r, c] == PieceType.TIGER.value:
+                    tiger_positions.append((r, c))
+        
+        for action in valid_actions:
+            if action[0] == 'move':
+                from_pos = (action[1], action[2])
+                to_pos = (action[3], action[4])
                 
-                # Simulate the move on a temporary board
-                temp_board = np.copy(board)
-                temp_board[from_pos[0], from_pos[1]] = 0
-                temp_board[to_pos[0], to_pos[1]] = 2
+                # Calculate distance improvement
+                old_min_dist = min([abs(from_pos[0] - tp[0]) + abs(from_pos[1] - tp[1]) 
+                                   for tp in tiger_positions] or [999])
+                new_min_dist = min([abs(to_pos[0] - tp[0]) + abs(to_pos[1] - tp[1]) 
+                                   for tp in tiger_positions] or [999])
                 
-                # Calculate how many moves tigers have after our move
-                tiger_mobility = self._calculate_tiger_mobility(temp_board, env)
-
-                # We want the move that results in the *fewest* tiger moves
-                if tiger_mobility < min_tiger_moves:
-                    min_tiger_moves = tiger_mobility
-                    best_move = action
+                if new_min_dist > old_min_dist:
+                    escape_moves.append(action)
+        
+        return escape_moves
+    
+    def _find_trapping_moves(self, safe_actions: List[Tuple], state: Dict) -> List[Tuple]:
+        """Find moves that reduce tiger mobility (trapping effect)."""
+        trapping_moves = []
+        board = state['board']
+        
+        current_tiger_mobility = self._calculate_tiger_mobility(board)
+        
+        for action in safe_actions:
+            # Simulate the move
+            temp_board = np.copy(board)
             
-            if best_move:
-                return best_move
-            # --- End of new logic ---
-
-        # Fallback to random action if no other logic works
-        return random.choice(valid_actions) if valid_actions else None
-
-    def _score_placement(self, pos: Tuple[int, int], board: np.ndarray, env: 'BaghchalEnv') -> int:
-        """Scores a potential goat placement based on safety and strategic value."""
-        score = 0
+            if action[0] == 'place':
+                temp_board[action[1], action[2]] = PieceType.GOAT.value
+            elif action[0] == 'move':
+                temp_board[action[1], action[2]] = PieceType.EMPTY.value
+                temp_board[action[3], action[4]] = PieceType.GOAT.value
+            
+            new_tiger_mobility = self._calculate_tiger_mobility(temp_board)
+            
+            # If this move reduces tiger mobility, it's a trapping move
+            if new_tiger_mobility < current_tiger_mobility:
+                trapping_moves.append(action)
         
-        # 1. Check for immediate capture vulnerability (HIGH penalty)
-        # Temporarily place a goat to see what tigers could do
-        temp_board = np.copy(board)
-        temp_board[pos] = PieceType.GOAT.value
+        return trapping_moves
+    
+    def _select_best_trapping_move(self, trapping_moves: List[Tuple], state: Dict) -> Optional[Tuple]:
+        """Select the move that most reduces tiger mobility."""
+        board = state['board']
+        current_mobility = self._calculate_tiger_mobility(board)
         
-        for r in range(env.board_size):
-            for c in range(env.board_size):
-                if board[r, c] == PieceType.TIGER.value:
-                    tiger_pos = (r, c)
-                    # Check if this tiger can capture the newly placed goat
-                    jump_dir_r = pos[0] - tiger_pos[0]
-                    jump_dir_c = pos[1] - tiger_pos[1]
-                    
-                    # This implies the tiger is one step away from the goat
-                    if abs(jump_dir_r) <= 1 and abs(jump_dir_c) <= 1:
-                        landing_pos = (pos[0] + jump_dir_r, pos[1] + jump_dir_c)
-                        if (0 <= landing_pos[0] < env.board_size and
-                            0 <= landing_pos[1] < env.board_size and
-                            board[landing_pos] == PieceType.EMPTY.value and
-                            env.is_adjacent(pos, landing_pos) and
-                            env.is_adjacent(tiger_pos, pos)):
-                             # This placement creates a capture lane for the tiger
-                            score -= 100 # Heavy penalty
-
-        # 2. Reward for building formations (adjacent to other goats)
-        for neighbor in env.adjacency_matrix.get(pos, []):
-            if board[neighbor] == PieceType.GOAT.value:
-                score += 10 # Reward for being next to a friendly goat
-
-        # 3. Penalty for being close to tigers
-        for r in range(env.board_size):
-            for c in range(env.board_size):
-                if board[r, c] == PieceType.TIGER.value:
-                    # Manhattan distance
-                    distance = abs(pos[0] - r) + abs(pos[1] - c)
-                    if distance == 1:
-                        score -= 5 # Adjacent to tiger is risky
-                    elif distance == 2:
-                        score -= 2
-                        
-        return score
-
-    def _calculate_tiger_mobility(self, board: np.ndarray, env: 'BaghchalEnv') -> int:
-        """
-        Calculates the total number of valid moves for all tigers on the given board
-        by using the environment's own move validation logic for accuracy.
-        """
-        mobility = 0
-        for r in range(env.board_size):
-            for c in range(env.board_size):
-                if board[r, c] == PieceType.TIGER.value:
-                    pos = (r, c)
-                    # Use a helper that mirrors env's logic but on a given board
-                    mobility += len(self._get_valid_moves_for_tiger_on_board(pos, board, env))
-        return mobility
-
-    def _get_valid_moves_for_tiger_on_board(self, position: Tuple[int, int], board: np.ndarray, env: 'BaghchalEnv') -> List[Tuple[int, int]]:
-        """
-        Gets valid moves for a tiger at a given position on a given board.
-        This is a re-implementation of the environment's logic to work on temporary boards.
-        """
-        valid_moves = []
-        # Check standard moves to adjacent empty positions
-        for neighbor in env.adjacency_matrix.get(position, []):
-            if board[neighbor[0], neighbor[1]] == PieceType.EMPTY.value:
-                valid_moves.append(neighbor)
+        best_move = None
+        best_reduction = 0
         
-        # Check capture moves
-        for neighbor in env.adjacency_matrix.get(position, []):
-            if board[neighbor[0], neighbor[1]] == PieceType.GOAT.value:
-                # Potential capture, find where the tiger could land
-                jump_dir_r = neighbor[0] - position[0]
-                jump_dir_c = neighbor[1] - position[1]
-                landing_pos = (neighbor[0] + jump_dir_r, neighbor[1] + jump_dir_c)
-
-                # Check if landing position is on board, empty, and a valid jump
-                if (0 <= landing_pos[0] < env.board_size and
-                    0 <= landing_pos[1] < env.board_size and
-                    board[landing_pos[0], landing_pos[1]] == PieceType.EMPTY.value and
-                    env.is_adjacent(neighbor, landing_pos)):
-                    valid_moves.append(landing_pos)
-                    
-        return valid_moves
+        for action in trapping_moves:
+            temp_board = np.copy(board)
+            
+            if action[0] == 'place':
+                temp_board[action[1], action[2]] = PieceType.GOAT.value
+            elif action[0] == 'move':
+                temp_board[action[1], action[2]] = PieceType.EMPTY.value
+                temp_board[action[3], action[4]] = PieceType.GOAT.value
+            
+            new_mobility = self._calculate_tiger_mobility(temp_board)
+            reduction = current_mobility - new_mobility
+            
+            if reduction > best_reduction:
+                best_reduction = reduction
+                best_move = action
+        
+        print(f"🎯 GOAT AI: Selected trapping move reducing tiger mobility by {best_reduction}")
+        return best_move
+    
+    def _calculate_tiger_mobility(self, board: np.ndarray) -> int:
+        """Calculate total number of moves available to all tigers."""
+        total_moves = 0
+        
+        # Find tiger positions
+        tiger_positions = []
+        for r in range(5):
+            for c in range(5):
+                if board[r, c] == PieceType.TIGER.value:
+                    tiger_positions.append((r, c))
+        
+        # Count moves for each tiger
+        directions = [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1)]
+        
+        for tr, tc in tiger_positions:
+            for dr, dc in directions:
+                new_r, new_c = tr + dr, tc + dc
+                
+                # Regular move
+                if (0 <= new_r < 5 and 0 <= new_c < 5 and 
+                    board[new_r, new_c] == PieceType.EMPTY.value):
+                    total_moves += 1
+                
+                # Capture move
+                elif (0 <= new_r < 5 and 0 <= new_c < 5 and 
+                      board[new_r, new_c] == PieceType.GOAT.value):
+                    jump_r, jump_c = new_r + dr, new_c + dc
+                    if (0 <= jump_r < 5 and 0 <= jump_c < 5 and 
+                        board[jump_r, jump_c] == PieceType.EMPTY.value):
+                        total_moves += 2  # Captures count more
+        
+        return total_moves
+    
+    def _is_position_safe(self, pos: Tuple[int, int], tiger_positions: List[Tuple], board: np.ndarray) -> bool:
+        """Check if a position is safe from immediate capture."""
+        for tiger_pos in tiger_positions:
+            if self._can_tiger_capture_at_position(tiger_pos, pos, board):
+                return False
+        return True
+    
+    def _can_tiger_capture_at_position(self, tiger_pos: Tuple[int, int], target_pos: Tuple[int, int], board: np.ndarray) -> bool:
+        """Check if tiger can capture at target position."""
+        tr, tc = tiger_pos
+        gr, gc = target_pos
+        
+        directions = [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1)]
+        
+        for dr, dc in directions:
+            # Check if tiger is one step away and can jump over target
+            if (tr + dr == gr and tc + dc == gc):
+                land_r, land_c = gr + dr, gc + dc
+                if (0 <= land_r < 5 and 0 <= land_c < 5 and 
+                    board[land_r, land_c] == PieceType.EMPTY.value):
+                    return True
+        
+        return False
+    
+    def _select_strategic_move(self, safe_actions: List[Tuple], state: Dict) -> Optional[Tuple]:
+        """Select move based on strategic value with enhanced formation building."""
+        if not safe_actions:
+            return None
+        
+        board = state['board']
+        
+        # Get positions of all pieces
+        tiger_positions = []
+        goat_positions = []
+        for r in range(5):
+            for c in range(5):
+                if board[r, c] == PieceType.TIGER.value:
+                    tiger_positions.append((r, c))
+                elif board[r, c] == PieceType.GOAT.value:
+                    goat_positions.append((r, c))
+        
+        best_action = None
+        best_score = -999
+        
+        for action in safe_actions:
+            if action[0] == 'place':
+                target_pos = (action[1], action[2])
+            elif action[0] == 'move':
+                target_pos = (action[3], action[4])
+            else:
+                continue
+            
+            score = self._calculate_position_value(target_pos, tiger_positions, goat_positions, board)
+            
+            if score > best_score:
+                best_score = score
+                best_action = action
+        
+        return best_action if best_action else safe_actions[0]
+    
+    def _calculate_position_value(self, pos: Tuple[int, int], tiger_positions: List[Tuple], 
+                                goat_positions: List[Tuple], board: np.ndarray) -> int:
+        """Calculate strategic value of a position."""
+        value = 0
+        
+        # Formation building - bonus for being near other goats
+        for goat_pos in goat_positions:
+            distance = abs(pos[0] - goat_pos[0]) + abs(pos[1] - goat_pos[1])
+            if distance == 1:
+                value += 25  # Strong formation bonus
+            elif distance == 2:
+                value += 10  # Proximity bonus
+        
+        # Strategic positions
+        if pos in [(0, 0), (0, 4), (4, 0), (4, 4)]:  # Corners
+            value += 15
+        elif pos[0] == 0 or pos[0] == 4 or pos[1] == 0 or pos[1] == 4:  # Edges
+            value += 10
+        
+        # Center control
+        if pos == (2, 2):
+            value += 20
+        elif pos[0] in [1, 2, 3] and pos[1] in [1, 2, 3]:
+            value += 8
+        
+        # Tiger blocking - maintain distance for effective blocking
+        for tiger_pos in tiger_positions:
+            distance = abs(pos[0] - tiger_pos[0]) + abs(pos[1] - tiger_pos[1])
+            if distance == 2:
+                value += 20  # Optimal blocking distance
+            elif distance == 3:
+                value += 10  # Still useful
+        
+        return value
 
 if __name__ == "__main__":
     print("🎉 Advanced Baghchal AI System ready!") 

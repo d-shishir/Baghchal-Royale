@@ -1,6 +1,7 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { RootState } from '../store';
 import * as T from './types';
+import { GameStatus } from '../game-logic/baghchal';
 import { aPI_URL } from '../config';
 
 console.log('🚀 API requests will be sent to:', aPI_URL);
@@ -118,9 +119,18 @@ export const api = createApi({
       }),
       invalidatesTags: ['Game'],
     }),
-    getGames: builder.query<T.Game[], void>({
-      query: () => '/api/v1/games/',
-      providesTags: ['Game'],
+    getGames: builder.query<T.Game[], { status?: GameStatus } | void>({
+      query: (params) => ({
+        url: '/api/v1/games/',
+        params: params || {},
+      }),
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.map(({ game_id }) => ({ type: 'Game' as const, id: game_id })),
+              { type: 'Game', id: 'LIST' },
+            ]
+          : [{ type: 'Game', id: 'LIST' }],
     }),
     getGameById: builder.query<T.Game, string>({
       query: (gameId) => `/api/v1/games/${gameId}`,
@@ -147,6 +157,15 @@ export const api = createApi({
     getMoves: builder.query<T.Move[], string>({
         query: (gameId) => `/api/v1/moves/${gameId}`,
         providesTags: ['Move'],
+    }),
+
+    // AI
+    getAIMove: builder.mutation<{ move: T.PotentialMove; ai_game_id: string }, { difficulty: string; game_state: T.GameState, user_id: string, ai_game_id?: string, player_side: string }>({
+      query: (data) => ({
+        url: '/api/v1/ai/move',
+        method: 'POST',
+        body: data,
+      }),
     }),
 
     // AI Games
@@ -247,6 +266,7 @@ export const {
     useUpdateGameMutation,
     useCreateMoveMutation,
     useGetMovesQuery,
+    useGetAIMoveMutation,
     useCreateAIGameMutation,
     useCreateTournamentMutation,
     useGetTournamentsQuery,

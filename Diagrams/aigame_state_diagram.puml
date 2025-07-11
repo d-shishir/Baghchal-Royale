@@ -1,0 +1,16 @@
+@startuml
+top to bottom direction
+skinparam linetype ortho
+
+[*] --> Created : start()
+Created --> InProgress : user makes first move
+InProgress --> Completed : user wins or loses
+InProgress --> Abandoned : user quits
+Completed --> [*]
+Abandoned --> [*]
+
+state Created
+state InProgress
+state Completed
+state Abandoned
+@enduml 

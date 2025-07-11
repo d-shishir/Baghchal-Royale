@@ -18,8 +18,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootState } from '../../store';
 import { MainStackParamList } from '../../navigation/MainNavigator';
 import { startLocalGame } from '../../store/slices/gameSlice';
-import { Game, GamePlayer } from '../../services/types';
-import { GameStatus } from '../../game-logic/baghchal';
+import { Game, Player, BackendGameStatus } from '../../services/types';
 import { initialGameState } from '../../game-logic/initialState';
 import { useGetGamesQuery } from '../../services/api';
 
@@ -40,20 +39,18 @@ const HomeScreen: React.FC = () => {
 
   const handlePlayLocalPVP = () => {
     const gameId = `local-pvp-${Date.now()}`;
-    const player1: GamePlayer = { id: 'player1', username: 'Player 1 (Tiger)'};
-    const player2: GamePlayer = { id: 'player2', username: 'Player 2 (Goat)'};
+    const player1: Player = { user_id: 'player1', username: 'Player 1 (Tiger)'};
+    const player2: Player = { user_id: 'player2', username: 'Player 2 (Goat)'};
 
     const localGame: Game = {
         game_id: gameId,
-        player1_id: 'player1',
-        player2_id: 'player2',
-        player1,
-        player2,
-        status: GameStatus.IN_PROGRESS,
+        player_tiger_id: 'player1',
+        player_goat_id: 'player2',
+        player_tiger: player1,
+        player_goat: player2,
+        status: BackendGameStatus.IN_PROGRESS,
         game_state: initialGameState,
-        game_type: 'PVP_LOCAL',
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
     };
     dispatch(startLocalGame(localGame));
     navigation.navigate('Game', { gameId, gameMode: 'local' });
@@ -91,8 +88,8 @@ const HomeScreen: React.FC = () => {
     pollingInterval: 30000, // Poll for new games every 30 seconds
   });
 
-  const ongoingGames = games.filter(g => g.status === 'IN_PROGRESS');
-  const finishedGames = games.filter(g => g.status !== 'IN_PROGRESS');
+  const ongoingGames = games.filter(g => g.status === BackendGameStatus.IN_PROGRESS);
+  const finishedGames = games.filter(g => g.status === BackendGameStatus.COMPLETED);
 
   // TODO: calculate winrate from user's game history
   const winRate = 'N/A';
@@ -217,8 +214,8 @@ const HomeScreen: React.FC = () => {
             <View>
               <Text style={styles.subSectionTitle}>Ongoing</Text>
               {ongoingGames.map(game => (
-                <TouchableOpacity key={game.game_id} style={styles.gameCard} onPress={() => navigation.navigate('Game', { gameId: game.game_id, gameMode: 'multiplayer' })}>
-                  <Text style={styles.gameText}>vs {game.player1?.username === user?.username ? game.player2?.username : game.player1?.username}</Text>
+                <TouchableOpacity key={game.game_id} style={styles.gameCard} onPress={() => navigation.navigate('Game', { gameId: game.game_id, gameMode: 'online' })}>
+                  <Text style={styles.gameText}>vs {game.player_tiger?.username === user?.username ? game.player_goat?.username : game.player_tiger?.username}</Text>
                   <Text style={styles.gameStatus}>In Progress</Text>
                 </TouchableOpacity>
               ))}
@@ -227,12 +224,23 @@ const HomeScreen: React.FC = () => {
           {finishedGames.length > 0 && (
             <View>
               <Text style={styles.subSectionTitle}>Finished</Text>
-              {finishedGames.map(game => (
-                <View key={game.game_id} style={styles.gameCard}>
-                  <Text style={styles.gameText}>vs {game.player1?.username === user?.username ? game.player2?.username : game.player1?.username}</Text>
-                  <Text style={styles.gameStatus}>{game.winner_id === user?.user_id ? 'Won' : 'Lost'}</Text>
-                </View>
-              ))}
+              {finishedGames.map(game => {
+                  const isWin = game.winner_id === user?.user_id;
+                  const isDraw = !game.winner_id;
+                  const result = isWin ? 'Won' : isDraw ? 'Draw' : 'Lost';
+                  
+                  return (
+                    <View key={game.game_id} style={styles.gameCard}>
+                      <Text style={styles.gameText}>vs {game.player_tiger?.username === user?.username ? game.player_goat?.username : game.player_tiger?.username}</Text>
+                      <Text style={[
+                        styles.gameStatus, 
+                        isWin ? styles.gameResultWin : isDraw ? styles.gameResultDraw : styles.gameResultLoss
+                      ]}>
+                        {result}
+                      </Text>
+                    </View>
+                  );
+              })}
             </View>
           )}
           {games.length === 0 && !isLoadingGames && <Text style={styles.noGamesText}>No recent games found.</Text>}
@@ -424,11 +432,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   gameStatus: {
-    color: '#999',
     fontSize: 14,
+    fontWeight: 'bold',
+  },
+  gameResultWin: {
+    color: '#4CAF50',
+  },
+  gameResultLoss: {
+    color: '#F44336',
+  },
+  gameResultDraw: {
+    color: '#9E9E9E',
   },
   noGamesText: {
-    color: '#999',
+    color: '#888',
     textAlign: 'center',
     marginTop: 10,
   },

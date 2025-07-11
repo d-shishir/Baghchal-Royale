@@ -21,7 +21,7 @@ import { useGetGamesQuery, useGetMeQuery } from '../../services/api';
 import { MainStackParamList } from '../../navigation/MainNavigator';
 import LoadingScreen from '../../components/LoadingScreen';
 import EditProfileModal from '../../components/EditProfileModal';
-import { Game } from '../../services/types';
+import { Game, GameStatus } from '../../services/types';
 
 const { width } = Dimensions.get('window');
 
@@ -33,7 +33,7 @@ const ProfileScreen: React.FC = () => {
   
   const { data: user, isLoading: isUserLoading } = useGetMeQuery();
   const isGuest = useSelector((state: RootState) => state.auth.isGuest);
-  const { data: gameHistory, isLoading: isLoadingGames } = useGetGamesQuery(undefined, {
+  const { data: gameHistory, isLoading: isLoadingGames } = useGetGamesQuery({ status: GameStatus.COMPLETED }, {
       skip: isGuest, // Don't fetch for guests
   });
 
@@ -130,7 +130,8 @@ const ProfileScreen: React.FC = () => {
         </View>
       </View>
 
-      {/* Side Preferences */}
+      {/* Side Preferences - This section is removed as backend doesn't provide side-specific stats */}
+      {/*
       <View style={styles.statsSection}>
         <Text style={styles.sectionTitle}>Side Performance</Text>
         
@@ -158,6 +159,7 @@ const ProfileScreen: React.FC = () => {
           </View>
         </View>
       </View>
+      */}
 
       {/* Experience Progress */}
       <View style={styles.statsSection}>
@@ -203,9 +205,21 @@ const ProfileScreen: React.FC = () => {
         <ScrollView style={styles.historyList} showsVerticalScrollIndicator={false}>
           {gameHistory.map((game: Game) => {
               const isWin = game.winner_id === user.user_id;
-              const isTiger = game.player1_id === user.user_id;
-              const opponent = isTiger ? game.player2 : game.player1;
+              const isDraw = game.status === GameStatus.COMPLETED && !game.winner_id;
+              const isLoss = game.status === GameStatus.COMPLETED && game.winner_id && game.winner_id !== user.user_id;
+              
+              const isTiger = game.player_tiger_id === user.user_id;
+              const opponent = isTiger ? game.player_goat : game.player_tiger;
 
+              const getResultStyles = () => {
+                if (isWin) return { badge: styles.winBadge, text: styles.resultText };
+                if (isLoss) return { badge: styles.lossBadge, text: styles.resultText };
+                if (isDraw) return { badge: styles.drawBadge, text: styles.drawResultText };
+                return { badge: {}, text: {} };
+              };
+
+              const { badge, text } = getResultStyles();
+              
               return (
                 <View key={game.game_id} style={styles.historyCard}>
                   <LinearGradient colors={['#333', '#404040']} style={styles.historyCardGradient}>
@@ -214,11 +228,10 @@ const ProfileScreen: React.FC = () => {
                         <Text style={styles.opponentName}>vs {opponent?.username || 'Unknown'}</Text>
                         <Text style={styles.gameDate}>{new Date(game.created_at).toLocaleDateString()}</Text>
                       </View>
-                      <View style={[
-                        styles.resultBadge,
-                        { backgroundColor: isWin ? '#4CAF50' : '#F44336' }
-                      ]}>
-                        <Text style={styles.resultText}>{isWin ? 'WON' : 'LOST'}</Text>
+                      <View style={[ styles.resultBadge, badge ]}>
+                        <Text style={text}>
+                          {isWin ? 'WON' : isLoss ? 'LOST' : 'DRAW'}
+                        </Text>
                       </View>
                     </View>
                     
@@ -579,8 +592,21 @@ const styles = StyleSheet.create({
         paddingHorizontal: 10,
         borderRadius: 12,
     },
+    winBadge: {
+        backgroundColor: '#4CAF50',
+    },
+    lossBadge: {
+        backgroundColor: '#F44336',
+    },
+    drawBadge: {
+        backgroundColor: '#9E9E9E',
+    },
     resultText: {
         color: '#FFF',
+        fontWeight: 'bold',
+    },
+    drawResultText: {
+        color: '#000',
         fontWeight: 'bold',
     },
     historyDetails: {

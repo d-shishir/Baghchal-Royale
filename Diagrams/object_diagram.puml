@@ -1,0 +1,67 @@
+@startuml
+top to bottom direction
+skinparam linetype ortho
+
+' Objects
+object "alice: User" as alice {
+  +user_id = 1
+  +username = "Alice"
+  +status = "ONLINE"
+  +rating = 1500
+}
+object "bob: User" as bob {
+  +user_id = 2
+  +username = "Bob"
+  +status = "INGAME"
+  +rating = 1450
+}
+object "friendship1: Friendship" as friendship1 {
+  +friendship_id = 101
+  +user_id_1 = 1
+  +user_id_2 = 2
+  +status = "ACCEPTED"
+}
+object "report1: Report" as report1 {
+  +report_id = 201
+  +reporter_id = 1
+  +reported_id = 2
+  +reason = "Abusive language"
+  +status = "OPEN"
+}
+object "feedback1: Feedback" as feedback1 {
+  +feedback_id = 301
+  +user_id = 1
+  +subject = "Great game!"
+  +type = "SUGGESTION"
+}
+object "game1: Game" as game1 {
+  +game_id = 401
+  +player_goat_id = 1
+  +player_tiger_id = 2
+  +status = "IN_PROGRESS"
+}
+object "ai_game1: AIGame" as ai_game1 {
+  +ai_game_id = 501
+  +user_id = 1
+  +difficulty = "HARD"
+  +status = "IN_PROGRESS"
+}
+object "ai_move1: AIMove" as ai_move1 {
+  +ai_move_id = 601
+  +ai_game_id = 501
+  +move_number = 1
+  +move_type = "PLACE"
+}
+
+' Relationships (vertical, straight lines)
+alice -- friendship1 : initiates
+bob -- friendship1 : receives
+alice -- report1 : submits
+report1 -- bob : is reported in
+alice -- feedback1 : submits
+alice -- game1 : plays as goat
+bob -- game1 : plays as tiger
+alice -- ai_game1 : plays
+ai_game1 -- ai_move1 : has move
+
+@enduml 

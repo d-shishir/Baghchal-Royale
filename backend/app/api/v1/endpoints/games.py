@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app import crud, models, schemas
 from app.api import deps
+from app.models.game import GameStatus
 
 router = APIRouter()
 
@@ -27,14 +28,17 @@ async def create_game(
 async def get_games(
     *,
     db: AsyncSession = Depends(deps.get_db),
+    status: GameStatus = None,
     skip: int = 0,
     limit: int = 100,
     current_user: models.User = Depends(deps.get_current_active_user),
 ) -> Any:
     """
-    Retrieve user's games.
+    Retrieve user's games. Can be filtered by status.
     """
-    games = await crud.game.get_games_by_user(db, user_id=current_user.user_id, skip=skip, limit=limit)
+    games = await crud.game.get_games_by_user(
+        db, user_id=current_user.user_id, status=status, skip=skip, limit=limit
+    )
     return games
 
 @router.get("/{game_id}", response_model=schemas.Game)

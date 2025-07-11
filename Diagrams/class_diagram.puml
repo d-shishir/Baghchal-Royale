@@ -1,0 +1,105 @@
+@startuml
+top to bottom direction
+skinparam linetype ortho
+
+' User and Social
+class User {
+  +user_id: UUID
+  +username: String
+  +email: String
+  +password: String
+  +role: String
+  +status: String
+  +rating: Integer
+  --
+  +register(): bool
+  +login(): bool
+  +logout(): void
+  +updateProfile(): void
+  +addFriend(userId: UUID): bool
+  +reportUser(userId: UUID): void
+  +giveFeedback(content: String): void
+  +playGame(): Game
+  +playAIGame(): AIGame
+}
+class Friendship {
+  +friendship_id: UUID
+  +user_id_1: UUID
+  +user_id_2: UUID
+  +status: String
+  --
+  +sendRequest(): bool
+  +accept(): void
+  +decline(): void
+  +remove(): void
+}
+class Report {
+  +report_id: UUID
+  +reporter_id: UUID
+  +reported_id: UUID
+  +reason: String
+  +status: String
+  --
+  +create(): bool
+  +review(): void
+  +dismiss(): void
+}
+class Feedback {
+  +feedback_id: UUID
+  +user_id: UUID
+  +subject: String
+  +type: String
+  --
+  +submit(): bool
+  +respond(): void
+}
+
+' Game
+class Game {
+  +game_id: UUID
+  +player_goat_id: UUID
+  +player_tiger_id: UUID
+  +winner_id: UUID
+  +status: String
+  +created_at: DateTime
+  --
+  +start(): void
+  +end(): void
+  +getWinner(): UUID
+}
+
+' AI
+class AIGame {
+  +ai_game_id: UUID
+  +user_id: UUID
+  +difficulty: String
+  +status: String
+  --
+  +start(): void
+  +end(): void
+  +addMove(move: AIMove): void
+  +getResult(): String
+}
+class AIMove {
+  +ai_move_id: UUID
+  +ai_game_id: UUID
+  +move_number: Integer
+  +move_type: String
+  +timestamp: DateTime
+  --
+  +create(): bool
+  +evaluate(): float
+}
+
+' Relationships (vertical, straight arrows)
+User "1" --> "0..*" Friendship : initiates
+User "1" --> "0..*" Friendship : receives
+User "1" --> "0..*" Report : submits
+User "1" <-- "0..*" Report : is reported in
+User "1" --> "0..*" Feedback : submits
+User "1" --> "0..*" Game : plays as goat
+User "1" --> "0..*" Game : plays as tiger
+User "1" --> "0..*" AIGame : plays
+AIGame "1" --> "0..*" AIMove : has move
+
+@enduml 

@@ -17,7 +17,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { MainStackParamList } from '../../navigation/MainNavigator';
 import { RootState } from '../../store';
 import { startLocalGame } from '../../store/slices/gameSlice';
-import { Game, GamePlayer } from '../../services/types';
+import { Game, Player } from '../../services/types';
 import { GameStatus } from '../../game-logic/baghchal';
 import { initialGameState } from '../../game-logic/initialState';
 
@@ -80,26 +80,24 @@ const SinglePlayerSetupScreen: React.FC = () => {
 
   const handleStartGame = () => {
     const gameId = `local-ai-${Date.now()}`;
-    const userPlayer: GamePlayer = { 
-        id: user?.user_id || 'guest-player', 
+    const userPlayer: Player = { 
+        user_id: user?.user_id || 'guest-player', 
         username: user?.username || 'Guest' 
     };
-    const aiPlayer: GamePlayer = { id: 'ai-player', username: `AI (${selectedDifficulty})` };
+    const aiPlayer: Player = { user_id: 'ai-player', username: `AI (${selectedDifficulty})` };
 
-    const player1 = selectedSide === 'TIGER' ? userPlayer : aiPlayer;
-    const player2 = selectedSide === 'GOAT' ? userPlayer : aiPlayer;
+    const tigerPlayer = selectedSide === 'TIGER' ? userPlayer : aiPlayer;
+    const goatPlayer = selectedSide === 'GOAT' ? userPlayer : aiPlayer;
 
     const localGame: Game = {
         game_id: gameId,
-        player1_id: player1.id,
-        player2_id: player2.id,
-        player1,
-        player2,
+        player_tiger_id: tigerPlayer.user_id,
+        player_goat_id: goatPlayer.user_id,
+        player_tiger: tigerPlayer,
+        player_goat: goatPlayer,
         status: GameStatus.IN_PROGRESS,
         game_state: initialGameState,
-        game_type: 'AI',
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
     };
 
     dispatch(startLocalGame(localGame));

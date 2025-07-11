@@ -19,12 +19,27 @@ import { GameState, PieceType, PlayerSide, GamePhase, isMoveValid, applyMove, ge
 import { getGuestAIMove } from '../../game-logic/guestAI';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
-import { Game, GamePlayer, MoveCreate } from '../../services/types';
-import { useCreateMoveMutation, useGetGameByIdQuery } from '../../services/api';
+import { Game, Player, MoveCreate } from '../../services/types';
+import { useCreateMoveMutation, useGetGameByIdQuery, useGetAIMoveMutation } from '../../services/api';
 import { gameSocket, GameMoveData } from '../../services/websocket';
 import { initialGameState } from '../../game-logic/initialState';
 import { mapServerGameToBaghchalState } from '../../utils/gameStateMapper';
 import GameOverModal from '../../components/game/GameOverModal';
+
+const mapBaghchalStateToAIInput = (state: GameState): any => {
+  const board = state.board.map(row => 
+    row.map(cell => {
+      if (cell === PieceType.TIGER) return 'T';
+      if (cell === PieceType.GOAT) return 'G';
+      return 'EMPTY';
+    })
+  );
+
+  return {
+    ...state,
+    board,
+  };
+};
 
 type GameScreenRouteProp = RouteProp<{
   Game: {
@@ -44,6 +59,7 @@ const GameScreen: React.FC = () => {
   const authUser = useSelector((state: RootState) => state.auth.user);
   const token = useSelector((state: RootState) => state.auth.token);
   const [createMove, { isLoading: isMoveLoading, error: moveError }] = useCreateMoveMutation();
+  const [getAIMove, { isLoading: isAIMoveLoading }] = useGetAIMoveMutation();
 
   const { data: game, error: gameError, isLoading: isGameLoading } = useGetGameByIdQuery(gameId, {
     skip: !gameId || gameId.startsWith('local-'),
@@ -53,6 +69,7 @@ const GameScreen: React.FC = () => {
   const [selectedPosition, setSelectedPosition] = useState<{ row: number; col: number } | null>(null);
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [isGameOverModalVisible, setGameOverModalVisible] = useState(false);
+  const [aiGameId, setAiGameId] = useState<string | null>(null);
   
   useEffect(() => {
     if (gameMode === 'online' && gameId && token && !gameSocket.isConnected()) {
@@ -71,24 +88,61 @@ const GameScreen: React.FC = () => {
   }, [gameId, token, gameMode]);
 
   useEffect(() => {
-    const isLocalAiTurn =
+    const isAiTurn =
       !!aiDifficulty &&
       currentGameState.currentPlayer.toLowerCase() !== playerSide.toLowerCase() &&
       currentGameState.status === GameStatusEnum.IN_PROGRESS;
 
-    if (isLocalAiTurn) {
+    if (isAiTurn) {
       setIsAiThinking(true);
-      setTimeout(() => {
-        const aiPotentialMove = getGuestAIMove(currentGameState);
-        if (aiPotentialMove) {
-          const aiMove = { ...aiPotentialMove, player_id: currentGameState.currentPlayer, timestamp: new Date().toISOString() };
-          const newState = applyMove(currentGameState, aiMove);
-          setCurrentGameState(newState);
+      
+      const handleAIMove = async () => {
+        let aiPotentialMove: PotentialMove | null = null;
+        try {
+            if (authUser && !authUser.user_id.startsWith('guest-')) {
+                // Logged in user, use backend AI
+                const aiGameState = mapBaghchalStateToAIInput(currentGameState);
+                const response = await getAIMove({
+                    difficulty: aiDifficulty,
+                    game_state: aiGameState,
+                    user_id: authUser.user_id,
+                    ai_game_id: aiGameId || undefined,
+                    player_side: playerSide,
+                }).unwrap();
+                aiPotentialMove = response.move;
+                if (response.ai_game_id) {
+                    setAiGameId(response.ai_game_id);
+                }
+            } else {
+                // Guest user, use local AI
+                aiPotentialMove = getGuestAIMove(currentGameState);
+            }
+    
+            if (aiPotentialMove) {
+              const aiMove = { ...aiPotentialMove, player_id: currentGameState.currentPlayer, timestamp: new Date().toISOString() };
+              const newState = applyMove(currentGameState, aiMove);
+              setCurrentGameState(newState);
+            }
+        } catch (err) {
+            console.error('Failed to get AI move:', err);
+            Alert.alert('Error', 'Could not get AI move. Playing a random move.');
+            // Fallback to local AI on error
+            aiPotentialMove = getGuestAIMove(currentGameState);
+            if (aiPotentialMove) {
+                const aiMove = { ...aiPotentialMove, player_id: currentGameState.currentPlayer, timestamp: new Date().toISOString() };
+                const newState = applyMove(currentGameState, aiMove);
+                setCurrentGameState(newState);
+            }
+        } finally {
+            setIsAiThinking(false);
         }
-        setIsAiThinking(false);
-      }, 500);
+      };
+
+      // Add a small delay to make the AI's move feel more natural
+      const timer = setTimeout(handleAIMove, 500);
+      return () => clearTimeout(timer);
     }
-  }, [currentGameState, aiDifficulty, playerSide]);
+  }, [currentGameState, aiDifficulty, playerSide, authUser, getAIMove, aiGameId]);
 
   useEffect(() => {
     if (game) {
@@ -106,8 +160,8 @@ const GameScreen: React.FC = () => {
     }
   }, [currentGameState.status]);
 
-  const player1 = useMemo(() => (gameMode === 'local' ? { username: 'Player 1' } : (playerSide === 'Tiger' ? authUser : game?.player2)), [game, playerSide, authUser, gameMode]);
-  const player2 = useMemo(() => (gameMode === 'local' ? { username: 'Player 2' } : (playerSide === 'Goat' ? authUser : game?.player1)), [game, playerSide, authUser, gameMode]);
+  const player1 = useMemo(() => (gameMode === 'local' ? { username: 'Player 1' } : (playerSide === 'Tiger' ? authUser : game?.player_tiger)), [game, playerSide, authUser, gameMode]);
+  const player2 = useMemo(() => (gameMode === 'local' ? { username: 'Player 2' } : (playerSide === 'Goat' ? authUser : game?.player_goat)), [game, playerSide, authUser, gameMode]);
 
   const ourSide = gameMode === 'local' ? currentGameState.currentPlayer : playerSide;
 
@@ -291,7 +345,7 @@ const GameScreen: React.FC = () => {
 };
 
 const PlayerInfo: React.FC<{
-  player: GamePlayer | { username: string } | null;
+  player: Player | { username: string } | null;
   side: PlayerSide;
   isActive: boolean;
   goatsCaptured: number;
