@@ -529,4 +529,94 @@ class DoubleQLearningAgent:
     
     def get_training_stats(self) -> Dict:
         """Get training statistics."""
-        return self.training_stats.copy() 
+        return self.training_stats.copy()
+    
+    def _simulate_action(self, state: Dict, action: Tuple) -> Dict:
+        """Simulate an action and return the resulting state."""
+        import copy
+        import numpy as np
+        
+        # Create a deep copy of the state
+        new_state = copy.deepcopy(state)
+        board = np.array(new_state['board'])
+        
+        if action[0] == 'place':
+            # Place a goat
+            row, col = action[1], action[2]
+            if 0 <= row < 5 and 0 <= col < 5 and board[row, col] == PieceType.EMPTY.value:
+                board[row, col] = PieceType.GOAT.value
+                new_state['goats_placed'] = new_state.get('goats_placed', 0) + 1
+                
+                # Check if all goats are placed
+                if new_state['goats_placed'] >= 20:
+                    new_state['phase'] = GamePhase.MOVEMENT
+        
+        elif action[0] == 'move':
+            # Move a piece
+            from_row, from_col, to_row, to_col = action[1], action[2], action[3], action[4]
+            
+            if (0 <= from_row < 5 and 0 <= from_col < 5 and 
+                0 <= to_row < 5 and 0 <= to_col < 5):
+                
+                piece_type = board[from_row, from_col]
+                
+                # Check if it's a capture move for tigers
+                if (piece_type == PieceType.TIGER.value and 
+                    abs(to_row - from_row) == 2 or abs(to_col - from_col) == 2):
+                    
+                    # This is a capture move
+                    mid_row = (from_row + to_row) // 2
+                    mid_col = (from_col + to_col) // 2
+                    
+                    if board[mid_row, mid_col] == PieceType.GOAT.value:
+                        # Capture the goat
+                        board[mid_row, mid_col] = PieceType.EMPTY.value
+                        new_state['goats_captured'] = new_state.get('goats_captured', 0) + 1
+                
+                # Move the piece
+                board[to_row, to_col] = piece_type
+                board[from_row, from_col] = PieceType.EMPTY.value
+        
+        new_state['board'] = board.tolist()
+        
+        # Check for game over conditions
+        goats_captured = new_state.get('goats_captured', 0)
+        if goats_captured >= 5:
+            new_state['game_over'] = True
+            new_state['winner'] = 'TIGER'
+        else:
+            # Check if tigers are blocked
+            tiger_positions = []
+            for r in range(5):
+                for c in range(5):
+                    if board[r, c] == PieceType.TIGER.value:
+                        tiger_positions.append((r, c))
+            
+            if tiger_positions and self._check_if_tigers_blocked(board, tiger_positions):
+                new_state['game_over'] = True
+                new_state['winner'] = 'GOAT'
+        
+        return new_state
+    
+    def _check_if_tigers_blocked(self, board: np.ndarray, tiger_positions: list) -> bool:
+        """Check if all tigers are blocked."""
+        directions = [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1)]
+        
+        for tr, tc in tiger_positions:
+            for dr, dc in directions:
+                new_r, new_c = tr + dr, tc + dc
+                
+                # Can move to empty space
+                if (0 <= new_r < 5 and 0 <= new_c < 5 and 
+                    board[new_r, new_c] == PieceType.EMPTY.value):
+                    return False
+                
+                # Can capture a goat
+                elif (0 <= new_r < 5 and 0 <= new_c < 5 and 
+                      board[new_r, new_c] == PieceType.GOAT.value):
+                    jump_r, jump_c = new_r + dr, new_c + dc
+                    if (0 <= jump_r < 5 and 0 <= jump_c < 5 and 
+                        board[jump_r, jump_c] == PieceType.EMPTY.value):
+                        return False
+        
+        return True 

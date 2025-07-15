@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app import crud, models, schemas
 from app.api import deps
 from app.schemas.ai import AIInput
-from app.core.advanced_baghchal_ai import get_ai_move as get_advanced_ai_move
+from app.core.enhanced_ai import get_enhanced_ai_move
 from app.core.baghchal_env import BaghchalEnv, Player, GamePhase, PieceType
 from app.models.ai_game import AIGameDifficulty
 import numpy as np
@@ -85,8 +85,8 @@ async def get_ai_move(
         state_dict = env.get_state()
         
         # Run the synchronous, CPU-bound AI function in a separate thread
-        # Pass only the state dictionary, not the environment object
-        move = await asyncio.to_thread(get_advanced_ai_move, current_player_enum, difficulty, state_dict)
+        # Use enhanced AI with Q-learning support
+        move = await asyncio.to_thread(get_enhanced_ai_move, current_player_enum, env, state_dict)
 
         if move is None:
              raise HTTPException(status_code=400, detail="AI could not find a valid move.")

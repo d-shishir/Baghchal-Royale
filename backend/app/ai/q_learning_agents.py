@@ -29,6 +29,26 @@ class DoubleQLearningTigerAI(DoubleQLearningAgent):
         super().__init__(Player.TIGER, config)
         print("🐅 Double Q-Learning Tiger AI initialized")
     
+    def select_action(self, env, state: Dict) -> Optional[Tuple]:
+        """Enhanced action selection that prioritizes winning moves."""
+        valid_actions = env.get_valid_actions(self.player)
+        if not valid_actions:
+            return None
+        
+        # First check for immediate winning moves
+        for action in valid_actions:
+            # Simulate the action to see if it leads to a win
+            temp_state = self._simulate_action(state, action)
+            winner = temp_state.get('winner')
+            if (temp_state.get('game_over') and 
+                (winner == Player.TIGER or winner == 'TIGER' or 
+                 (hasattr(winner, 'name') and winner.name == 'TIGER'))):
+                print(f"🏆 TIGER: Found winning move! {action}")
+                return action
+        
+        # If no immediate win, use regular Q-learning selection
+        return super().select_action(env, state)
+    
     def calculate_reward(self, old_state: Dict, new_state: Dict, action: Tuple) -> float:
         """Calculate tiger-specific rewards."""
         reward = 0.0
@@ -36,13 +56,26 @@ class DoubleQLearningTigerAI(DoubleQLearningAgent):
         # Game outcome rewards
         if new_state.get('game_over', False):
             winner = new_state.get('winner')
-            if winner == 'TIGER':
-                reward += 100.0  # Win bonus
+            # Handle both enum and string winner values
+            if (winner == Player.TIGER or winner == 'TIGER' or 
+                (hasattr(winner, 'name') and winner.name == 'TIGER')):
+                reward += 1000.0  # Massive win bonus to prioritize winning
                 print(f"🏆 Tiger wins! Total reward: {reward}")
             else:
-                reward -= 100.0  # Loss penalty
+                reward -= 1000.0  # Massive loss penalty
                 print(f"💀 Tiger loses! Total reward: {reward}")
             return reward
+        
+        # Check if this move leads to an immediate win condition
+        goats_captured = new_state.get('goats_captured', 0)
+        if goats_captured >= 5:
+            reward += 500.0  # Huge bonus for moves that lead to winning
+            print(f"🎯 Tiger winning move! Captured {goats_captured} goats! Reward: +500.0")
+        
+        # Check if move leads closer to blocking all goats (win condition)
+        if self._check_near_win_by_blocking(new_state):
+            reward += 100.0  # Bonus for moves that block goats
+            print(f"🔒 Tiger near win by blocking! Reward: +100.0")
         
         # Capture rewards
         old_captures = old_state.get('goats_captured', 0)
@@ -174,6 +207,35 @@ class DoubleQLearningTigerAI(DoubleQLearningAgent):
                         return True
         
         return False
+    
+    def _check_near_win_by_blocking(self, state: Dict) -> bool:
+        """Check if tigers are close to winning by blocking all goat moves."""
+        import numpy as np
+        board = np.array(state['board'])
+        
+        # Find all goat positions
+        goat_positions = []
+        for r in range(5):
+            for c in range(5):
+                if board[r, c] == PieceType.GOAT.value:
+                    goat_positions.append((r, c))
+        
+        if not goat_positions:
+            return False
+        
+        # Count total possible goat moves
+        total_moves = 0
+        directions = [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1)]
+        
+        for gr, gc in goat_positions:
+            for dr, dc in directions:
+                new_r, new_c = gr + dr, gc + dc
+                if (0 <= new_r < 5 and 0 <= new_c < 5 and 
+                    board[new_r, new_c] == PieceType.EMPTY.value):
+                    total_moves += 1
+        
+        # If goats have very few moves left, tigers are close to winning
+        return total_moves <= 2
 
 class DoubleQLearningGoatAI(DoubleQLearningAgent):
     """Double Q-Learning Goat AI with goat-specific reward function."""
@@ -182,6 +244,26 @@ class DoubleQLearningGoatAI(DoubleQLearningAgent):
         super().__init__(Player.GOAT, config)
         print("🐐 Double Q-Learning Goat AI initialized")
     
+    def select_action(self, env, state: Dict) -> Optional[Tuple]:
+        """Enhanced action selection that prioritizes winning moves."""
+        valid_actions = env.get_valid_actions(self.player)
+        if not valid_actions:
+            return None
+        
+        # First check for immediate winning moves (blocking all tigers)
+        for action in valid_actions:
+            temp_state = self._simulate_action(state, action)
+            winner = temp_state.get('winner')
+            if (self._check_tiger_blocked(temp_state) or 
+                (temp_state.get('game_over') and 
+                 (winner == Player.GOAT or winner == 'GOAT' or 
+                  (hasattr(winner, 'name') and winner.name == 'GOAT')))):
+                print(f"🏆 GOAT: Found winning move! {action}")
+                return action
+        
+        # If no immediate win, use regular Q-learning selection
+        return super().select_action(env, state)
+    
     def calculate_reward(self, old_state: Dict, new_state: Dict, action: Tuple) -> float:
         """Calculate goat-specific rewards."""
         reward = 0.0
@@ -189,13 +271,20 @@ class DoubleQLearningGoatAI(DoubleQLearningAgent):
         # Game outcome rewards
         if new_state.get('game_over', False):
             winner = new_state.get('winner')
-            if winner == 'GOAT':
-                reward += 100.0  # Win bonus
+            # Handle both enum and string winner values
+            if (winner == Player.GOAT or winner == 'GOAT' or 
+                (hasattr(winner, 'name') and winner.name == 'GOAT')):
+                reward += 1000.0  # Massive win bonus to prioritize winning
                 print(f"🏆 Goats win! Total reward: {reward}")
             else:
-                reward -= 100.0  # Loss penalty
+                reward -= 1000.0  # Massive loss penalty
                 print(f"💀 Goats lose! Total reward: {reward}")
             return reward
+        
+        # Check if this move leads to blocking tigers (win condition)
+        if self._check_tiger_blocked(new_state):
+            reward += 500.0  # Huge bonus for moves that block all tigers
+            print(f"🔒 Goats blocking all tigers! Win move! Reward: +500.0")
         
         # Survival rewards (negative reward for getting captured)
         old_captures = old_state.get('goats_captured', 0)
@@ -513,3 +602,41 @@ class DoubleQLearningGoatAI(DoubleQLearningAgent):
             reward += 0.5
         
         return reward 
+    
+    def _check_tiger_blocked(self, state: Dict) -> bool:
+        """Check if all tigers are blocked (goats win condition)."""
+        import numpy as np
+        board = np.array(state['board'])
+        
+        # Find all tiger positions
+        tiger_positions = []
+        for r in range(5):
+            for c in range(5):
+                if board[r, c] == PieceType.TIGER.value:
+                    tiger_positions.append((r, c))
+        
+        if not tiger_positions:
+            return False
+        
+        # Check if any tiger can move
+        directions = [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1)]
+        
+        for tr, tc in tiger_positions:
+            for dr, dc in directions:
+                new_r, new_c = tr + dr, tc + dc
+                
+                # Can move to empty space
+                if (0 <= new_r < 5 and 0 <= new_c < 5 and 
+                    board[new_r, new_c] == PieceType.EMPTY.value):
+                    return False
+                
+                # Can capture a goat
+                elif (0 <= new_r < 5 and 0 <= new_c < 5 and 
+                      board[new_r, new_c] == PieceType.GOAT.value):
+                    jump_r, jump_c = new_r + dr, new_c + dc
+                    if (0 <= jump_r < 5 and 0 <= jump_c < 5 and 
+                        board[jump_r, jump_c] == PieceType.EMPTY.value):
+                        return False
+        
+        # If we get here, no tiger can move - goats win!
+        return True 

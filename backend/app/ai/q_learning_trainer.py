@@ -36,7 +36,7 @@ class TrainingConfig:
     save_interval: int = 500
     eval_interval: int = 100
     eval_games: int = 50
-    max_moves_per_game: int = 200
+    max_moves_per_game: int = 300
     learning_rate_decay: float = 0.9999
     epsilon_decay_interval: int = 1000
     
@@ -188,7 +188,22 @@ class QLearningTrainer:
                 action = agent.select_action(self.env, state)
             
             if action is None:
-                print(f"⚠️ No valid action for {current_player} at move {moves_played}")
+                print(f"⚠️ No valid action for {current_player} at move {moves_played} - opponent wins!")
+                state['game_over'] = True
+                state['winner'] = Player.GOAT if current_player == Player.TIGER else Player.TIGER
+                
+                # Add dummy experience for the terminal state
+                old_state = state.copy()  # Actually current state
+                dummy_action = ('no_move',)
+                done = True
+                
+                if current_player == Player.TIGER:
+                    reward = self.tiger_agent.calculate_reward(old_state, state, dummy_action)
+                    tiger_experience.append((old_state, dummy_action, reward, state, done))
+                else:
+                    reward = self.goat_agent.calculate_reward(old_state, state, dummy_action)
+                    goat_experience.append((old_state, dummy_action, reward, state, done))
+                
                 break
             
             # Store current state for learning
@@ -222,8 +237,12 @@ class QLearningTrainer:
         # Update Q-values for both agents using their experiences
         self._update_agents_from_experience(tiger_experience, goat_experience)
         
-        # Determine winner
+        # Determine winner - convert enum to string for consistency
         winner = state.get('winner', 'DRAW')
+        if hasattr(winner, 'name'):
+            winner = winner.name
+        elif winner is None:
+            winner = 'DRAW'
         
         return {
             'episode': episode,
@@ -249,10 +268,12 @@ class QLearningTrainer:
         """Update training statistics with game result."""
         winner = game_result['winner']
         
-        # Update win counts
-        if winner == 'TIGER':
+        # Update win counts - handle both enum and string values
+        if (winner == Player.TIGER or winner == 'TIGER' or 
+            (hasattr(winner, 'name') and winner.name == 'TIGER')):
             self.training_stats['tiger_wins'] += 1
-        elif winner == 'GOAT':
+        elif (winner == Player.GOAT or winner == 'GOAT' or 
+              (hasattr(winner, 'name') and winner.name == 'GOAT')):
             self.training_stats['goat_wins'] += 1
         else:
             self.training_stats['draws'] += 1

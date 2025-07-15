@@ -1,12 +1,12 @@
 === DOUBLE Q-LEARNING TRAINING REPORT ===
 
 Total Episodes: 1000
-Tiger Wins: 0
-Goat Wins: 0
-Draws: 1000
-Average Game Length: 158.12 moves
-Final Tiger Win Rate: 0.00%
-Final Goat Win Rate: 0.00%
+Tiger Wins: 625
+Goat Wins: 143
+Draws: 232
+Average Game Length: 154.16 moves
+Final Tiger Win Rate: 62.50%
+Final Goat Win Rate: 14.30%
 
 Final Epsilon Values:
 Tiger: 0.0500
