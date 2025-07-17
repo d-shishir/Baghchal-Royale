@@ -1,16 +1,84 @@
 @startuml
-top to bottom direction
-skinparam linetype ortho
+' Modern AI Game State Diagram - Highly Detailed
+skinparam state {
+  BackgroundColor #F3F6FA
+  BorderColor #4A90E2
+  FontColor #222
+  StartColor #7ED957
+  EndColor #F45B69
+  RoundCorner 20
+  Shadowing true
+}
+
+state "Created" as Created <<initial>>
+state "Waiting For Move" as WaitingForMove
+state "Validating Move" as ValidatingMove
+state "Paused" as Paused <<inactive>>
+state "Timeout" as Timeout <<inactive>>
+state "Error" as Error <<error>>
+state "AI Error" as AIError <<error>>
+state "Server Error" as ServerError <<error>>
+state "Abandoned" as Abandoned <<inactive>>
+state "Completed" as Completed <<final>>
+state "Rematch" as Rematch
 
 [*] --> Created : start()
-Created --> InProgress : user makes first move
-InProgress --> Completed : user wins or loses
-InProgress --> Abandoned : user quits
-Completed --> [*]
+Created --> WaitingForMove : user/AI assigned
+WaitingForMove --> ValidatingMove : user/AI submits move
+ValidatingMove --> WaitingForMove : move valid
+ValidatingMove --> Error : move invalid
+ValidatingMove --> AIError : AI computation fails
+ValidatingMove --> ServerError : server error
+Error --> WaitingForMove : user retries
+WaitingForMove --> Completed : win/lose/draw
+WaitingForMove --> Abandoned : user quits
+WaitingForMove --> Timeout : inactivity/timeout
+WaitingForMove --> Paused : user leaves app
+Paused --> WaitingForMove : user returns
+Timeout --> Abandoned : not resumed in time
 Abandoned --> [*]
+Completed --> Rematch : user requests rematch
+Rematch --> WaitingForMove : new game started
+Completed --> [*]
 
-state Created
-state InProgress
-state Completed
-state Abandoned
+note right of WaitingForMove
+  - Awaiting user or AI move
+  - Inactivity may trigger Timeout
+  - User can pause (app backgrounded)
+end note
+
+note right of ValidatingMove
+  - Server checks legality
+  - Handles errors and AI computation
+end note
+
+note right of Error
+  - Invalid move or server error
+  - User can retry
+end note
+
+note right of Paused
+  - Game paused (user left app)
+  - Timer may continue or pause
+end note
+
+note right of Timeout
+  - No move within allowed time
+  - Can transition to Abandoned
+end note
+
+note right of AIError
+  - AI failed to compute move
+  - May allow retry or abort
+end note
+
+note right of ServerError
+  - Server/internal error
+  - May allow retry or abort
+end note
+
+note right of Rematch
+  - User can request a new game
+end note
+
 @enduml 

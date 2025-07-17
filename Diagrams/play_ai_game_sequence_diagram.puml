@@ -1,20 +1,72 @@
 @startuml
-top to bottom direction
-skinparam linetype ortho
-
-actor User
-participant Frontend
-participant APIServer
-participant AIGame
-participant AIMove
+' Modern Play AI Game Sequence Diagram
+' Professional style, detailed flow
+skinparam sequenceParticipant {
+  BackgroundColor #F3F6FA
+  BorderColor #4A90E2
+  FontColor #222
+  LifeLineBorderColor #4A90E2
+  LifeLineBackgroundColor #B3D4FC
+  Shadowing true
+}
+skinparam sequence {
+  ArrowColor #4A90E2
+  ActorBorderColor #F45B69
+  ActorBackgroundColor #F3F6FA
+  ParticipantBorderColor #4A90E2
+  ParticipantBackgroundColor #F3F6FA
+  LifeLineBorderColor #4A90E2
+  LifeLineBackgroundColor #B3D4FC
+  NoteBackgroundColor #FFFBEA
+  NoteBorderColor #F4D35E
+  GroupBorderColor #4A90E2
+  GroupBackgroundColor #EAF6FF
+  BoxBackgroundColor #EAF6FF
+  BoxBorderColor #4A90E2
+  Shadowing true
+}
+autonumber
+actor "User" as User
+participant "Frontend App" as Frontend
+participant "API Server" as APIServer
+participant "AI Game Logic" as AIGame
+participant "AI Engine" as AIEngine
 
 User -> Frontend : Play move
+activate Frontend
 Frontend -> APIServer : POST /aigame/{id}/move
+activate APIServer
 APIServer -> AIGame : validateMove()
-AIGame -> AIMove : create()
-AIMove --> AIGame : AIMove created
-AIGame -> APIServer : updateState()
-APIServer -> Frontend : Response (new state, result)
+activate AIGame
+AIGame -> AIEngine : getAIMove() [if AI's turn]
+activate AIEngine
+AIEngine --> AIGame : AIMove or error
+AIGame --> APIServer : updateState()/result
+APIServer --> Frontend : Response (new state, result)
+deactivate APIServer
 Frontend -> User : Show updated board/result
 
+alt Invalid Move
+  APIServer --> Frontend : Error (invalid move)
+  Frontend -> User : Show error message
+end
+
+alt Game Over
+  APIServer --> Frontend : Game Over (win/lose/draw)
+  Frontend -> User : Show final result
+end
+
+deactivate AIEngine
+deactivate AIGame
+deactivate Frontend
+
+note over User,Frontend
+  User initiates move via UI
+end note
+note over APIServer,AIGame
+  Server validates and updates game state
+end note
+note over AIEngine
+  AI computes move if required
+end note
 @enduml 
