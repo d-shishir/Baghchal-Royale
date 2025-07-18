@@ -1,0 +1,57 @@
+@startuml
+|User|
+start
+:Launch App;
+:Login/Register;
+if (Authenticated?) then (yes)
+  :Go to Home Screen;
+else (no)
+  :Show Error/Retry;
+  stop
+endif
+
+:Choose Game Mode;
+if (Singleplayer?) then (yes)
+  :Setup Singleplayer (select AI, difficulty, role);
+  :Start Game;
+  |System|
+  :Initialize Board;
+  :Assign Roles;
+  :Begin Gameplay;
+  repeat
+    :Player/AI Move;
+    if (Game Over?) then (yes)
+      break
+    endif
+  repeat while (not Game Over)
+  :Show Result (win/lose/draw);
+  :Update Stats;
+  :Return to Home/Rematch;
+  stop
+else (no)
+  :Start Matchmaking;
+  |System|
+  :Find Opponent;
+  if (Opponent Found?) then (yes)
+    :Role Selection;
+    :Initialize Board;
+    :Assign Roles;
+    :Begin Gameplay;
+    repeat
+      :Player Move;
+      :Opponent Move;
+      if (Game Over?) then (yes)
+        break
+      endif
+    repeat while (not Game Over)
+    :Show Result (win/lose/draw);
+    :Update Stats;
+    :Return to Home/Rematch;
+    stop
+  else (no)
+    :Show Waiting Screen;
+    :Cancel/Retry;
+    stop
+  endif
+endif
+@enduml 

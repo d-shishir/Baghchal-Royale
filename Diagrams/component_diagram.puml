@@ -1,0 +1,23 @@
+@startuml
+skinparam linetype ortho
+top to bottom direction
+
+package "Frontend" {
+  [React Native App]
+}
+
+package "Backend" {
+  [FastAPI API]
+  [AI Engine]
+  [WebSocket Server]
+}
+
+database "PostgreSQL" as db
+
+[React Native App] --> [FastAPI API] : REST API Calls
+[React Native App] --> [WebSocket Server] : WebSocket (Real-time)
+[FastAPI API] --> db : SQL/ORM
+[FastAPI API] --> [AI Engine] : AI Requests
+[WebSocket Server] --> db : Game State Updates
+
+@enduml 

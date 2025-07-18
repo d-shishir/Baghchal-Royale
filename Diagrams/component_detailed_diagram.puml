@@ -1,0 +1,89 @@
+@startuml
+' Professional style for component diagram
+skinparam linetype ortho
+skinparam rectangle {
+  BackgroundColor #F3F6FA
+  BorderColor #4A90E2
+  FontColor #222
+}
+skinparam database {
+  BackgroundColor #FFFBEA
+  BorderColor #F4D35E
+  FontColor #222
+}
+skinparam actor {
+  BackgroundColor #EAF6FF
+  BorderColor #4A90E2
+  FontColor #222
+}
+top to bottom direction
+
+' Actors at the very top
+actor User
+actor Admin
+
+' UI Section (top)
+package "UI" {
+  [React Native Mobile App]
+  [Web Admin App]
+}
+
+' Backend Section (middle)
+package "Backend" {
+  [FastAPI API]
+  [AI Engine]
+  [WebSocket Server]
+  [Auth Module]
+  [Game Logic]
+  [User Management]
+  [Friendship]
+  [Feedback]
+  [Report]
+}
+
+' Database Section (bottom)
+database "PostgreSQL" as db {
+  [users]
+  [games]
+  [moves]
+  [ai_games]
+  [ai_moves]
+  [friendships]
+  [feedback]
+  [reports]
+  [rating_history]
+}
+
+' Actors to UI (downward)
+User -down-> [React Native Mobile App]
+Admin -down-> [Web Admin App]
+
+' UI to Backend (downward)
+[React Native Mobile App] -down-> [FastAPI API]
+[React Native Mobile App] -down-> [WebSocket Server]
+[Web Admin App] -down-> [FastAPI API]
+
+' Backend to DB (downward)
+[Auth Module] -down-> [users]
+[User Management] -down-> [users]
+[Game Logic] -down-> [games]
+[Game Logic] -down-> [moves]
+[Game Logic] -down-> [rating_history]
+[AI Engine] -down-> [ai_games]
+[AI Engine] -down-> [ai_moves]
+[Friendship] -down-> [friendships]
+[Feedback] -down-> [feedback]
+[Report] -down-> [reports]
+
+' API and WebSocket (downward)
+[FastAPI API] -down-> [Auth Module]
+[FastAPI API] -down-> [Game Logic]
+[FastAPI API] -down-> [User Management]
+[FastAPI API] -down-> [Friendship]
+[FastAPI API] -down-> [Feedback]
+[FastAPI API] -down-> [Report]
+[FastAPI API] -down-> [AI Engine]
+[FastAPI API] -down-> [WebSocket Server]
+[WebSocket Server] -down-> [Game Logic]
+
+@enduml 

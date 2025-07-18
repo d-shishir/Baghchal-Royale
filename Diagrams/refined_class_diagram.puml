@@ -1,0 +1,131 @@
+@startuml
+' Use top to bottom direction and straight lines
+' Hide circles on association ends
+left to right direction
+' (But for top to bottom, use top to bottom direction)
+top to bottom direction
+skinparam linetype ortho
+hide circle
+
+' User and Friendship
+class User {
+  +user_id: UUID
+  +username: str
+  +email: str
+  +password: str
+  +role: UserRole
+  +status: UserStatus
+  +country: str
+  +rating: int
+  +level: int
+  +xp: int
+  +achievements: list
+  +created_at: datetime
+  +last_login: datetime
+}
+
+class Friendship {
+  +friendship_id: UUID
+  +user_id_1: UUID
+  +user_id_2: UUID
+  +status: FriendshipStatus
+  +created_at: datetime
+}
+
+User "1" -- "*" Friendship : sent_friend_requests
+User "1" -- "*" Friendship : received_friend_requests
+
+' Game and Move
+class Game {
+  +game_id: UUID
+  +player_goat_id: UUID
+  +player_tiger_id: UUID
+  +winner_id: UUID
+  +status: GameStatus
+  +game_duration: int
+  +game_state: dict
+  +created_at: datetime
+  +ended_at: datetime
+}
+
+class Move {
+  +move_id: UUID
+  +game_id: UUID
+  +player_id: UUID
+  +move_number: int
+  +from_row: int
+  +from_col: int
+  +to_row: int
+  +to_col: int
+  +move_type: MoveType
+  +timestamp: datetime
+}
+
+Game "1" -- "*" Move : moves
+Move "*" -- "1" User : player
+Game "*" -- "1" User : player_goat
+Game "*" -- "1" User : player_tiger
+Game "*" -- "0..1" User : winner
+
+' AI Game and AI Move
+class AIGame {
+  +ai_game_id: UUID
+  +user_id: UUID
+  +difficulty: AIGameDifficulty
+  +user_side: str
+  +status: AIGameStatus
+  +winner: str
+  +game_duration: int
+  +started_at: datetime
+}
+
+class AIMove {
+  +ai_move_id: UUID
+  +ai_game_id: UUID
+  +player: AIPlayer
+  +move_number: int
+  +from_pos: str
+  +to_pos: str
+  +move_type: MoveType
+  +timestamp: datetime
+}
+
+AIGame "1" -- "*" AIMove : moves
+AIGame "*" -- "1" User : user
+
+' Rating History
+class RatingHistory {
+  +id: UUID
+  +user_id: UUID
+  +game_id: UUID
+  +rating_before: int
+  +rating_after: int
+  +changed_at: datetime
+}
+
+User "1" -- "*" RatingHistory : rating_history
+Game "1" -- "*" RatingHistory : rating_history
+
+' Feedback and Report
+class Feedback {
+  +feedback_id: UUID
+  +user_id: UUID
+  +subject: str
+  +message: str
+  +type: FeedbackType
+  +created_at: datetime
+}
+
+class Report {
+  +report_id: UUID
+  +reporter_id: UUID
+  +reported_id: UUID
+  +reason: str
+  +created_at: datetime
+  +status: ReportStatus
+}
+
+User "1" -- "*" Feedback : feedbacks
+User "1" -- "*" Report : reporter_reports
+User "1" -- "*" Report : reported_reports
+@enduml 

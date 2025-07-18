@@ -1,0 +1,27 @@
+@startuml
+state "Idle" as Idle
+state "Matchmaking" as Matchmaking
+state "Waiting For Opponent" as WaitingForOpponent
+state "Role Selection" as RoleSelection
+state "Singleplayer Setup" as SingleplayerSetup
+state "Game Active (Tiger)" as GameActiveTiger
+state "Game Active (Goat)" as GameActiveGoat
+state "Game Over" as GameOver
+
+[*] --> Idle : App Launch
+Idle --> Matchmaking : Start Multiplayer Game
+Idle --> SingleplayerSetup : Start Singleplayer Game
+
+Matchmaking --> WaitingForOpponent : Find Opponent
+WaitingForOpponent --> RoleSelection : Opponent Found
+SingleplayerSetup --> RoleSelection : Setup Complete
+
+RoleSelection --> GameActiveTiger : Play as Tiger
+RoleSelection --> GameActiveGoat : Play as Goat
+
+GameActiveTiger --> GameOver : Game Ends (win/lose/draw/quit)
+GameActiveGoat --> GameOver : Game Ends (win/lose/draw/quit)
+GameOver --> Idle : Return to Home/Rematch
+GameActiveTiger --> Idle : User Forfeits/Quit
+GameActiveGoat --> Idle : User Forfeits/Quit
+@enduml 

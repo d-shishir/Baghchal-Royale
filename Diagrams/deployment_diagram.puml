@@ -1,0 +1,50 @@
+@startuml
+' Professional deployment diagram for Baghchal Royale
+skinparam linetype ortho
+skinparam node {
+  BackgroundColor #F3F6FA
+  BorderColor #4A90E2
+  FontColor #222
+}
+skinparam database {
+  BackgroundColor #FFFBEA
+  BorderColor #F4D35E
+  FontColor #222
+}
+skinparam artifact {
+  BackgroundColor #EAF6FF
+  BorderColor #4A90E2
+  FontColor #222
+}
+top to bottom direction
+
+actor User
+actor Admin
+
+node "User_Mobile_Device" as userDevice {
+  artifact "ReactNativeApp"
+}
+node "Admin_Workstation" as adminDevice {
+  artifact "WebAdminApp"
+}
+node "API_Server" as apiServer {
+  artifact "FastAPIApp"
+  artifact "AIEngine"
+}
+node "WebSocket_Server" as wsServer {
+  artifact "WebSocketService"
+}
+database "PostgreSQL_DB" as db
+
+User --> userDevice
+Admin --> adminDevice
+
+userDevice --> apiServer : HTTPS/REST
+userDevice --> wsServer : WebSocket
+adminDevice --> apiServer : HTTPS/REST
+
+apiServer --> db : SQL
+apiServer --> wsServer : Internal API/IPC
+wsServer --> db : SQL (Game State)
+
+@enduml 
