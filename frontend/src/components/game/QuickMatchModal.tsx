@@ -36,7 +36,6 @@ const QuickMatchModal: React.FC<QuickMatchModalProps> = ({ visible, onClose }) =
       } else if (data.status === 'error') {
         console.error('Matchmaking error:', data.message);
         setStatus('idle');
-        onClose();
       } else if (data.status === 'searching') {
         setStatus('waiting');
       }
@@ -84,7 +83,7 @@ const QuickMatchModal: React.FC<QuickMatchModalProps> = ({ visible, onClose }) =
           {status === 'waiting' && (
             <>
               <ActivityIndicator size="large" color="#FFF" />
-              <Text style={styles.statusText}>Waiting for an opponent...</Text>
+              <Text style={styles.statusText}>Searching for opponent...</Text>
               <Text style={styles.subText}>This shouldn't take long.</Text>
             </>
           )}
@@ -145,7 +144,7 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 16,
     fontWeight: 'bold',
-  }
+  },
 });
 
 export default QuickMatchModal; 

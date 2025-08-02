@@ -16,7 +16,7 @@ class RatingHistoryInDBBase(RatingHistoryBase):
     changed_at: datetime
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class RatingHistory(RatingHistoryInDBBase):
     pass 

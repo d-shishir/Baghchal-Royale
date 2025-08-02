@@ -65,7 +65,7 @@ class MatchmakingManager:
                     },
                     "game_state": initial_state,
                     "env": env,
-                    "turn": initial_state["current_player"].name if hasattr(initial_state["current_player"], 'name') else str(initial_state["current_player"])
+                    "turn": initial_state["current_player"].name.capitalize() if hasattr(initial_state["current_player"], 'name') else str(initial_state["current_player"])
                 }
                 self.active_games[match_id] = game_details
 
@@ -80,7 +80,7 @@ class MatchmakingManager:
         else:
             # No one waiting, or user is already waiting
             self.waiting_player = {"ws": websocket, "user_id": user_id, "user_obj": user}
-            await websocket.send_json({"status": "waiting"})
+            await websocket.send_json({"status": "searching"})
 
     async def notify_match_found(self, user_id: str, opponent_id: str, match_id: str, side: str, game_id: str):
         game_details = self.active_games[match_id]
@@ -181,7 +181,7 @@ class MatchmakingManager:
             
             # Update game state
             game["game_state"] = state
-            game["turn"] = state["current_player"].name if hasattr(state["current_player"], 'name') else str(state["current_player"])
+            game["turn"] = state["current_player"].name.capitalize() if hasattr(state["current_player"], 'name') else str(state["current_player"])
             
             # Store move in database
             await self._store_move(game["game_id"], user.user_id, move_data)

@@ -77,4 +77,38 @@ async def read_user_by_id(
     user = await crud.user.get_with_stats(db, user_id=user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    return user 
+    return user
+
+@router.get("/", response_model=List[schemas.User])
+async def get_all_users(
+    db: AsyncSession = Depends(deps.get_db),
+    skip: int = 0,
+    limit: int = 100,
+    current_user: models.User = Depends(deps.get_current_active_superuser),
+) -> Any:
+    """
+    Get all users (admin only).
+    """
+    users = await crud.user.get_multi(db, skip=skip, limit=limit)
+    return users
+
+@router.put("/{user_id}/status", response_model=schemas.User)
+async def update_user_status(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    user_id: uuid.UUID,
+    status_update: schemas.UserStatusUpdate,
+    current_user: models.User = Depends(deps.get_current_active_superuser),
+) -> Any:
+    """
+    Update user status (admin only) - for muting/banning users.
+    """
+    user = await crud.user.get(db, id=user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if user.user_id == current_user.user_id:
+        raise HTTPException(status_code=400, detail="Cannot modify your own status")
+    
+    updated_user = await crud.user.update(db, db_obj=user, obj_in=status_update)
+    return updated_user 

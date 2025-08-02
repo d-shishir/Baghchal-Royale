@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Analysis - Admin Dashboard</title>
+    <link rel="stylesheet" href="/admin/static/style.css?v=10">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="dashboard-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-chess-king"></i>
+                    <span>Baghchal Admin</span>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <ul>
+                    <li class="nav-item">
+                        <a href="/admin/dashboard">
+                            <i class="fas fa-chart-bar"></i>
+                            <span>Overview</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="/admin/dashboard#users">
+                            <i class="fas fa-users"></i>
+                            <span>Users</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="/admin/dashboard#reports">
+                            <i class="fas fa-flag"></i>
+                            <span>Reports</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="/admin/dashboard#feedback">
+                            <i class="fas fa-comments"></i>
+                            <span>Feedback</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="/admin/dashboard#games">
+                            <i class="fas fa-gamepad"></i>
+                            <span>Games</span>
+                        </a>
+                    </li>
+                    <li class="nav-item active">
+                        <a href="/admin/ai_analysis">
+                            <i class="fas fa-brain"></i>
+                            <span>AI Analysis</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="logout-btn" class="logout-btn">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Logout</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <div class="header-left">
+                    <button class="sidebar-toggle" id="sidebar-toggle">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h1 class="page-title">AI Analysis</h1>
+                </div>
+                <div class="header-right">
+                    <div class="admin-profile">
+                        <div class="admin-avatar">
+                            <i class="fas fa-user-shield"></i>
+                        </div>
+                        <div class="admin-info">
+                            <span class="admin-name">Administrator</span>
+                            <span class="admin-role">System Admin</span>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- AI Analysis Content -->
+            <div class="content">
+                <section class="content-section active">
+                    <div class="analysis-section">
+                        <h3><i class="fas fa-brain"></i> AI Performance Analysis</h3>
+                        <p>Compare the performance of Double Q-Learning AI vs Minimax AI across multiple games. (100 games)</p>
+                        
+                        <div class="analysis-controls">
+                            <label for="guest-ai-difficulty">Opponent Difficulty:</label>
+                            <select id="guest-ai-difficulty">
+                                <option value="easy">Easy</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="hard">Hard</option>
+                            </select>
+                            <button id="run-analysis-btn" class="btn-primary">
+                                <i class="fas fa-play"></i>
+                                Run Analysis
+                            </button>
+                        </div>
+                        
+                        <div id="analysis-results" class="results-container">
+                            <div class="loading-message">
+                                <i class="fas fa-info-circle"></i>
+                                Click "Run Analysis" to start comparing AI performance
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="analysis-section">
+                        <h3><i class="fas fa-table"></i> Q-Table Analysis</h3>
+                        <p>Inspect the learned Q-values for Double Q-Learning agents.</p>
+                        
+                        <div class="analysis-controls">
+                            <label for="q-table-player">AI Player:</label>
+                            <select id="q-table-player">
+                                <option value="tiger">Tiger AI</option>
+                                <option value="goat">Goat AI</option>
+                            </select>
+                            <button id="get-q-table-btn" class="btn-secondary">
+                                <i class="fas fa-download"></i>
+                                Get Q-Table
+                            </button>
+                        </div>
+                        
+                        <div id="q-table-results"></div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script src="/admin/static/api.js?v=3"></script>
+    <script src="/admin/static/ai_analysis.js?v=12"></script>
+</body>
+</html> 

@@ -18,7 +18,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootState } from '../../store';
 import { MainStackParamList } from '../../navigation/MainNavigator';
 import { startLocalGame } from '../../store/slices/gameSlice';
-import { Game, Player, BackendGameStatus } from '../../services/types';
+import { Game, Player, GameStatus } from '../../services/types';
 import { initialGameState } from '../../game-logic/initialState';
 import { useGetGamesQuery } from '../../services/api';
 
@@ -48,7 +48,7 @@ const HomeScreen: React.FC = () => {
         player_goat_id: 'player2',
         player_tiger: player1,
         player_goat: player2,
-        status: BackendGameStatus.IN_PROGRESS,
+        status: GameStatus.IN_PROGRESS,
         game_state: initialGameState,
         created_at: new Date().toISOString(),
     };
@@ -88,8 +88,8 @@ const HomeScreen: React.FC = () => {
     pollingInterval: 30000, // Poll for new games every 30 seconds
   });
 
-  const ongoingGames = games.filter(g => g.status === BackendGameStatus.IN_PROGRESS);
-  const finishedGames = games.filter(g => g.status === BackendGameStatus.COMPLETED);
+  const ongoingGames = games.filter(g => g.status === GameStatus.IN_PROGRESS);
+  const finishedGames = games.filter(g => g.status === GameStatus.COMPLETED);
 
   // TODO: calculate winrate from user's game history
   const winRate = 'N/A';

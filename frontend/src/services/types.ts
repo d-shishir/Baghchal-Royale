@@ -8,6 +8,9 @@ export enum BackendGameStatus {
   ABANDONED = "ABANDONED",
 }
 
+// Alias for API compatibility
+export { BackendGameStatus as GameStatus };
+
 
 // General
 export interface Token {

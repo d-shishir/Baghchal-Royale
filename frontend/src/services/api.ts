@@ -1,7 +1,7 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { RootState } from '../store';
 import * as T from './types';
-import { GameStatus } from '../game-logic/baghchal';
+import { GameStatus } from './types';
 import { aPI_URL } from '../config';
 
 console.log('🚀 API requests will be sent to:', aPI_URL);

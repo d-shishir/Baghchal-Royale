@@ -15,8 +15,10 @@ export interface MatchmakingResponse {
 }
 
 export interface GameMoveData {
-  status: 'connected' | 'move_made' | 'game_over' | 'error' | 'opponent_disconnected' | 'player_disconnected';
-  game_state?: GameState;
+  status: 'connected' | 'move_made' | 'move' | 'game_over' | 'error' | 'opponent_disconnected' | 'player_disconnected';
+  game_state?: any; // Server format before normalization
+  final_state?: any; // Game state when game ends
+  winner?: string;
   message?: string;
 }
 
@@ -26,7 +28,6 @@ class MatchmakingWebSocket {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private reconnectTimeout: NodeJS.Timeout | null = null;
-
   connect(token: string, onMessage: (data: MatchmakingResponse) => void) {
     this.onMessageHandler = onMessage;
 
@@ -198,9 +199,10 @@ class GameWebSocket {
     return this.socket?.readyState === WebSocket.OPEN;
   }
 
-  makeMove(move: PotentialMove) {
+  makeMove(move: any) {
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-      this.socket.send(JSON.stringify({ type: 'move', payload: move }));
+      console.log('📤 Sending move via WebSocket:', { type: 'move', move });
+      this.socket.send(JSON.stringify({ type: 'move', move }));
     } else {
       console.error('WebSocket is not connected.');
     }

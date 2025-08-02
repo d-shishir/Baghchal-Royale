@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Baghchal Royale - Admin Login</title>
+    <link rel="stylesheet" href="/admin/static/style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="login-layout">
+        <div class="login-container">
+            <div class="login-header">
+                <div class="logo">
+                    <i class="fas fa-chess-king"></i>
+                    <span>Baghchal Royale</span>
+                </div>
+                <h2>Admin Dashboard</h2>
+                <p>Sign in to manage your game platform</p>
+            </div>
+            
+            <form id="login-form" class="login-form">
+                <div class="input-group">
+                    <label for="username">
+                        <i class="fas fa-user"></i>
+                        Username
+                    </label>
+                    <input type="text" id="username" name="username" required placeholder="Enter your username">
+                </div>
+                
+                <div class="input-group">
+                    <label for="password">
+                        <i class="fas fa-lock"></i>
+                        Password
+                    </label>
+                    <input type="password" id="password" name="password" required placeholder="Enter your password">
+                </div>
+                
+                <button type="submit" class="login-btn">
+                    <span class="btn-text">Sign In</span>
+                    <i class="fas fa-spinner fa-spin btn-spinner hidden"></i>
+                </button>
+                
+                <div id="error-message" class="error-message"></div>
+            </form>
+            
+            <div class="login-footer">
+                <p>Need help? Contact system administrator</p>
+            </div>
+        </div>
+        
+        <div class="login-background">
+            <div class="background-pattern"></div>
+        </div>
+    </div>
+    
+    <script src="/admin/static/api.js"></script>
+    <script src="/admin/static/auth.js"></script>
+</body>
+</html> 

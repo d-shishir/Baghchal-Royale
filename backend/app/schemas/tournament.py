@@ -42,7 +42,7 @@ class TournamentInDBBase(TournamentBase):
     entries: List[TournamentEntry] = []
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class Tournament(TournamentInDBBase):
     pass 

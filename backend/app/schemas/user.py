@@ -35,6 +35,11 @@ class UserUpdate(BaseModel):
     xp: Optional[int] = None
     achievements: Optional[List[str]] = None
 
+# Properties for admin to update user status
+class UserStatusUpdate(BaseModel):
+    status: Optional[UserStatus] = None
+    role: Optional[UserRole] = None
+
 class UserInDBBase(UserBase):
     user_id: uuid.UUID
     role: UserRole
@@ -47,7 +52,7 @@ class UserInDBBase(UserBase):
     last_login: Optional[datetime] = None
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 # Additional properties to return via API
 class User(UserInDBBase):

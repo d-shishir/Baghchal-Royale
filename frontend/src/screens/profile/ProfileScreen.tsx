@@ -205,8 +205,8 @@ const ProfileScreen: React.FC = () => {
         <ScrollView style={styles.historyList} showsVerticalScrollIndicator={false}>
           {gameHistory.map((game: Game) => {
               const isWin = game.winner_id === user.user_id;
-              const isDraw = game.status === GameStatus.COMPLETED && !game.winner_id;
-              const isLoss = game.status === GameStatus.COMPLETED && game.winner_id && game.winner_id !== user.user_id;
+              const isDraw = !game.winner_id; // No winner means draw
+              const isLoss = game.winner_id && game.winner_id !== user.user_id;
               
               const isTiger = game.player_tiger_id === user.user_id;
               const opponent = isTiger ? game.player_goat : game.player_tiger;

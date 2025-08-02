@@ -32,7 +32,7 @@ class GameInDBBase(GameBase):
     game_state: Dict[str, Any] = Field(default_factory=dict)
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class Game(GameInDBBase):
     player_goat: User

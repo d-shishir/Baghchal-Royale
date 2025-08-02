@@ -16,7 +16,7 @@ class TournamentEntryInDBBase(TournamentEntryBase):
     status: TournamentEntryStatus
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class TournamentEntry(TournamentEntryInDBBase):
     user: User 

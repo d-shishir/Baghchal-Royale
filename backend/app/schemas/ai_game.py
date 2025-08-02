@@ -35,7 +35,7 @@ class AIGameInDBBase(AIGameBase):
     started_at: datetime
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class AIGame(AIGameInDBBase):
     user: User 
