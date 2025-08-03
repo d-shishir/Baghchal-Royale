@@ -386,7 +386,7 @@ const GameScreen: React.FC = () => {
             goatsCaptured={currentGameState.goatsCaptured}
             goatsToPlace={0}
             phase={currentGameState.phase}
-            isCurrentUser={gameMode === 'online' && playerSide?.toUpperCase() === 'TIGER'}
+            isCurrentUser={gameMode === 'online' ? (playerSide?.toUpperCase() === 'TIGER') : undefined}
           />
         </View>
 
@@ -411,7 +411,7 @@ const GameScreen: React.FC = () => {
             goatsToPlace={20 - (currentGameState.goatsPlaced || 0)}
             phase={currentGameState.phase}
             goatsCaptured={0}
-            isCurrentUser={gameMode === 'online' && playerSide?.toUpperCase() === 'GOAT'}
+            isCurrentUser={gameMode === 'online' ? (playerSide?.toUpperCase() === 'GOAT') : undefined}
           />
           <GameStatus 
             winner={currentGameState.status !== GameStatusEnum.IN_PROGRESS ? currentGameState.status : null} 
