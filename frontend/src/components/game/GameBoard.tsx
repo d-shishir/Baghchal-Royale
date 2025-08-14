@@ -16,6 +16,8 @@ import { useAudioPlayer } from 'expo-audio';
 import { FontAwesome5 } from '@expo/vector-icons';
 
 import { PieceType, PlayerSide, GamePhase } from '../../game-logic/baghchal';
+import TigerIcon from './TigerIcon';
+import GoatIcon from './GoatIcon';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -160,13 +162,16 @@ const Piece = ({ isTiger, isSelected }: { isTiger: boolean; isSelected: boolean 
     ? (['#FF8F00', '#FF6F00'] as [string, string])
     : (['#E0E0E0', '#BDBDBD'] as [string, string]);
 
-  const iconName = isTiger ? 'cat' : 'dot-circle';
   const iconColor = isTiger ? '#FFF' : '#424242';
 
   return (
     <View style={[styles.pieceContainer, isSelected && styles.selectedPiece]}>
       <LinearGradient colors={gradientColors} style={styles.piece}>
-        <FontAwesome5 name={iconName} size={PIECE_DIAMETER * 0.5} color={iconColor} />
+        {isTiger ? (
+          <TigerIcon size={PIECE_DIAMETER * 0.7} color={iconColor} />
+        ) : (
+          <GoatIcon size={PIECE_DIAMETER * 0.7} color={iconColor} />
+        )}
       </LinearGradient>
     </View>
   );

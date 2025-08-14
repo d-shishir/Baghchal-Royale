@@ -15,6 +15,7 @@ interface GameOverModalProps {
   winner: string;
   onRestart: () => void;
   onGoHome: () => void;
+  showRestart?: boolean; // Optional prop to control restart button visibility
 }
 
 const GameOverModal: React.FC<GameOverModalProps> = ({
@@ -22,6 +23,7 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
   winner,
   onRestart,
   onGoHome,
+  showRestart = true, // Default to true for backward compatibility
 }) => {
   const scaleAnim = useRef(new Animated.Value(0.5)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
@@ -61,16 +63,18 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
           >
             <Ionicons name="trophy" size={80} color="#FFD700" />
             <Text style={styles.winnerText}>{winner}</Text>
-            <View style={styles.buttonContainer}>
+            <View style={[styles.buttonContainer, !showRestart && styles.singleButtonContainer]}>
+              {showRestart && (
+                <TouchableOpacity
+                  style={[styles.button, styles.restartButton]}
+                  onPress={onRestart}
+                >
+                  <Ionicons name="refresh" size={24} color="#FFF" />
+                  <Text style={styles.buttonText}>Restart</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity
-                style={[styles.button, styles.restartButton]}
-                onPress={onRestart}
-              >
-                <Ionicons name="refresh" size={24} color="#FFF" />
-                <Text style={styles.buttonText}>Restart</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.button, styles.homeButton]}
+                style={[styles.button, styles.homeButton, !showRestart && styles.singleButton]}
                 onPress={onGoHome}
               >
                 <Ionicons name="home" size={24} color="#FFF" />
@@ -118,6 +122,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     width: '100%',
   },
+  singleButtonContainer: {
+    justifyContent: 'center',
+  },
   button: {
     flexDirection: 'row',
     paddingVertical: 12,
@@ -131,6 +138,9 @@ const styles = StyleSheet.create({
   },
   homeButton: {
     backgroundColor: '#1E88E5',
+  },
+  singleButton: {
+    minWidth: 120,
   },
   buttonText: {
     color: '#FFF',

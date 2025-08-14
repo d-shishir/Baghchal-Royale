@@ -26,6 +26,9 @@ async def game_websocket_endpoint(
                 move_data = data.get("move")
                 if move_data:
                     await game_ws_manager.handle_move(websocket, current_user, game_id, move_data)
+            elif message_type == "forfeit":
+                # Handle player forfeit
+                await game_ws_manager.handle_player_forfeit(websocket, current_user, game_id)
             elif message_type == "ping":
                 # Heartbeat/ping message
                 await websocket.send_json({"type": "pong"})

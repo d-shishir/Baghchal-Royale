@@ -101,8 +101,27 @@ class AIManager:
             self.rule_based_tiger = None
             self.rule_based_goat = None
 
-    def get_ai_move(self, player_type: Player, env, state: Dict) -> Optional[Tuple]:
-        """Get an AI move for the specified player, prioritizing Q-learning agents."""
+    def get_ai_move(self, player_type: Player, env, state: Dict, difficulty: str = "HARD") -> Optional[Tuple]:
+        """Get an AI move for the specified player, with difficulty-based randomness."""
+        import random
+        
+        # Define randomness levels for each difficulty
+        randomness_chance = {
+            "EASY": 0.7,    # 70% chance of random move
+            "MEDIUM": 0.3,  # 30% chance of random move  
+            "HARD": 0.0     # 0% chance of random move (always optimal)
+        }
+        
+        difficulty_upper = difficulty.upper()
+        random_chance = randomness_chance.get(difficulty_upper, 0.0)
+        
+        # Check if we should make a random move based on difficulty
+        if random_chance > 0 and random.random() < random_chance:
+            print(f"🎲 {difficulty_upper} mode: Making random move (randomness: {random_chance*100}%)")
+            return self._get_random_move(env, player_type)
+        
+        # Otherwise, use the best available AI
+        print(f"🧠 {difficulty_upper} mode: Using optimal AI")
         
         # Try Q-learning agents first
         if player_type == Player.TIGER and self.q_learning_tiger:
@@ -247,9 +266,9 @@ class AIManager:
 # Global AI instance
 ai_manager = AIManager()
 
-def get_enhanced_ai_move(player_type: Player, env, state: Dict) -> Optional[Tuple]:
+def get_enhanced_ai_move(player_type: Player, env, state: Dict, difficulty: str = "HARD") -> Optional[Tuple]:
     """Global function to get an AI move from the enhanced AI manager."""
-    return ai_manager.get_ai_move(player_type, env, state)
+    return ai_manager.get_ai_move(player_type, env, state, difficulty)
 
 def get_ai_status() -> Dict:
     """Get status of available AI systems."""

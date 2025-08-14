@@ -343,6 +343,71 @@ class GameWebSocketManager:
         if game_id in self.active_connections:
             del self.active_connections[game_id]
 
+    async def handle_player_forfeit(self, websocket: WebSocket, user: models.User, game_id: str):
+        """Handle a manual player forfeit (not due to inactivity)."""
+        print(f"Player {user.username} manually forfeited game {game_id}")
+        
+        # First check if game exists in database (most important check)
+        async with AsyncSessionLocal() as db:
+            game = await game_repository.get(db, id=uuid.UUID(game_id))
+            if not game:
+                await websocket.send_json({
+                    "status": "error", 
+                    "message": "Game not found in database"
+                })
+                return
+
+            # Determine who forfeited and who wins
+            forfeiting_user_id = user.user_id
+            if forfeiting_user_id == game.player_tiger_id:
+                forfeiting_player = "TIGER"
+                winner_player = "GOAT"
+                winner_id = game.player_goat_id
+            elif forfeiting_user_id == game.player_goat_id:
+                forfeiting_player = "GOAT"  
+                winner_player = "TIGER"
+                winner_id = game.player_tiger_id
+            else:
+                await websocket.send_json({
+                    "status": "error",
+                    "message": "You are not a player in this game"
+                })
+                return
+            
+            # Update game status to abandoned and set winner
+            game_update = schemas.GameUpdate(status=schemas.GameStatus.ABANDONED, winner_id=winner_id)
+            updated_game = await game_repository.update(db, db_obj=game, obj_in=game_update)
+
+            # Apply rating update on forfeit as a win/loss
+            if winner_id:
+                try:
+                    await self._update_ratings(db, updated_game, winner_id)
+                except Exception as e:
+                    print(f"Error updating ratings on forfeit: {e}")
+
+        # Get current state (create fresh state if not in game_environments)
+        if game_id in self.game_environments:
+            current_state = self.game_environments[game_id].get_state()
+        else:
+            # Create a temporary environment for the final state
+            env = BaghchalEnv()
+            current_state = env.get_state()
+
+        # Broadcast game over message
+        await self._broadcast_to_game(game_id, {
+            "status": "game_over",
+            "winner": winner_player,
+            "final_state": self._serialize_game_state(current_state),
+            "message": f"{user.username} ({forfeiting_player}) has forfeited the game."
+        })
+
+        # Clean up game
+        self._cancel_inactivity_timer(game_id)
+        if game_id in self.game_environments:
+            del self.game_environments[game_id]
+        if game_id in self.active_connections:
+            del self.active_connections[game_id]
+
     async def _update_ratings(self, db: AsyncSession, game: models.Game, winner_id: uuid.UUID):
         """Compute ELO and persist rating changes and history for both players."""
         try:

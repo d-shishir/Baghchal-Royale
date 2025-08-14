@@ -15,6 +15,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 
 import GameBoard from '../../components/game/GameBoard';
+import TigerIcon from '../../components/game/TigerIcon';
+import GoatIcon from '../../components/game/GoatIcon';
 import { GameState, PieceType, PlayerSide, GamePhase, isMoveValid, applyMove, getMovesForPiece, PotentialMove, GameStatus as GameStatusEnum } from '../../game-logic/baghchal';
 import { getGuestAIMove } from '../../game-logic/guestAI';
 import { useSelector } from 'react-redux';
@@ -77,6 +79,7 @@ const GameScreen: React.FC = () => {
   const [isGameMenuVisible, setGameMenuVisible] = useState(false);
   const [aiGameId, setAiGameId] = useState<string | null>(null);
   const [forfeitMessage, setForfeitMessage] = useState<string | null>(null);
+  const gameOverModalShownRef = useRef(false);
   
   useEffect(() => {
     if (gameMode === 'online' && gameId && token && !gameSocket.isConnected()) {
@@ -107,7 +110,11 @@ const GameScreen: React.FC = () => {
             }
           }
           
-          setGameOverModalVisible(true);
+          // Only show modal if it's not already visible
+          if (!isGameOverModalVisible && !gameOverModalShownRef.current) {
+            gameOverModalShownRef.current = true;
+            setGameOverModalVisible(true);
+          }
         } else {
           console.log('Unhandled WebSocket message:', data);
         }
@@ -186,7 +193,12 @@ const GameScreen: React.FC = () => {
     const status = currentGameState.status;
     if (status === GameStatusEnum.TIGER_WON || status === GameStatusEnum.GOAT_WON) {
       const timer = setTimeout(async () => {
-        setGameOverModalVisible(true);
+        // Only show modal for local games, not online games (handled by WebSocket)
+        if (gameMode !== 'online' && !isGameOverModalVisible && !gameOverModalShownRef.current) {
+          gameOverModalShownRef.current = true;
+          setGameOverModalVisible(true);
+        }
+        
         // If this is an AI game with backend tracking, mark it completed
         try {
           if (aiGameId && authUser && !authUser.user_id.startsWith('guest-')) {
@@ -197,7 +209,7 @@ const GameScreen: React.FC = () => {
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [currentGameState.status, aiGameId, authUser, updateAIGame]);
+  }, [currentGameState.status, aiGameId, authUser, updateAIGame, gameMode, isGameOverModalVisible]);
 
   const player1 = useMemo(() => (gameMode === 'local' ? { username: 'Player 1' } : (playerSide === 'Tiger' ? authUser : game?.player_tiger)), [game, playerSide, authUser, gameMode]);
   const player2 = useMemo(() => (gameMode === 'local' ? { username: 'Player 2' } : (playerSide === 'Goat' ? authUser : game?.player_goat)), [game, playerSide, authUser, gameMode]);
@@ -295,14 +307,16 @@ const GameScreen: React.FC = () => {
 
   const handleGoHome = () => {
     setGameOverModalVisible(false);
+    gameOverModalShownRef.current = false; // Reset the ref when leaving
     navigation.navigate('MainTabs', { screen: 'Home' });
   };
 
   const handleRestart = () => {
     setGameOverModalVisible(false);
     setForfeitMessage(null);
+    gameOverModalShownRef.current = false; // Reset the ref for future games
     setTimeout(() => {
-      setCurrentGameState(initialGameState);
+      setCurrentGameState(localInitialState || initialGameState);
     }, 200);
   };
 
@@ -457,6 +471,7 @@ const GameScreen: React.FC = () => {
         winner={winnerText}
         onRestart={handleRestart}
         onGoHome={handleGoHome}
+        showRestart={gameMode !== 'online'} // Hide restart button for online multiplayer games
       />
         {opponent && 'user_id' in opponent && authUser && (
             <ReportPlayerModal
@@ -525,7 +540,11 @@ const PlayerInfo: React.FC<{
   return (
     <View style={[styles.playerInfo, isActive && styles.activePlayer]}>
       <View style={styles.playerIcon}>
-        <FontAwesome5 name={isTiger ? "cat" : "dot-circle"} size={24} color={isTiger ? '#FFC107' : '#4ECDC4'} />
+        {isTiger ? (
+          <TigerIcon size={32} color='#FFC107' />
+        ) : (
+          <GoatIcon size={32} color='#4ECDC4' />
+        )}
         <Text style={[styles.roleLabel, { color: isTiger ? '#FFC107' : '#4ECDC4' }]}>
           {isTiger ? 'TIGER' : 'GOAT'}
         </Text>
