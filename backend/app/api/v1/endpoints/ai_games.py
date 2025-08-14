@@ -53,3 +53,23 @@ async def get_ai_game(
     if current_user.user_id != ai_game.user_id:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     return ai_game 
+
+@router.put("/{ai_game_id}", response_model=schemas.AIGame)
+async def update_ai_game(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    ai_game_id: uuid.UUID,
+    ai_game_in: schemas.AIGameUpdate,
+    current_user: models.User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    Update an AI game (status, winner, duration).
+    """
+    ai_game = await crud.ai_game.get(db, id=ai_game_id)
+    if not ai_game:
+        raise HTTPException(status_code=404, detail="AI Game not found")
+    if current_user.user_id != ai_game.user_id:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+
+    updated = await crud.ai_game.update(db, db_obj=ai_game, obj_in=ai_game_in)
+    return updated

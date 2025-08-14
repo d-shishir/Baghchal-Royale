@@ -17,11 +17,11 @@ import { StackNavigationProp } from '@react-navigation/stack';
 
 import { RootState } from '../../store';
 import { logout } from '../../store/slices/authSlice';
-import { useGetGamesQuery, useGetMeQuery } from '../../services/api';
+import { useGetGamesQuery, useGetMeQuery, useGetAIGamesQuery } from '../../services/api';
 import { MainStackParamList } from '../../navigation/MainNavigator';
 import LoadingScreen from '../../components/LoadingScreen';
 import EditProfileModal from '../../components/EditProfileModal';
-import { Game, GameStatus } from '../../services/types';
+import { Game, AIGame } from '../../services/types';
 
 const { width } = Dimensions.get('window');
 
@@ -31,10 +31,16 @@ const ProfileScreen: React.FC = () => {
   const dispatch = useDispatch();
   const navigation = useNavigation<StackNavigationProp<MainStackParamList>>();
   
-  const { data: user, isLoading: isUserLoading } = useGetMeQuery();
   const isGuest = useSelector((state: RootState) => state.auth.isGuest);
-  const { data: gameHistory, isLoading: isLoadingGames } = useGetGamesQuery({ status: GameStatus.COMPLETED }, {
-      skip: isGuest, // Don't fetch for guests
+  const token = useSelector((state: RootState) => state.auth.token);
+  const { data: user, isLoading: isUserLoading } = useGetMeQuery(undefined, {
+      skip: isGuest || !token,
+  });
+  const { data: gameHistory, isLoading: isLoadingGames } = useGetGamesQuery(undefined, {
+      skip: isGuest || !token, // Don't fetch for guests or when not authenticated
+  });
+  const { data: aiGames, isLoading: isLoadingAIGames } = useGetAIGamesQuery(undefined, {
+      skip: isGuest || !token,
   });
 
   const handleLogout = () => {
@@ -74,7 +80,7 @@ const ProfileScreen: React.FC = () => {
       )
   }
   
-  if (isUserLoading || isLoadingGames || !user) {
+  if (isUserLoading || isLoadingGames || isLoadingAIGames || !user) {
       return <LoadingScreen />;
   }
   
@@ -193,13 +199,13 @@ const ProfileScreen: React.FC = () => {
 
   const renderHistoryTab = () => (
     <View style={styles.tabContent}>
-      <Text style={styles.sectionTitle}>Recent Games</Text>
+      <Text style={styles.sectionTitle}>Online Games</Text>
       {!gameHistory || gameHistory.length === 0 ? (
         <View style={styles.emptyState}>
           <View style={styles.emptyStateIconContainer}>
             <Ionicons name="game-controller-outline" size={64} color="#666" />
           </View>
-          <Text style={styles.emptyStateText}>No games played yet</Text>
+          <Text style={styles.emptyStateText}>No online games yet</Text>
         </View>
       ) : (
         <ScrollView style={styles.historyList} showsVerticalScrollIndicator={false}>
@@ -235,6 +241,66 @@ const ProfileScreen: React.FC = () => {
                       </View>
                     </View>
                     
+                    <View style={styles.historyDetails}>
+                      <View style={styles.historyInfo}>
+                        <View style={styles.historyItem}>
+                          <Ionicons 
+                            name={isTiger ? 'flash' : 'leaf'} 
+                            size={16} 
+                            color={isTiger ? '#FF6F00' : '#66BB6A'} 
+                          />
+                          <Text style={styles.historyItemText}>
+                            Played as {isTiger ? 'Tigers' : 'Goats'}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  </LinearGradient>
+                </View>
+              );
+          })}
+        </ScrollView>
+      )}
+
+      <Text style={[styles.sectionTitle, { marginTop: 20 }]}>AI Games</Text>
+      {!aiGames || aiGames.length === 0 ? (
+        <View style={styles.emptyState}>
+          <View style={styles.emptyStateIconContainer}>
+            <Ionicons name="hardware-chip-outline" size={64} color="#666" />
+          </View>
+          <Text style={styles.emptyStateText}>No AI games yet</Text>
+        </View>
+      ) : (
+        <ScrollView style={styles.historyList} showsVerticalScrollIndicator={false}>
+          {aiGames.map((aiGame: AIGame) => {
+              const isCompleted = aiGame.status === 'COMPLETED';
+              const isWin = isCompleted && aiGame.winner && aiGame.winner.toUpperCase() === aiGame.user_side.toUpperCase();
+              const isLoss = isCompleted && aiGame.winner && aiGame.winner.toUpperCase() !== aiGame.user_side.toUpperCase();
+              const isTiger = aiGame.user_side.toUpperCase() === 'TIGER';
+
+              const getResultStyles = () => {
+                if (isWin) return { badge: styles.winBadge, text: styles.resultText };
+                if (isLoss) return { badge: styles.lossBadge, text: styles.resultText };
+                if (!isCompleted) return { badge: styles.drawBadge, text: styles.drawResultText };
+                return { badge: {}, text: {} };
+              };
+
+              const { badge, text } = getResultStyles();
+
+              return (
+                <View key={aiGame.ai_game_id} style={styles.historyCard}>
+                  <LinearGradient colors={['#333', '#404040']} style={styles.historyCardGradient}>
+                    <View style={styles.historyHeader}>
+                      <View style={styles.historyOpponent}>
+                        <Text style={styles.opponentName}>vs AI ({aiGame.difficulty})</Text>
+                        <Text style={styles.gameDate}>{new Date(aiGame.started_at).toLocaleDateString()}</Text>
+                      </View>
+                      <View style={[ styles.resultBadge, badge ]}>
+                        <Text style={text}>
+                          {isWin ? 'WON' : isLoss ? 'LOST' : 'IN PROGRESS'}
+                        </Text>
+                      </View>
+                    </View>
                     <View style={styles.historyDetails}>
                       <View style={styles.historyInfo}>
                         <View style={styles.historyItem}>

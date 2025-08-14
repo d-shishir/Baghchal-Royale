@@ -52,19 +52,21 @@ async def search_users(
     users = result.scalars().all()
     return users
 
-@router.get("/leaderboard", response_model=List[schemas.User])
+@router.get("/leaderboard", response_model=schemas.LeaderboardResponse)
 async def get_leaderboard(
     db: AsyncSession = Depends(deps.get_db),
     skip: int = 0,
     limit: int = 100,
+    current_user: models.User = Depends(deps.get_current_active_user),
 ) -> Any:
     """
-    Get the top players leaderboard by rating.
+    Get the top players leaderboard by rating and include the current user's rank.
     """
     stmt = select(models.User).order_by(desc(models.User.rating)).offset(skip).limit(limit)
     result = await db.execute(stmt)
     users = result.scalars().all()
-    return users
+    my_rank = await crud.user.get_rank_by_rating(db, user_id=current_user.user_id)
+    return schemas.LeaderboardResponse(leaderboard=users, my_rank=my_rank)
 
 @router.get("/{user_id}", response_model=schemas.UserWithStats)
 async def read_user_by_id(

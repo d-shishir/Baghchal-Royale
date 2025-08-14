@@ -1,4 +1,4 @@
-from .user import User, UserCreate, UserUpdate, UserStatusUpdate, UserWithStats, UserFriendInfo
+from .user import User, UserCreate, UserUpdate, UserStatusUpdate, UserWithStats, UserFriendInfo, LeaderboardResponse
 from .friendship import Friendship, FriendshipCreate, FriendshipUpdate
 from .game import Game, GameCreate, GameUpdate, GameStatus
 from .move import Move, MoveCreate
@@ -19,6 +19,7 @@ __all__ = [
     "UserStatusUpdate",
     "UserWithStats",
     "UserFriendInfo",
+    "LeaderboardResponse",
     "Friendship",
     "FriendshipCreate",
     "FriendshipUpdate",

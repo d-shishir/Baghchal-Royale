@@ -70,7 +70,7 @@ export const api = createApi({
     searchUsers: builder.query<T.User[], string>({
       query: (query) => `/api/v1/users/search?query=${encodeURIComponent(query)}`,
     }),
-    getLeaderboard: builder.query<T.User[], void>({
+    getLeaderboard: builder.query<T.LeaderboardResponse, void>({
       query: () => '/api/v1/users/leaderboard',
       providesTags: ['Leaderboard'],
     }),
@@ -177,6 +177,18 @@ export const api = createApi({
         }),
         invalidatesTags: ['AIGame'],
     }),
+    getAIGames: builder.query<T.AIGame[], void>({
+        query: () => '/api/v1/ai-games/',
+        providesTags: ['AIGame'],
+    }),
+    updateAIGame: builder.mutation<T.AIGame, {id: string, data: Partial<T.AIGame>}>({
+        query: ({id, data}) => ({
+            url: `/api/v1/ai-games/${id}`,
+            method: 'PUT',
+            body: data,
+        }),
+        invalidatesTags: ['AIGame', 'User'],
+    }),
 
     // Tournaments
     createTournament: builder.mutation<T.Tournament, T.TournamentCreate>({
@@ -268,6 +280,8 @@ export const {
     useGetMovesQuery,
     useGetAIMoveMutation,
     useCreateAIGameMutation,
+    useGetAIGamesQuery,
+    useUpdateAIGameMutation,
     useCreateTournamentMutation,
     useGetTournamentsQuery,
     useGetTournamentByIdQuery,

@@ -1,6 +1,7 @@
 from typing import Any, Dict, Optional, Union
 import uuid
-from sqlalchemy import func, select, case
+from sqlalchemy import func, select, case, and_
+from sqlalchemy import or_  # type: ignore
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import get_password_hash, verify_password
@@ -8,10 +9,22 @@ from app.crud.base import CRUDBase
 from app.models import Game
 from app.models.user import User, UserRole
 from app.schemas.user import UserCreate, UserUpdate, UserWithStats
-from app.schemas.game import GameStatus
+from app.models.game import GameStatus
+from app.models.ai_game import AIGame, AIGameStatus
 
 
 class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
+    async def get_rank_by_rating(self, db: AsyncSession, *, user_id: uuid.UUID) -> Optional[int]:
+        """
+        Compute user's rank based on rating. Rank 1 is highest rating.
+        """
+        user = await self.get(db, id=user_id)
+        if not user:
+            return None
+        # Count how many users have strictly higher rating
+        higher_count = await db.execute(select(func.count(User.user_id)).where(User.rating > user.rating))
+        higher = higher_count.scalar() or 0
+        return higher + 1
     async def get_with_stats(self, db: AsyncSession, *, user_id: uuid.UUID) -> Optional[UserWithStats]:
         """
         Get a user by ID and calculate their game statistics.
@@ -20,39 +33,87 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         if not user:
             return None
 
-        stmt = (
+        # PVP totals
+        pvp_total_stmt = (
+            select(func.count(Game.game_id))
+            .where((Game.player_goat_id == user_id) | (Game.player_tiger_id == user_id))
+        )
+        pvp_finished_stmt = (
+            select(func.count(Game.game_id))
+            .where(
+                (Game.player_goat_id == user_id) | (Game.player_tiger_id == user_id),
+                Game.status.in_([GameStatus.COMPLETED, GameStatus.ABANDONED]),
+            )
+        )
+        pvp_wins_stmt = (
             select(
-                func.count(Game.game_id).label("games_played"),
                 func.sum(
                     case(
                         (Game.winner_id == user_id, 1),
-                        else_=0
+                        else_=0,
                     )
-                ).label("wins"),
+                )
             )
             .where(
                 (Game.player_goat_id == user_id) | (Game.player_tiger_id == user_id),
-                Game.status == GameStatus.COMPLETED,
+                Game.status.in_([GameStatus.COMPLETED, GameStatus.ABANDONED]),
             )
         )
-        
-        result = await db.execute(stmt)
-        stats = result.first()
-        
-        games_played = stats.games_played or 0
-        wins = stats.wins or 0
-        losses = games_played - wins
-        
-        if games_played > 0:
-            win_rate = round((wins / games_played) * 100, 2)
+
+        # AI totals
+        ai_total_stmt = select(func.count(AIGame.ai_game_id)).where(AIGame.user_id == user_id)
+        ai_finished_stmt = select(func.count(AIGame.ai_game_id)).where(
+            AIGame.user_id == user_id,
+            AIGame.status == AIGameStatus.COMPLETED,
+        )
+        ai_wins_stmt = select(
+            func.sum(
+                case(
+                    (
+                        and_(
+                            AIGame.status == AIGameStatus.COMPLETED,
+                            AIGame.winner == 'TIGER',
+                            AIGame.user_side == 'TIGER',
+                        ),
+                        1,
+                    ),
+                    (
+                        and_(
+                            AIGame.status == AIGameStatus.COMPLETED,
+                            AIGame.winner == 'GOAT',
+                            AIGame.user_side == 'GOAT',
+                        ),
+                        1,
+                    ),
+                    else_=0,
+                )
+            )
+        ).where(AIGame.user_id == user_id)
+
+        # Execute queries
+        pvp_total = (await db.execute(pvp_total_stmt)).scalar() or 0
+        pvp_finished = (await db.execute(pvp_finished_stmt)).scalar() or 0
+        pvp_wins = (await db.execute(pvp_wins_stmt)).scalar() or 0
+
+        ai_total = (await db.execute(ai_total_stmt)).scalar() or 0
+        ai_finished = (await db.execute(ai_finished_stmt)).scalar() or 0
+        ai_wins = (await db.execute(ai_wins_stmt)).scalar() or 0
+
+        total_played = pvp_total + ai_total
+        total_finished = pvp_finished + ai_finished
+        total_wins = (pvp_wins or 0) + (ai_wins or 0)
+        total_losses = max(total_finished - total_wins, 0)
+
+        if total_finished > 0:
+            win_rate = round((total_wins / total_finished) * 100, 2)
         else:
             win_rate = 0.0
             
         return UserWithStats(
             **user.__dict__,
-            games_played=games_played,
-            wins=wins,
-            losses=losses,
+            games_played=total_played,
+            wins=total_wins,
+            losses=total_losses,
             win_rate=win_rate
         )
 

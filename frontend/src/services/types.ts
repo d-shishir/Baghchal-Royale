@@ -38,6 +38,11 @@ export interface User {
     last_login?: string;
 }
 
+export interface LeaderboardResponse {
+    leaderboard: User[];
+    my_rank?: number | null;
+}
+
 export interface UserCreate {
     email: string;
     username: string;

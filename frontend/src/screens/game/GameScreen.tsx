@@ -20,7 +20,7 @@ import { getGuestAIMove } from '../../game-logic/guestAI';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
 import { Game, Player, MoveCreate } from '../../services/types';
-import { useCreateMoveMutation, useGetGameByIdQuery, useGetAIMoveMutation, useCreateReportMutation } from '../../services/api';
+import { useCreateMoveMutation, useGetGameByIdQuery, useGetAIMoveMutation, useCreateReportMutation, useUpdateAIGameMutation } from '../../services/api';
 import { gameSocket, GameMoveData } from '../../services/websocket';
 import { initialGameState } from '../../game-logic/initialState';
 import { mapServerGameToBaghchalState, normalizeGameState } from '../../utils/gameStateMapper';
@@ -63,6 +63,7 @@ const GameScreen: React.FC = () => {
   const [createMove, { isLoading: isMoveLoading, error: moveError }] = useCreateMoveMutation();
   const [getAIMove, { isLoading: isAIMoveLoading }] = useGetAIMoveMutation();
   const [createReport] = useCreateReportMutation();
+  const [updateAIGame] = useUpdateAIGameMutation();
 
   const { data: game, error: gameError, isLoading: isGameLoading } = useGetGameByIdQuery(gameId, {
     skip: !gameId || gameId.startsWith('local-'),
@@ -183,12 +184,19 @@ const GameScreen: React.FC = () => {
   useEffect(() => {
     const status = currentGameState.status;
     if (status === GameStatusEnum.TIGER_WON || status === GameStatusEnum.GOAT_WON) {
-      const timer = setTimeout(() => {
+      const timer = setTimeout(async () => {
         setGameOverModalVisible(true);
+        // If this is an AI game with backend tracking, mark it completed
+        try {
+          if (aiGameId && authUser && !authUser.user_id.startsWith('guest-')) {
+            const winnerSide = status === GameStatusEnum.TIGER_WON ? 'TIGER' : 'GOAT';
+            await updateAIGame({ id: aiGameId, data: { status: 'COMPLETED', winner: winnerSide } }).unwrap();
+          }
+        } catch {}
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [currentGameState.status]);
+  }, [currentGameState.status, aiGameId, authUser, updateAIGame]);
 
   const player1 = useMemo(() => (gameMode === 'local' ? { username: 'Player 1' } : (playerSide === 'Tiger' ? authUser : game?.player_tiger)), [game, playerSide, authUser, gameMode]);
   const player2 = useMemo(() => (gameMode === 'local' ? { username: 'Player 2' } : (playerSide === 'Goat' ? authUser : game?.player_goat)), [game, playerSide, authUser, gameMode]);

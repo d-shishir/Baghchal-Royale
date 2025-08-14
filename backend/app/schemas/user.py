@@ -74,6 +74,10 @@ class UserWithStats(User):
     losses: int = 0
     win_rate: float = 0.0
 
+class LeaderboardResponse(BaseModel):
+    leaderboard: List[User]
+    my_rank: Optional[int] = None
+
 # Additional properties stored in DB
 class UserInDB(UserInDBBase):
     hashed_password: str 

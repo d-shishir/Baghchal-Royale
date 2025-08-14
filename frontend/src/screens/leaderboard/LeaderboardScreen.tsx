@@ -81,7 +81,7 @@ const LeaderboardScreen: React.FC = () => {
 
         <View style={styles.playerInfo}>
             <Text style={styles.playerName}>{item.username}</Text>
-            <Text style={styles.playerCountry}>{item.country || 'Unknown'}</Text>
+            <Text style={styles.playerCountry}>Lvl {item.level} • {item.country || 'Unknown'}</Text>
         </View>
         
         <View style={styles.ratingContainer}>
@@ -113,9 +113,16 @@ const LeaderboardScreen: React.FC = () => {
       );
     }
   
+    const list = leaderboardData?.leaderboard || [];
     return (
-      <FlatList
-        data={leaderboardData || []}
+      <>
+        {leaderboardData?.my_rank ? (
+          <View style={styles.myRankContainer}>
+            <Text style={styles.myRankText}>Your Rank: #{leaderboardData.my_rank}</Text>
+          </View>
+        ) : null}
+        <FlatList
+        data={list}
         renderItem={renderPlayer}
         keyExtractor={(item) => item.user_id}
         contentContainerStyle={styles.listContainer}
@@ -132,6 +139,7 @@ const LeaderboardScreen: React.FC = () => {
           </View>
         }
       />
+      </>
     );
   };
 

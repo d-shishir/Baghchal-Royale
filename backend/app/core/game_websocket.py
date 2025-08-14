@@ -10,6 +10,9 @@ from app.crud.game import game as game_repository
 from app.crud.move import move as move_repository
 from app.db.session import AsyncSessionLocal
 from app.models.user import User
+from app.core.elo import calculate_elo
+from app.crud.rating_history import rating_history as rating_history_repository
+from app.crud.user import user as user_repository
 
 
 class GameWebSocketManager:
@@ -245,6 +248,10 @@ class GameWebSocketManager:
                         winner_id=winner_id
                     )
                     await game_repository.update(db, db_obj=game, obj_in=game_update)
+
+                    # Update player ratings for completed PvP games
+                    if winner_id:
+                        await self._update_ratings(db, game, winner_id)
         except Exception as e:
             print(f"Error finishing game: {e}")
 
@@ -312,7 +319,14 @@ class GameWebSocketManager:
             
             # Update game status to abandoned and set winner
             game_update = schemas.GameUpdate(status=schemas.GameStatus.ABANDONED, winner_id=winner_id)
-            await game_repository.update(db, db_obj=game, obj_in=game_update)
+            updated_game = await game_repository.update(db, db_obj=game, obj_in=game_update)
+
+            # Apply rating update on forfeit as a win/loss
+            if winner_id:
+                try:
+                    await self._update_ratings(db, updated_game, winner_id)
+                except Exception as e:
+                    print(f"Error updating ratings on forfeit: {e}")
 
         # Broadcast game over message
         await self._broadcast_to_game(game_id, {
@@ -328,6 +342,46 @@ class GameWebSocketManager:
             del self.game_environments[game_id]
         if game_id in self.active_connections:
             del self.active_connections[game_id]
+
+    async def _update_ratings(self, db: AsyncSession, game: models.Game, winner_id: uuid.UUID):
+        """Compute ELO and persist rating changes and history for both players."""
+        try:
+            # Determine loser id
+            p_tiger = game.player_tiger_id
+            p_goat = game.player_goat_id
+            loser_id = p_goat if str(winner_id) == str(p_tiger) else p_tiger
+
+            winner_user = await user_repository.get(db, id=winner_id)
+            loser_user = await user_repository.get(db, id=loser_id)
+            if not winner_user or not loser_user:
+                return
+
+            winner_before = winner_user.rating
+            loser_before = loser_user.rating
+
+            new_winner, new_loser = calculate_elo(winner_before, loser_before, 1.0)
+
+            winner_user.rating = new_winner
+            loser_user.rating = new_loser
+            db.add(winner_user)
+            db.add(loser_user)
+            await db.commit()
+
+            # Record rating history for both players
+            await rating_history_repository.create_rating_history(db, obj_in=schemas.RatingHistoryCreate(
+                user_id=winner_user.user_id,
+                game_id=game.game_id,
+                rating_before=winner_before,
+                rating_after=new_winner,
+            ))
+            await rating_history_repository.create_rating_history(db, obj_in=schemas.RatingHistoryCreate(
+                user_id=loser_user.user_id,
+                game_id=game.game_id,
+                rating_before=loser_before,
+                rating_after=new_loser,
+            ))
+        except Exception as e:
+            print(f"Error updating ratings: {e}")
 
     def _start_inactivity_timer(self, game_id: str):
         """Start a timer that will trigger a forfeit if no move is made."""
