@@ -18,7 +18,26 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8 # 8 days
 
     # Add this for CORS
-    BACKEND_CORS_ORIGINS: List[str] = ["*"]
+    BACKEND_CORS_ORIGINS: List[str] = [
+        "http://localhost:3000",
+        "http://localhost:8080", 
+        "http://localhost:19000",
+        "http://localhost:8000",
+        "https://localhost:3000",
+        "https://localhost:8080", 
+        "https://localhost:19000",
+        "https://localhost:8000",
+        "http://0.0.0.0:3000",
+        "http://0.0.0.0:8080",
+        "http://0.0.0.0:19000",
+        "http://0.0.0.0:8000",
+        "https://0.0.0.0:3000",
+        "https://0.0.0.0:8080",
+        "https://0.0.0.0:19000",
+        "https://0.0.0.0:8000",
+        "exp://localhost:19000",
+        "*"
+    ]
 
     class Config:
         env_file = BASE_DIR / ".env"

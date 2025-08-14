@@ -1,11 +1,12 @@
 class AdminAPI {
     constructor() {
-        // Use relative URL when accessed through the backend server,
-        // fallback to localhost for development
-        this.baseURL = window.location.origin.includes('localhost:8000') 
-            ? '/api/v1' 
-            : 'http://localhost:8000/api/v1';
-        this.token = localStorage.getItem('admin-token');
+        // Since admin files are now served from the backend (same origin),
+        // we can always use relative URLs - no CORS issues!
+        this.baseURL = '/api/v1';
+        this.token = localStorage.getItem('adminToken');
+        
+        console.log('🎯 AdminAPI initialized with same-origin baseURL:', this.baseURL);
+        console.log('✅ No CORS issues - admin served from backend!');
     }
 
     getAuthHeaders() {
@@ -28,9 +29,15 @@ class AdminAPI {
             if (!response.ok) {
                 if (response.status === 401) {
                     // Token expired or invalid
-                    localStorage.removeItem('admin-token');
-                    window.location.href = 'index.html';
-                    return;
+                    localStorage.removeItem('adminToken');
+                    localStorage.removeItem('adminUser');
+                    // Avoid redirect loop when already on login page
+                    const onLoginPage = window.location.pathname === '/admin' || window.location.pathname === '/admin/';
+                    if (!onLoginPage) {
+                        window.location.href = '/admin';
+                        return;
+                    }
+                    throw new Error('Unauthorized');
                 }
                 const errorData = await response.json();
                 throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
@@ -48,21 +55,43 @@ class AdminAPI {
         const formData = new FormData();
         formData.append('username', username);
         formData.append('password', password);
-
-        const response = await fetch(`${this.baseURL}/auth/login`, {
-            method: 'POST',
-            body: formData
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.detail || 'Login failed');
+        
+        // Since we're same-origin now, try multiple endpoint paths to bypass blockers
+        const authPaths = ['/auth/login', '/auth/signin', '/auth/session/start', '/auth/session/login'];
+        
+        let lastError = null;
+        
+        for (const path of authPaths) {
+            try {
+                const fullURL = `${this.baseURL}${path}`;
+                console.log(`🔄 Trying same-origin login: ${fullURL}`);
+                
+                const response = await fetch(fullURL, {
+                    method: 'POST',
+                    body: formData
+                    // No CORS options needed for same-origin requests
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ detail: 'Login failed' }));
+                    throw new Error(errorData.detail || `HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                this.token = data.access_token;
+                localStorage.setItem('adminToken', this.token);
+                console.log('✅ Login successful with same-origin request:', fullURL);
+                return data;
+            } catch (err) {
+                console.warn(`❌ Failed ${path}:`, err.message);
+                lastError = err;
+                // Continue to next path
+            }
         }
-
-        const data = await response.json();
-        this.token = data.access_token;
-        localStorage.setItem('admin-token', this.token);
-        return data;
+        
+        console.error('🚫 All login attempts failed');
+        console.error('💡 Check if backend server is running on port 8000');
+        throw lastError || new Error('Login failed - check server status');
     }
 
     async testToken() {

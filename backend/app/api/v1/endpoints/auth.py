@@ -72,6 +72,34 @@ async def login_access_token(
         }
     }
 
+# Alternative login endpoints to bypass ad blockers
+@router.post("/signin")
+async def signin_access_token(
+    db: AsyncSession = Depends(deps.get_db), form_data: OAuth2PasswordRequestForm = Depends()
+) -> Any:
+    """
+    Alternative login endpoint (alias for /login)
+    """
+    return await login_access_token(db=db, form_data=form_data)
+
+@router.post("/session/start")
+async def session_start(
+    db: AsyncSession = Depends(deps.get_db), form_data: OAuth2PasswordRequestForm = Depends()
+) -> Any:
+    """
+    Alternative login endpoint (alias for /login)
+    """
+    return await login_access_token(db=db, form_data=form_data)
+
+@router.post("/session/login")
+async def session_login(
+    db: AsyncSession = Depends(deps.get_db), form_data: OAuth2PasswordRequestForm = Depends()
+) -> Any:
+    """
+    Alternative login endpoint (alias for /login)
+    """
+    return await login_access_token(db=db, form_data=form_data)
+
 @router.post("/login/test-token", response_model=schemas.User)
 def test_token(current_user: models.User = Depends(deps.get_current_user)) -> Any:
     """

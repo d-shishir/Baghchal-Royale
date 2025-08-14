@@ -27,18 +27,19 @@ def health_check():
     return {"status": "healthy", "message": "Baghchal Royale API is running"}
 
 # Mount static files for admin panel
-# Go up from backend/ to project root, then to frontend/admin
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-admin_path = os.path.join(project_root, "frontend", "admin")
+# Use admin files from backend/admin directory
+backend_root = os.path.dirname(os.path.dirname(__file__))
+admin_path = os.path.join(backend_root, "admin")
 if os.path.exists(admin_path):
-    app.mount("/admin/static", StaticFiles(directory=admin_path), name="admin_static")
+    # Mount all admin files as static files at /admin/static/
+    app.mount("/admin/static", StaticFiles(directory=admin_path, html=True), name="admin_static")
 
 @app.get("/admin")
 @app.get("/admin/")
 async def admin_panel():
     """Serve the admin panel login page"""
-    project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    admin_index_path = os.path.join(project_root, "frontend", "admin", "index.html")
+    backend_root = os.path.dirname(os.path.dirname(__file__))
+    admin_index_path = os.path.join(backend_root, "admin", "index.html")
     if os.path.exists(admin_index_path):
         return FileResponse(admin_index_path)
     else:
@@ -48,8 +49,8 @@ async def admin_panel():
 @app.get("/admin/dashboard.html")
 async def admin_dashboard():
     """Serve the admin dashboard page"""
-    project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    dashboard_path = os.path.join(project_root, "frontend", "admin", "dashboard.html")
+    backend_root = os.path.dirname(os.path.dirname(__file__))
+    dashboard_path = os.path.join(backend_root, "admin", "dashboard.html")
     if os.path.exists(dashboard_path):
         return FileResponse(dashboard_path)
     else:
@@ -59,8 +60,8 @@ async def admin_dashboard():
 @app.get("/admin/ai_analysis.html")
 async def admin_ai_analysis():
     """Serve the AI analysis page"""
-    project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    ai_analysis_path = os.path.join(project_root, "frontend", "admin", "ai_analysis.html")
+    backend_root = os.path.dirname(os.path.dirname(__file__))
+    ai_analysis_path = os.path.join(backend_root, "admin", "ai_analysis.html")
     if os.path.exists(ai_analysis_path):
         return FileResponse(ai_analysis_path)
     else:
