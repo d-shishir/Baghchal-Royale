@@ -22,6 +22,20 @@ if settings.BACKEND_CORS_ORIGINS:
         allow_headers=["*"],
     )
 
+@app.middleware("http")
+async def no_cache_admin_static(request, call_next):
+    response = await call_next(request)
+    try:
+        request_path = request.url.path
+        if request_path.startswith("/admin"):
+            # Prevent caching of admin static assets to avoid stale scripts/styles
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+    except Exception:
+        pass
+    return response
+
 @app.get("/health")
 def health_check():
     return {"status": "healthy", "message": "Baghchal Royale API is running"}
@@ -38,6 +52,16 @@ if os.path.exists(admin_path):
 @app.get("/admin/")
 async def admin_panel():
     """Serve the admin panel login page"""
+    backend_root = os.path.dirname(os.path.dirname(__file__))
+    admin_index_path = os.path.join(backend_root, "admin", "index.html")
+    if os.path.exists(admin_index_path):
+        return FileResponse(admin_index_path)
+    else:
+        return {"error": "Admin panel not found"}
+
+# Explicit route to serve /admin/index.html
+@app.get("/admin/index.html")
+async def admin_index_html():
     backend_root = os.path.dirname(os.path.dirname(__file__))
     admin_index_path = os.path.join(backend_root, "admin", "index.html")
     if os.path.exists(admin_index_path):

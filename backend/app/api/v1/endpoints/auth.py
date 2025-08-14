@@ -10,6 +10,9 @@ from app.core.config import settings
 
 router = APIRouter()
 
+# Neutral alias router to avoid ad blockers that target paths like "/auth/*"
+alias_router = APIRouter()
+
 @router.post("/register", response_model=schemas.User)
 async def register(
     *,
@@ -106,3 +109,48 @@ def test_token(current_user: models.User = Depends(deps.get_current_user)) -> An
     Test access token
     """
     return current_user 
+
+# Neutral paths (outside of "/auth" segment) that forward to the same login handler
+@alias_router.post("/login")
+async def neutral_login(
+    db: AsyncSession = Depends(deps.get_db), form_data: OAuth2PasswordRequestForm = Depends()
+) -> Any:
+    return await login_access_token(db=db, form_data=form_data)
+
+@alias_router.post("/start")
+async def neutral_start(
+    db: AsyncSession = Depends(deps.get_db), form_data: OAuth2PasswordRequestForm = Depends()
+) -> Any:
+    return await login_access_token(db=db, form_data=form_data)
+
+@alias_router.post("/authenticate")
+async def neutral_authenticate(
+    db: AsyncSession = Depends(deps.get_db), form_data: OAuth2PasswordRequestForm = Depends()
+) -> Any:
+    return await login_access_token(db=db, form_data=form_data)
+
+# Additional neutral aliases that avoid the words "auth" and "login"
+@alias_router.post("/token")
+async def neutral_token(
+    db: AsyncSession = Depends(deps.get_db), form_data: OAuth2PasswordRequestForm = Depends()
+) -> Any:
+    return await login_access_token(db=db, form_data=form_data)
+
+@alias_router.post("/access/token")
+async def neutral_access_token(
+    db: AsyncSession = Depends(deps.get_db), form_data: OAuth2PasswordRequestForm = Depends()
+) -> Any:
+    return await login_access_token(db=db, form_data=form_data)
+
+# Avoid common ad-block keywords entirely
+@alias_router.post("/grant")
+async def neutral_grant(
+    db: AsyncSession = Depends(deps.get_db), form_data: OAuth2PasswordRequestForm = Depends()
+) -> Any:
+    return await login_access_token(db=db, form_data=form_data)
+
+@alias_router.post("/open")
+async def neutral_open(
+    db: AsyncSession = Depends(deps.get_db), form_data: OAuth2PasswordRequestForm = Depends()
+) -> Any:
+    return await login_access_token(db=db, form_data=form_data)

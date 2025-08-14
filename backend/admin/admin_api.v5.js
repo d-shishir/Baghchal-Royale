@@ -58,9 +58,11 @@ class AdminAPI {
         
         // Use only neutral session endpoints to avoid ad-block patterns entirely
         const authPaths = [
-            '/session/login',
+            '/session/grant',
+            '/session/open',
             '/session/start',
             '/session/authenticate',
+            '/session/login',
             '/session/token',
             '/session/access/token'
         ];
@@ -102,6 +104,7 @@ class AdminAPI {
     }
 
     async testToken() {
+        // Use a neutral endpoint that returns the current user and avoids ad-block prone paths
         return this.makeRequest('/users/me', {
             method: 'GET'
         });
@@ -170,6 +173,7 @@ class AdminAPI {
         return this.makeRequest(`/ai_analysis/q-table/${player}`);
     }
 
+    // Admin dashboard stats
     async getAdminStats() {
         return this.makeRequest('/admin/stats');
     }

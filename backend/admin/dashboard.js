@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initializeElements();
     
     // Check authentication
-    const token = localStorage.getItem('admin-token');
+    const token = localStorage.getItem('adminToken');
     if (!token) {
         window.location.href = 'index.html';
         return;
@@ -44,8 +44,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Verify admin privileges
     try {
         const user = await api.testToken();
-        if (user.role !== 'ADMIN') {
-            localStorage.removeItem('admin-token');
+        if (!user || user.role !== 'ADMIN') {
+            localStorage.removeItem('adminToken');
             window.location.href = 'index.html';
             return;
         }
@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateAdminInfo(user);
     } catch (error) {
         console.error('Token validation failed:', error);
-        localStorage.removeItem('admin-token');
+        localStorage.removeItem('adminToken');
         window.location.href = 'index.html';
         return;
     }
@@ -64,6 +64,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Load initial data
     await loadAllData();
+    await loadAdminStats();
     
     // Show overview section by default
     showSection('overview');
@@ -336,9 +337,9 @@ async function loadFeedback() {
 
 async function loadGames() {
     try {
-        // Note: This would need to be implemented in the API
-        // games = await api.getGames();
-        games = []; // Placeholder
+        const filter = document.getElementById('game-filter');
+        const status = filter && filter.value !== 'all' ? filter.value.toUpperCase() : undefined;
+        games = await api.getAdminGames({ status, limit: 50 });
         renderGames();
         updateStats();
     } catch (error) {
@@ -406,21 +407,29 @@ function renderReports(reportsToRender = reports) {
     
     elements.reportsGrid.innerHTML = reportsToRender.map(report => {
         const reportDate = new Date(report.created_at).toLocaleDateString();
+        const status = (report.status && report.status.toString && report.status.toString()) || report.status || 'OPEN';
+        const statusClass = (status => {
+            const s = status.toUpperCase();
+            if (s === 'OPEN') return 'pending';
+            if (s === 'REVIEWED') return 'reviewed';
+            if (s === 'DISMISSED') return 'dismissed';
+            return 'pending';
+        })(status);
         
         return `
             <div class="report-card">
                 <div class="report-header">
                     <div class="report-id">Report #${report.report_id.slice(0, 8)}</div>
-                    <div class="report-status pending">Pending</div>
+                    <div class="report-status ${statusClass}">${status}</div>
                 </div>
                 <div class="report-content">
                     <div class="report-field">
                         <div class="report-label">Reporter</div>
-                        <div class="report-value">${report.reporter_id.slice(0, 8)}</div>
+                        <div class="report-value">${(report.reporter_id || '').slice(0, 8)}</div>
                     </div>
                     <div class="report-field">
                         <div class="report-label">Reported User</div>
-                        <div class="report-value">${report.reported_id.slice(0, 8)}</div>
+                        <div class="report-value">${(report.reported_id || '').slice(0, 8)}</div>
                     </div>
                     <div class="report-field">
                         <div class="report-label">Reason</div>
@@ -473,65 +482,141 @@ function renderFeedback(feedbackToRender = feedback) {
 }
 
 function renderGames() {
-    // Placeholder for games rendering
     const gamesContainer = document.querySelector('.games-analytics');
-    if (gamesContainer) {
+    if (!gamesContainer) return;
+
+    if (!games || games.length === 0) {
         gamesContainer.innerHTML = `
             <div class="loading-spinner">
-                <i class="fas fa-gamepad"></i>
-                <span>Game analytics coming soon...</span>
+                <i class="fas fa-inbox"></i>
+                <span>No games found</span>
             </div>
         `;
+        return;
     }
+
+    // Summary chips
+    const total = games.length;
+    const completed = games.filter(g => (g.status || '').toString() === 'COMPLETED').length;
+    const inProgress = games.filter(g => (g.status || '').toString() === 'IN_PROGRESS').length;
+    const abandoned = games.filter(g => (g.status || '').toString() === 'ABANDONED').length;
+
+    gamesContainer.innerHTML = `
+        <div class="games-summary">
+            <div class="summary-card">
+                <h4>Total Games</h4>
+                <div class="summary-value">${total}</div>
+                <div class="summary-meta">Last ${total} loaded</div>
+            </div>
+            <div class="summary-card">
+                <h4>Completed</h4>
+                <div class="summary-value">${completed}</div>
+            </div>
+            <div class="summary-card">
+                <h4>In Progress</h4>
+                <div class="summary-value">${inProgress}</div>
+            </div>
+            <div class="summary-card">
+                <h4>Abandoned</h4>
+                <div class="summary-value">${abandoned}</div>
+            </div>
+        </div>
+
+        <div class="games-list">
+            ${games.map(g => {
+                const created = new Date(g.created_at).toLocaleString();
+                const status = (g.status || '').toString();
+                const statusClass = `status-${status.toLowerCase()}`;
+                const goat = g.player_goat?.username || (g.player_goat_id || '').slice(0, 8);
+                const tiger = g.player_tiger?.username || (g.player_tiger_id || '').slice(0, 8);
+                const winner = g.winner?.username || (g.winner_id ? (g.winner_id || '').slice(0,8) : '—');
+                const duration = g.game_duration ? `${g.game_duration}s` : '';
+                return `
+                    <div class="game-card">
+                        <div class="game-players">
+                            <div class="player-tag"><i class="fas fa-goat"></i> Goat: ${escapeHtml(goat)}</div>
+                            <div class="player-tag"><i class="fas fa-paw"></i> Tiger: ${escapeHtml(tiger)}</div>
+                            <div class="player-tag winner"><i class="fas fa-trophy"></i> Winner: ${escapeHtml(winner)}</div>
+                        </div>
+                        <div class="game-meta">
+                            <span class="badge ${statusClass}"><i class="fas fa-circle"></i> ${status.replace('_',' ')}</span>
+                            <span class="game-id">#${(g.game_id || '').slice(0,8)}</span>
+                            <span class="game-time">${created}</span>
+                            ${duration ? `<span class=\"game-duration\">Duration: ${duration}</span>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
 }
 
 // ===== STATS FUNCTIONS =====
 function updateStats() {
-    // Total users
-    if (elements.totalUsers) {
-        elements.totalUsers.textContent = users.length;
-    }
-    
-    // Total games (placeholder)
-    if (elements.totalGames) {
-        elements.totalGames.textContent = games.length || '0';
-    }
-    
-    // Pending reports
-    if (elements.pendingReports) {
-        elements.pendingReports.textContent = reports.length;
-    }
-    
-    // Average rating
+    // Keep avgRating from feedback; other stats from loadAdminStats
     if (elements.avgRating && feedback.length > 0) {
-        const avgRating = feedback.reduce((sum, fb) => sum + fb.rating, 0) / feedback.length;
-        elements.avgRating.textContent = avgRating.toFixed(1);
+        const avgRating = feedback.reduce((sum, fb) => sum + (fb.rating || 0), 0) / feedback.length;
+        elements.avgRating.textContent = isNaN(avgRating) ? '0.0' : avgRating.toFixed(1);
     }
 }
 
-function loadRecentActivity() {
+async function loadAdminStats() {
+    try {
+        const stats = await api.getAdminStats();
+        if (elements.totalUsers) {
+            elements.totalUsers.textContent = stats.total_users ?? 0;
+        }
+        if (elements.totalGames) {
+            elements.totalGames.textContent = stats.total_games ?? 0;
+        }
+        if (elements.pendingReports) {
+            const pending = (stats.reports_by_status && (stats.reports_by_status.OPEN || stats.reports_by_status.Open)) || 0;
+            elements.pendingReports.textContent = pending;
+        }
+    } catch (error) {
+        console.error('Failed to load admin stats:', error);
+    }
+}
+
+async function loadRecentActivity() {
     const activityContainer = document.getElementById('recent-activity');
     if (!activityContainer) return;
-    
-    // Generate mock activity data
-    const activities = [
-        { type: 'user', text: 'New user registered', time: '2 minutes ago', icon: 'fas fa-user-plus' },
-        { type: 'game', text: 'Game completed', time: '5 minutes ago', icon: 'fas fa-gamepad' },
-        { type: 'report', text: 'New report submitted', time: '10 minutes ago', icon: 'fas fa-flag' },
-        { type: 'user', text: 'User logged in', time: '15 minutes ago', icon: 'fas fa-sign-in-alt' }
-    ];
-    
-    activityContainer.innerHTML = activities.map(activity => `
-        <div class="activity-item">
-            <div class="activity-icon ${activity.type}">
-                <i class="${activity.icon}"></i>
+    try {
+        const data = await api.getRecentActivity(20);
+        const activities = (data && data.items) || [];
+        if (activities.length === 0) {
+            activityContainer.innerHTML = `
+                <div class="loading-spinner">
+                    <i class="fas fa-inbox"></i>
+                    <span>No recent activity</span>
+                </div>
+            `;
+            return;
+        }
+
+        activityContainer.innerHTML = activities.map(activity => {
+            const when = activity.created_at ? new Date(activity.created_at).toLocaleString() : '';
+            return `
+                <div class="activity-item">
+                    <div class="activity-icon ${activity.type}">
+                        <i class="${activity.icon || 'fas fa-bell'}"></i>
+                    </div>
+                    <div class="activity-content">
+                        <div class="activity-text">${escapeHtml(activity.text)}</div>
+                        <div class="activity-time">${when}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } catch (error) {
+        console.error('Failed to load recent activity', error);
+        activityContainer.innerHTML = `
+            <div class="loading-spinner">
+                <i class="fas fa-exclamation-triangle" style="color: var(--danger-color);"></i>
+                <span>Failed to load activity</span>
             </div>
-            <div class="activity-content">
-                <div class="activity-text">${activity.text}</div>
-                <div class="activity-time">${activity.time}</div>
-            </div>
-        </div>
-    `).join('');
+        `;
+    }
 }
 
 // ===== FILTERING FUNCTIONS =====
@@ -549,8 +634,11 @@ function filterReports() {
     let filteredReports = reports;
     
     if (filterValue !== 'all') {
-        // Add filtering logic when report status is implemented
-        filteredReports = reports;
+        const wanted = filterValue.toUpperCase();
+        filteredReports = reports.filter(r => {
+            const status = (r.status && r.status.toString && r.status.toString()) || r.status || '';
+            return status.toUpperCase().includes(wanted);
+        });
     }
     
     renderReports(filteredReports);
@@ -569,8 +657,7 @@ function filterFeedback() {
 }
 
 function filterGames() {
-    // Placeholder for game filtering
-    renderGames();
+    loadGames();
 }
 
 // ===== MODAL FUNCTIONS =====
@@ -701,7 +788,7 @@ function updateAdminInfo(user) {
 }
 
 function logout() {
-    localStorage.removeItem('admin-token');
+    localStorage.removeItem('adminToken');
     window.location.href = 'index.html';
 }
 
