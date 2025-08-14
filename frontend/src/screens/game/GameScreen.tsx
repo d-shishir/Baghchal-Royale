@@ -74,6 +74,7 @@ const GameScreen: React.FC = () => {
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [isGameOverModalVisible, setGameOverModalVisible] = useState(false);
   const [isReportModalVisible, setReportModalVisible] = useState(false);
+  const [isGameMenuVisible, setGameMenuVisible] = useState(false);
   const [aiGameId, setAiGameId] = useState<string | null>(null);
   const [forfeitMessage, setForfeitMessage] = useState<string | null>(null);
   
@@ -309,14 +310,20 @@ const GameScreen: React.FC = () => {
     setReportModalVisible(true);
   };
 
+  const handleOpenGameMenu = () => {
+    setGameMenuVisible(true);
+  };
+
   const handleQuitGame = () => {
     Alert.alert(
-      "Forfeit Game",
-      "Are you sure you want to forfeit?",
+      gameMode === 'online' ? "Forfeit Game" : "Exit Game",
+      gameMode === 'online' ? "Are you sure you want to forfeit?" : "Are you sure you want to exit?",
       [
         { text: "Cancel", style: "cancel" },
-        { text: "Forfeit", onPress: () => {
-          gameSocket.forfeit();
+        { text: gameMode === 'online' ? "Forfeit" : "Exit", onPress: () => {
+          if (gameMode === 'online' && gameId && gameSocket.isConnected()) {
+            gameSocket.forfeit();
+          }
           navigation.goBack();
         }, style: 'destructive' }
       ]
@@ -432,12 +439,17 @@ const GameScreen: React.FC = () => {
               )
             }
           />
-            {gameMode === 'online' && opponent && (
-                <TouchableOpacity style={styles.reportButton} onPress={handleReportPlayer}>
-                    <Ionicons name="flag-outline" size={24} color="#FFC107" />
-                    <Text style={styles.reportButtonText}>Report {opponent.username}</Text>
-                </TouchableOpacity>
-            )}
+            <View style={styles.actionsRow}>
+              {gameMode === 'online' && opponent && (
+                  <TouchableOpacity style={styles.reportButton} onPress={handleReportPlayer}>
+                      <Ionicons name="flag-outline" size={24} color="#FFC107" />
+                      <Text style={styles.reportButtonText}>Report {opponent.username}</Text>
+                  </TouchableOpacity>
+              )}
+              <TouchableOpacity style={styles.gameMenuButton} onPress={handleOpenGameMenu}>
+                <Ionicons name="settings-outline" size={22} color="#FFF" />
+              </TouchableOpacity>
+            </View>
         </View>
       </SafeAreaView>
       <GameOverModal
@@ -454,6 +466,40 @@ const GameScreen: React.FC = () => {
                 reporterId={authUser.user_id}
             />
         )}
+
+      {/* Game Menu Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={isGameMenuVisible}
+        onRequestClose={() => setGameMenuVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.gameMenuModal}>
+            <View style={styles.gameMenuHeader}>
+              <Text style={styles.gameMenuTitle}>Game Menu</Text>
+              <TouchableOpacity onPress={() => setGameMenuVisible(false)}>
+                <Ionicons name="close" size={24} color="#999" />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.gameMenuContent}>
+              <TouchableOpacity 
+                style={styles.gameMenuOption} 
+                onPress={() => {
+                  setGameMenuVisible(false);
+                  handleQuitGame();
+                }}
+              >
+                <Ionicons name="exit-outline" size={24} color="#F44336" />
+                <Text style={styles.gameMenuOptionText}>
+                  {gameMode === 'online' ? 'Forfeit Game' : 'Exit Game'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </LinearGradient>
   );
 };
@@ -625,7 +671,63 @@ const styles = StyleSheet.create({
       color: '#FFC107',
       marginLeft: 10,
       fontWeight: 'bold',
-  }
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginTop: 12,
+  },
+  gameMenuButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#555',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  gameMenuModal: {
+    backgroundColor: '#2C2C2C',
+    borderRadius: 16,
+    padding: 20,
+    width: '80%',
+    maxWidth: 300,
+  },
+  gameMenuHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  gameMenuTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFF',
+  },
+  gameMenuContent: {
+    gap: 12,
+  },
+  gameMenuOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#3C3C3C',
+    borderRadius: 8,
+  },
+  gameMenuOptionText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '500',
+    marginLeft: 12,
+  },
 });
 
 export default GameScreen;

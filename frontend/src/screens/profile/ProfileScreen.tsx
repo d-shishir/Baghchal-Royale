@@ -84,16 +84,18 @@ const ProfileScreen: React.FC = () => {
       return <LoadingScreen />;
   }
   
-  const totalXpForLevel = (level: number) => {
+  const getGamesForLevel = (level: number) => {
     if (level <= 1) return 0;
-    return Math.floor(100 * Math.pow(level - 1, 1.5));
+    // Inverse of: level = floor(sqrt(games * 2)) + 1
+    // So: games = ((level - 1)^2) / 2
+    return Math.floor(Math.pow(level - 1, 2) / 2);
   }
 
-  const xpForCurrentLevel = totalXpForLevel(user.level);
-  const xpForNextLevel = totalXpForLevel(user.level + 1);
-  const xpNeededForNextLevel = xpForNextLevel - xpForCurrentLevel;
-  const xpProgressInCurrentLevel = user.xp - xpForCurrentLevel;
-  const xpProgress = xpNeededForNextLevel > 0 ? (xpProgressInCurrentLevel / xpNeededForNextLevel) * 100 : 0;
+  const gamesForCurrentLevel = getGamesForLevel(user.level);
+  const gamesForNextLevel = getGamesForLevel(user.level + 1);
+  const gamesNeededForNextLevel = gamesForNextLevel - gamesForCurrentLevel;
+  const gamesProgressInCurrentLevel = (user.games_played || 0) - gamesForCurrentLevel;
+  const levelProgress = gamesNeededForNextLevel > 0 ? (gamesProgressInCurrentLevel / gamesNeededForNextLevel) * 100 : 0;
 
   const renderStatsTab = () => (
     <View style={styles.tabContent}>
@@ -177,19 +179,19 @@ const ProfileScreen: React.FC = () => {
                 <Ionicons name="cellular" size={20} color="#FF6F00" />
                 <Text style={styles.progressLabel}>Level {user.level}</Text>
               </View>
-              <Text style={styles.progressXP}>{user.xp} XP</Text>
+              <Text style={styles.progressXP}>{user.games_played || 0} Games</Text>
             </View>
             <View style={styles.progressBar}>
               <LinearGradient 
                 colors={['#FF6F00', '#FF8F00']}
                 style={[
                   styles.progressFill, 
-                  { width: `${xpProgress}%` }
+                  { width: `${Math.min(100, Math.max(0, levelProgress))}%` }
                 ]} 
               />
             </View>
             <Text style={styles.nextLevelText}>
-              {xpForNextLevel - user.xp} XP to next level
+              {Math.max(0, gamesForNextLevel - (user.games_played || 0))} games to next level
             </Text>
           </LinearGradient>
         </View>

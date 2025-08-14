@@ -11,6 +11,7 @@ from app.models.user import User, UserRole
 from app.schemas.user import UserCreate, UserUpdate, UserWithStats
 from app.models.game import GameStatus
 from app.models.ai_game import AIGame, AIGameStatus
+from app.core.game_utils import get_level_for_games_played
 
 
 class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
@@ -108,6 +109,16 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             win_rate = round((total_wins / total_finished) * 100, 2)
         else:
             win_rate = 0.0
+
+        # Calculate level based on total games played
+        calculated_level = get_level_for_games_played(total_played)
+        
+        # Update user's level if it has changed
+        if user.level != calculated_level:
+            user.level = calculated_level
+            db.add(user)
+            await db.commit()
+            await db.refresh(user)
             
         return UserWithStats(
             **user.__dict__,

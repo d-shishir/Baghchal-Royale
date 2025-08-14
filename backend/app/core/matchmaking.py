@@ -13,13 +13,7 @@ from app.core.game_websocket import GameWebSocketManager
 from app.crud.game import game as game_repository
 from app.crud.move import move as move_repository
 
-XP_FOR_WIN = 100
-XP_FOR_LOSS = 25
-
-def get_level_for_xp(xp: int) -> int:
-    if xp < 0:
-        return 1
-    return math.floor((xp / 100) ** (2/3)) + 1
+from app.core.game_utils import XP_FOR_WIN, XP_FOR_LOSS, get_level_for_xp
 
 class MatchmakingManager:
     def __init__(self):
