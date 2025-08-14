@@ -3,9 +3,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import os
+import asyncio
+from datetime import datetime, timedelta, timezone
+import contextlib
+from sqlalchemy import select
 
 from app.api.v1.api import api_router
 from app.core.config import settings
+from app.db.session import AsyncSessionLocal
+from app import models
+from app.models.game import GameStatus
 
 app = FastAPI(
     title="Baghchal Royale API",
@@ -92,3 +99,54 @@ async def admin_ai_analysis():
         return {"error": "AI Analysis page not found"}
 
 app.include_router(api_router, prefix="/api/v1") 
+
+
+# ===== Background task: auto-abandon stale games =====
+async def cleanup_stale_games_task():
+    """
+    Periodically mark games as ABANDONED if they have not finished within 30 minutes.
+    Runs every 5 minutes.
+    """
+    check_interval_seconds = 300  # 5 minutes
+    abandon_after = timedelta(minutes=30)
+    while True:
+        try:
+            now = datetime.now(timezone.utc)
+            threshold_time = now - abandon_after
+            async with AsyncSessionLocal() as db:
+                result = await db.execute(
+                    select(models.Game).where(
+                        models.Game.status == GameStatus.IN_PROGRESS,
+                        models.Game.created_at <= threshold_time,
+                        models.Game.ended_at.is_(None),
+                    )
+                )
+                stale_games = result.scalars().all()
+
+                if stale_games:
+                    for game in stale_games:
+                        game.status = GameStatus.ABANDONED
+                        game.ended_at = now
+                        if game.created_at:
+                            game.game_duration = int((now - game.created_at).total_seconds())
+                        db.add(game)
+                    await db.commit()
+        except Exception:
+            # Avoid crashing the loop; optionally log here
+            pass
+        await asyncio.sleep(check_interval_seconds)
+
+
+@app.on_event("startup")
+async def start_cleanup_task():
+    # Launch background cleanup task
+    app.state._cleanup_task = asyncio.create_task(cleanup_stale_games_task())
+
+
+@app.on_event("shutdown")
+async def stop_cleanup_task():
+    task = getattr(app.state, "_cleanup_task", None)
+    if task:
+        task.cancel()
+        with contextlib.suppress(Exception):
+            await task

@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Union, Dict, Any
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_
@@ -9,6 +9,24 @@ from app.models.user import User
 from app.schemas.friendship import FriendshipCreate
 
 class CRUDFriendship(CRUDBase[Friendship, FriendshipCreate, FriendshipCreate]):
+    async def update(
+        self,
+        db: AsyncSession,
+        *,
+        db_obj: Friendship,
+        obj_in: Union[Dict[str, Any], "FriendshipCreate"]
+    ) -> Friendship:
+        """Override base update to avoid jsonable_encoder recursion on SQLAlchemy models.
+
+        Only apply direct attribute updates for provided fields.
+        """
+        update_data = obj_in if isinstance(obj_in, dict) else obj_in.dict(exclude_unset=True)
+        for field_name, field_value in update_data.items():
+            setattr(db_obj, field_name, field_value)
+        db.add(db_obj)
+        await db.commit()
+        await db.refresh(db_obj)
+        return db_obj
     async def get(self, db: AsyncSession, id: uuid.UUID) -> Optional[Friendship]:
         result = await db.execute(
             select(Friendship).filter(Friendship.friendship_id == id)

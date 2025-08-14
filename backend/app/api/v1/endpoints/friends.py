@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app import crud, models, schemas
 from app.api import deps
 from app.schemas.friendship import FriendshipStatus
+from app.models.friendship import FriendshipStatus as ModelFriendshipStatus
 
 router = APIRouter()
 
@@ -35,16 +36,17 @@ async def add_friend(
         db, user1_id=user1.user_id, user2_id=user2.user_id
     )
     if existing_friendship:
-        if existing_friendship.status == schemas.FriendshipStatus.ACCEPTED:
+        # Compare enum values across model and schema enums to avoid cross-enum equality issues
+        if existing_friendship.status.value == schemas.FriendshipStatus.ACCEPTED.value:
             raise HTTPException(status_code=400, detail="You are already friends.")
-        
-        # If request was declined or is pending with the other user, resend it.
-        friendship_update = schemas.FriendshipUpdate(
-            user_id_1=friend_in.user_id_1,
-            user_id_2=friend_in.user_id_2,
-            status=schemas.FriendshipStatus.PENDING
+
+        # If request was declined or is pending with the other user, resend it (set back to PENDING)
+        # Persist with model enum to ensure SQLAlchemy Enum assignment is correct
+        friendship = await crud.friendship.update(
+            db,
+            db_obj=existing_friendship,
+            obj_in={"status": ModelFriendshipStatus.PENDING},
         )
-        friendship = await crud.friendship.update(db, db_obj=existing_friendship, obj_in=friendship_update)
     else:
         friendship = await crud.friendship.create(db, obj_in=friend_in)
 
@@ -114,8 +116,10 @@ async def update_friendship_status(
     if status_update.status not in [FriendshipStatus.ACCEPTED, FriendshipStatus.DECLINED]:
         raise HTTPException(status_code=400, detail="Invalid friendship status.")
 
+    # Convert schema enum to model enum before persisting
+    new_status = ModelFriendshipStatus(status_update.status.value)
     updated_friendship = await crud.friendship.update(
-        db, db_obj=friendship, obj_in=status_update
+        db, db_obj=friendship, obj_in={"status": new_status}
     )
     return await crud.friendship.get(db, id=updated_friendship.friendship_id)
 
