@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Connection Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 0;
+            display: block;
+        }
+        .test-button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>API Connection Test</h1>
+        <p>This page tests different ways to connect to the Baghchal Royale API.</p>
+        
+        <h3>Test 1: Health Check (Relative URL)</h3>
+        <button class="test-button" onclick="testHealth('/health')">Test /health</button>
+        <div id="health-result"></div>
+        
+        <h3>Test 2: Health Check (Absolute URL)</h3>
+        <button class="test-button" onclick="testHealth('http://localhost:8000/health')">Test http://localhost:8000/health</button>
+        <div id="health-abs-result"></div>
+        
+        <h3>Test 3: API Health Check (Relative URL)</h3>
+        <button class="test-button" onclick="testHealth('/api/v1/health')">Test /api/v1/health</button>
+        <div id="api-health-result"></div>
+        
+        <h3>Test 4: Login Endpoint Test</h3>
+        <button class="test-button" onclick="testLogin()">Test Login Endpoint</button>
+        <div id="login-result"></div>
+        
+        <h3>Instructions:</h3>
+        <div class="info">
+            <p><strong>How to use this test:</strong></p>
+            <ol>
+                <li>If you opened this file directly (file:// URL), try accessing it through: <a href="http://localhost:8000/admin/static/test_connection.html" target="_blank">http://localhost:8000/admin/static/test_connection.html</a></li>
+                <li>Click each test button to see which connection methods work</li>
+                <li>If relative URLs work but absolute URLs don't, you have a CORS/blocking issue</li>
+                <li>If no tests work, check if the backend server is running</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        async function testHealth(url) {
+            const resultId = url.includes('localhost') ? 'health-abs-result' : 
+                            url.includes('/api/') ? 'api-health-result' : 'health-result';
+            const resultDiv = document.getElementById(resultId);
+            
+            try {
+                resultDiv.innerHTML = '<div class="info">Testing...</div>';
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div class="success">✅ Success: ${JSON.stringify(data)}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ HTTP ${response.status}: ${JSON.stringify(data)}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        }
+        
+        async function testLogin() {
+            const resultDiv = document.getElementById('login-result');
+            
+            try {
+                resultDiv.innerHTML = '<div class="info">Testing login endpoint...</div>';
+                
+                const formData = new FormData();
+                formData.append('username', 'test');
+                formData.append('password', 'test');
+                
+                // Try relative URL first
+                const response = await fetch('/api/v1/auth/login', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.status === 400 && data.detail === "Incorrect email or password") {
+                    resultDiv.innerHTML = '<div class="success">✅ Login endpoint is working (got expected 400 error for wrong credentials)</div>';
+                } else if (response.ok) {
+                    resultDiv.innerHTML = `<div class="success">✅ Login successful: ${JSON.stringify(data)}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Unexpected response: HTTP ${response.status}: ${JSON.stringify(data)}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Connection Error: ${error.message}</div>`;
+                
+                // Try absolute URL as fallback
+                try {
+                    resultDiv.innerHTML += '<div class="info">Trying absolute URL...</div>';
+                    
+                    const formData = new FormData();
+                    formData.append('username', 'test');
+                    formData.append('password', 'test');
+                    
+                    const response = await fetch('http://localhost:8000/api/v1/auth/login', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (response.status === 400 && data.detail === "Incorrect email or password") {
+                        resultDiv.innerHTML += '<div class="success">✅ Absolute URL works (got expected 400 error)</div>';
+                    } else {
+                        resultDiv.innerHTML += `<div class="error">❌ Absolute URL failed: HTTP ${response.status}: ${JSON.stringify(data)}</div>`;
+                    }
+                } catch (absError) {
+                    resultDiv.innerHTML += `<div class="error">❌ Absolute URL also failed: ${absError.message}</div>`;
+                }
+            }
+        }
+    </script>
+</body>
+</html>

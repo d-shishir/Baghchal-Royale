@@ -1,44 +1,45 @@
 @startuml
 left to right direction
-skinparam actorStyle awesome
+skinparam actorStyle stick
+skinparam spline false
+skinparam linetype line
+skinparam nodesep 50
+skinparam ranksep 50
 
-actor "Guest" as Guest
-actor "Player" as Player
-actor "Admin" as Admin
+actor Guest
+actor Player  
+actor Admin
 
 rectangle "Baghchal Royale" {
+  usecase "Play as Guest (vs GuestAI)" as UC3
   usecase "Login" as UC_LOGIN
   usecase "Register" as UC_REGISTER
-  
-  Player -- (UC_LOGIN)
-  Player -- (UC_REGISTER)
-  Admin -- (UC_LOGIN)
-
-  usecase "Play as Guest (vs GuestAI)" as UC3
-  Guest -- (UC3)
-
   usecase "Manage Profile" as UC4
   usecase "View Leaderboards" as UC5
   usecase "Play Multiplayer Game" as UC6
   usecase "Manage Friends" as UC7
+  usecase "Play vs AI" as UC15
   usecase "Submit Feedback" as UC9
   usecase "Report Player" as UC10
-  usecase "Play vs AI" as UC15
-
-  Player -- (UC4)
-  Player -- (UC5)
-  Player -- (UC6)
-  Player -- (UC7)
-  Player -- (UC9)
-  Player -- (UC10)
-  Player -- (UC15)
-
   usecase "View Reports" as UC11
   usecase "Mute/Ban Player" as UC14
   usecase "View Feedback" as UC16
-  
-  Admin -- (UC11)
-  Admin -- (UC14)
-  Admin -- (UC16)
 }
+
+Guest -- UC3
+
+Player -- UC_LOGIN
+Player -- UC_REGISTER  
+Player -- UC4
+Player -- UC5
+Player -- UC6
+Player -- UC7
+Player -- UC15
+Player -- UC9
+Player -- UC10
+
+Admin -- UC_LOGIN
+Admin -- UC11
+Admin -- UC14
+Admin -- UC16
 @enduml 

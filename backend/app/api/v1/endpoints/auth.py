@@ -34,16 +34,26 @@ async def register(
     user = await crud.user.create(db, obj_in=user_in)
     return user
 
-@router.post("/login", response_model=schemas.Token)
+@router.post("/login")
 async def login_access_token(
     db: AsyncSession = Depends(deps.get_db), form_data: OAuth2PasswordRequestForm = Depends()
 ) -> Any:
     """
     OAuth2 compatible token login, get an access token for future requests
     """
+    # Try to authenticate with email first, then with username
     user = await crud.user.authenticate(
         db, email=form_data.username, password=form_data.password
     )
+    
+    # If authentication by email failed, try by username
+    if not user:
+        user_by_username = await crud.user.get_by_username(db, username=form_data.username)
+        if user_by_username:
+            user = await crud.user.authenticate(
+                db, email=user_by_username.email, password=form_data.password
+            )
+    
     if not user:
         raise HTTPException(status_code=400, detail="Incorrect email or password")
     
@@ -53,6 +63,13 @@ async def login_access_token(
             user.user_id, expires_delta=access_token_expires
         ),
         "token_type": "bearer",
+        "user": {
+            "user_id": str(user.user_id),
+            "username": user.username,
+            "email": user.email,
+            "role": user.role,
+            "status": user.status
+        }
     }
 
 @router.post("/login/test-token", response_model=schemas.User)

@@ -48,7 +48,8 @@
     "react-native-web": "^0.20.0",
     "react-redux": "^9.2.0",
     "redux-persist": "^6.0.0",
-    "ws": "^8.18.2"
+    "ws": "^8.18.2",
+    "@expo/metro-runtime": "~5.0.4"
   },
   "devDependencies": {
     "@babel/core": "^7.27.4",

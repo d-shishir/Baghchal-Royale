@@ -1,6 +1,10 @@
 class AdminAPI {
     constructor() {
-        this.baseURL = 'http://localhost:8000/api/v1';
+        // Use relative URL when accessed through the backend server,
+        // fallback to localhost for development
+        this.baseURL = window.location.origin.includes('localhost:8000') 
+            ? '/api/v1' 
+            : 'http://localhost:8000/api/v1';
         this.token = localStorage.getItem('admin-token');
     }
 
