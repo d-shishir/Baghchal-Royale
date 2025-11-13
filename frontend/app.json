@@ -20,10 +20,15 @@
     },
     "android": {
       "adaptiveIcon": {
+        "foregroundImage": "./assets/br.png",
         "backgroundColor": "#1a1a1a"
       },
       "package": "com.baghchal.royale",
-      "versionCode": 1
+      "versionCode": 1,
+      "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE"
+      ]
     },
     "web": {
       "bundler": "metro"
@@ -32,6 +37,10 @@
       "expo-font"
     ],
     "scheme": "baghchal-royale",
+    "updates": {
+      "fallbackToCacheTimeout": 0,
+      "enabled": false
+    },
     "extra": {
     }
   }
