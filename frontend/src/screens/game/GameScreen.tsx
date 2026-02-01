@@ -18,7 +18,7 @@ import GameBoard from '../../components/game/GameBoard';
 import TigerIcon from '../../components/game/TigerIcon';
 import GoatIcon from '../../components/game/GoatIcon';
 import { GameState, PieceType, PlayerSide, GamePhase, isMoveValid, applyMove, getMovesForPiece, PotentialMove, GameStatus as GameStatusEnum } from '../../game-logic/baghchal';
-import { getGuestAIMove } from '../../game-logic/guestAI';
+import { getGuestAIMove, AIDifficulty } from '../../game-logic/guestAI';
 import { RootState } from '../../store';
 import { Player } from '../../services/types';
 import { initialGameState } from '../../game-logic/initialState';
@@ -69,7 +69,15 @@ const GameScreen: React.FC = () => {
       
       const handleAIMove = async () => {
         try {
-          const aiPotentialMove = getGuestAIMove(currentGameState);
+          // Determine AI side (opposite of human side)
+          const aiSide = playerSide === 'Tiger' ? 'Goat' : 'Tiger';
+          
+          // Map string difficulty to Enum
+          let difficultyEnum = AIDifficulty.MEDIUM;
+          if (aiDifficulty === 'EASY') difficultyEnum = AIDifficulty.EASY;
+          else if (aiDifficulty === 'HARD') difficultyEnum = AIDifficulty.HARD;
+
+          const aiPotentialMove = getGuestAIMove(currentGameState, difficultyEnum, aiSide);
           
           if (aiPotentialMove) {
             const aiMove = { ...aiPotentialMove, player_id: currentGameState.currentPlayer, timestamp: new Date().toISOString() };

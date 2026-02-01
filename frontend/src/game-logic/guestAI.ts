@@ -14,8 +14,8 @@ interface DifficultyConfig {
 }
 
 const DIFFICULTY_CONFIGS: Record<AIDifficulty, DifficultyConfig> = {
-  [AIDifficulty.EASY]: { depth: 2, randomMoveChance: 0.4, useAdvancedEval: false },
-  [AIDifficulty.MEDIUM]: { depth: 3, randomMoveChance: 0.15, useAdvancedEval: true },
+  [AIDifficulty.EASY]: { depth: 2, randomMoveChance: 0.2, useAdvancedEval: false },
+  [AIDifficulty.MEDIUM]: { depth: 3, randomMoveChance: 0, useAdvancedEval: true },
   [AIDifficulty.HARD]: { depth: 4, randomMoveChance: 0, useAdvancedEval: true },
 };
 
@@ -225,7 +225,7 @@ export class GuestModeAI {
     let score = 0;
 
     // Primary: Captures are the main goal
-    score += features.goatsCaptured * 500;
+    score += features.goatsCaptured * 2000;
 
     // Mobility is crucial - trapped tiger = bad
     score += features.totalTigerMobility * 30;
@@ -233,7 +233,7 @@ export class GuestModeAI {
     score -= features.nearlyTrappedTigers * 50;
 
     // Capture threats are valuable opportunities
-    score += features.captureThreats * 80;
+    score += features.captureThreats * 150;
 
     if (advanced) {
       // Central control for tigers
@@ -259,13 +259,13 @@ export class GuestModeAI {
     score += features.nearlyTrappedTigers * 200;
 
     // Avoid losing goats
-    score -= features.goatsCaptured * 300;
+    score -= features.goatsCaptured * 1000;
 
     // Limit tiger mobility
     score -= features.totalTigerMobility * 20;
 
     // Block capture opportunities
-    score -= features.captureThreats * 100;
+    score -= features.captureThreats * 500;
 
     if (advanced) {
       // Good formations help trap tigers
