@@ -2,7 +2,6 @@ import { configureStore, combineReducers } from '@reduxjs/toolkit';
 import { persistStore, persistReducer, FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER } from 'redux-persist';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { api } from '../services/api';
 import authReducer from './slices/authSlice';
 import gameReducer from './slices/gameSlice';
 import uiReducer from './slices/uiSlice';
@@ -10,11 +9,10 @@ import uiReducer from './slices/uiSlice';
 const persistConfig = {
   key: 'root',
   storage: AsyncStorage,
-  whitelist: ['auth'], // We only want to persist auth state
+  whitelist: ['auth', 'game', 'ui'], // Persist auth, game state, and UI settings for offline use
 };
 
 const rootReducer = combineReducers({
-  [api.reducerPath]: api.reducer,
   auth: authReducer,
   game: gameReducer,
   ui: uiReducer,
@@ -29,7 +27,7 @@ export const store = configureStore({
       serializableCheck: {
         ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
       },
-    }).concat(api.middleware),
+    }),
 });
 
 export const persistor = persistStore(store);

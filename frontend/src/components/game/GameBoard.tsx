@@ -1,23 +1,24 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import {
   View,
   StyleSheet,
   Dimensions,
-  ImageBackground,
   TouchableOpacity,
   LayoutAnimation,
   UIManager,
   Platform,
-  ColorValue,
 } from 'react-native';
 import Svg, { Line } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAudioPlayer } from 'expo-audio';
-import { FontAwesome5 } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import { useSelector } from 'react-redux';
 
 import { PieceType, PlayerSide, GamePhase } from '../../game-logic/baghchal';
 import TigerIcon from './TigerIcon';
 import GoatIcon from './GoatIcon';
+import { useAppTheme } from '../../theme';
+import { RootState } from '../../store';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -39,11 +40,11 @@ interface GameBoardProps {
 }
 
 const { width: screenWidth } = Dimensions.get('window');
-const BOARD_CONTAINER_SIZE = screenWidth - 50;
-const PADDING = 20;
+const BOARD_CONTAINER_SIZE = screenWidth - 48;
+const PADDING = 24;
 const BOARD_GRID_SIZE = BOARD_CONTAINER_SIZE - PADDING * 2;
 const CELL_SIZE = BOARD_GRID_SIZE / 4;
-const PIECE_DIAMETER = CELL_SIZE * 0.6;
+const PIECE_DIAMETER = CELL_SIZE * 0.55;
 
 const GameBoard: React.FC<GameBoardProps> = ({
   board,
@@ -54,48 +55,82 @@ const GameBoard: React.FC<GameBoardProps> = ({
   currentPlayer,
   phase,
 }) => {
+  const theme = useAppTheme();
+  const enableSoundEffects = useSelector((state: RootState) => state.ui.enableSoundEffects);
+  const enableVibration = useSelector((state: RootState) => state.ui.enableVibration);
+  const enableAnimations = useSelector((state: RootState) => state.ui.enableAnimations);
+  
   const moveSoundPlayer = useAudioPlayer(require('../../../assets/audio/move_sound.mp3'));
   const captureSoundPlayer = useAudioPlayer(require('../../../assets/audio/capture_sound.mp3'));
 
   useEffect(() => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
-  }, [board]);
+    if (enableAnimations) {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
+    }
+  }, [board, enableAnimations]);
 
   const playMoveSound = useCallback(async () => {
+    if (!enableSoundEffects) return;
     moveSoundPlayer.seekTo(0);
     moveSoundPlayer.play();
-  }, [moveSoundPlayer]);
+  }, [moveSoundPlayer, enableSoundEffects]);
   
   const playCaptureSound = useCallback(async () => {
+    if (!enableSoundEffects) return;
     captureSoundPlayer.seekTo(0);
     captureSoundPlayer.play();
-  }, [captureSoundPlayer]);
+  }, [captureSoundPlayer, enableSoundEffects]);
+
+  const triggerHaptic = useCallback((isCapture: boolean) => {
+    if (!enableVibration) return;
+    if (isCapture) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } else {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  }, [enableVibration]);
 
   const handlePositionPress = (row: number, col: number) => {
     if (isMoveLoading) return;
 
-    const piece = board[row][col];
     const isCapture = validMoves.some(m => m.row === row && m.col === col) && 
                       selectedPosition && 
                       Math.abs(selectedPosition.row - row) > 1;
 
     if (isCapture) {
       playCaptureSound();
+      triggerHaptic(true);
     } else {
       playMoveSound();
+      triggerHaptic(false);
     }
     onPositionPress({ row, col });
   };
 
   const renderLines = () => {
     const lines = [];
+    const lineColor = theme.isDark ? 'rgba(139,90,43,0.6)' : 'rgba(101,67,33,0.4)';
+    const lineWidth = 2;
+    
     const connections = [
-      // Horizontal and vertical lines
-      ...Array.from({ length: 5 }, (_, i) => ({ x1: PADDING, y1: i * CELL_SIZE + PADDING, x2: BOARD_GRID_SIZE + PADDING, y2: i * CELL_SIZE + PADDING })),
-      ...Array.from({ length: 5 }, (_, i) => ({ x1: i * CELL_SIZE + PADDING, y1: PADDING, x2: i * CELL_SIZE + PADDING, y2: BOARD_GRID_SIZE + PADDING })),
-      // Diagonal lines
+      // Horizontal lines
+      ...Array.from({ length: 5 }, (_, i) => ({ 
+        x1: PADDING, 
+        y1: i * CELL_SIZE + PADDING, 
+        x2: BOARD_GRID_SIZE + PADDING, 
+        y2: i * CELL_SIZE + PADDING 
+      })),
+      // Vertical lines
+      ...Array.from({ length: 5 }, (_, i) => ({ 
+        x1: i * CELL_SIZE + PADDING, 
+        y1: PADDING, 
+        x2: i * CELL_SIZE + PADDING, 
+        y2: BOARD_GRID_SIZE + PADDING 
+      })),
+      // Main diagonals
       { x1: PADDING, y1: PADDING, x2: BOARD_GRID_SIZE + PADDING, y2: BOARD_GRID_SIZE + PADDING },
       { x1: BOARD_GRID_SIZE + PADDING, y1: PADDING, x2: PADDING, y2: BOARD_GRID_SIZE + PADDING },
+      // Secondary diagonals
       { x1: PADDING, y1: 2 * CELL_SIZE + PADDING, x2: 2 * CELL_SIZE + PADDING, y2: PADDING },
       { x1: 2 * CELL_SIZE + PADDING, y1: PADDING, x2: BOARD_GRID_SIZE + PADDING, y2: 2 * CELL_SIZE + PADDING },
       { x1: PADDING, y1: 2 * CELL_SIZE + PADDING, x2: 2 * CELL_SIZE + PADDING, y2: BOARD_GRID_SIZE + PADDING },
@@ -103,7 +138,14 @@ const GameBoard: React.FC<GameBoardProps> = ({
     ];
 
     for (const line of connections) {
-      lines.push(<Line {...line} stroke="rgba(0,0,0,0.2)" strokeWidth={2} key={`${line.x1}-${line.y1}-${line.x2}-${line.y2}`} />);
+      lines.push(
+        <Line 
+          {...line} 
+          stroke={lineColor} 
+          strokeWidth={lineWidth}
+          key={`${line.x1}-${line.y1}-${line.x2}-${line.y2}`} 
+        />
+      );
     }
     return lines;
   };
@@ -132,9 +174,30 @@ const GameBoard: React.FC<GameBoardProps> = ({
             onPress={() => handlePositionPress(row, col)}
             activeOpacity={0.7}
           >
-            {isValidMove && piece === PieceType.EMPTY && <View style={styles.validMoveIndicator} />}
+            {/* Valid move indicator - subtle dot */}
+            {isValidMove && piece === PieceType.EMPTY && (
+              <View style={styles.validMoveIndicator} />
+            )}
+            
+            {/* Game piece */}
             {piece !== PieceType.EMPTY && (
-              <Piece isTiger={piece === PieceType.TIGER} isSelected={isSelected} />
+              <View style={[
+                styles.pieceContainer, 
+                isSelected && { 
+                  transform: [{ scale: 1.1 }],
+                }
+              ]}>
+                {piece === PieceType.TIGER ? (
+                  <TigerIcon size={PIECE_DIAMETER} />
+                ) : (
+                  <GoatIcon size={PIECE_DIAMETER} />
+                )}
+                {isSelected && (
+                  <View style={[styles.selectionRing, { 
+                    borderColor: piece === PieceType.TIGER ? theme.colors.tigerColor : theme.colors.goatColor 
+                  }]} />
+                )}
+              </View>
             )}
           </TouchableOpacity>
         );
@@ -143,35 +206,27 @@ const GameBoard: React.FC<GameBoardProps> = ({
     return elements;
   };
 
+  const boardBgColors = theme.isDark 
+    ? ['#3D3020', '#4A3C2A', '#3D3020'] as const
+    : ['#DEB887', '#D2B48C', '#DEB887'] as const;
+
   return (
     <View style={styles.gameWrapper}>
-      <View style={styles.boardContainer}>
-        <Svg height={BOARD_CONTAINER_SIZE} width={BOARD_CONTAINER_SIZE}>
+      <LinearGradient
+        colors={boardBgColors}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.boardContainer}
+      >
+        {/* Board lines */}
+        <Svg height={BOARD_CONTAINER_SIZE} width={BOARD_CONTAINER_SIZE} style={styles.svgBoard}>
           {renderLines()}
         </Svg>
-      </View>
-      <View style={StyleSheet.absoluteFillObject} pointerEvents="box-none">
-        {renderPiecesAndHighlights()}
-      </View>
-    </View>
-  );
-};
-
-const Piece = ({ isTiger, isSelected }: { isTiger: boolean; isSelected: boolean }) => {
-  const gradientColors = isTiger
-    ? (['#FF8F00', '#FF6F00'] as [string, string])
-    : (['#E0E0E0', '#BDBDBD'] as [string, string]);
-
-  const iconColor = isTiger ? '#FFF' : '#424242';
-
-  return (
-    <View style={[styles.pieceContainer, isSelected && styles.selectedPiece]}>
-      <LinearGradient colors={gradientColors} style={styles.piece}>
-        {isTiger ? (
-          <TigerIcon size={PIECE_DIAMETER * 0.7} color={iconColor} />
-        ) : (
-          <GoatIcon size={PIECE_DIAMETER * 0.7} color={iconColor} />
-        )}
+        
+        {/* Pieces */}
+        <View style={StyleSheet.absoluteFillObject} pointerEvents="box-none">
+          {renderPiecesAndHighlights()}
+        </View>
       </LinearGradient>
     </View>
   );
@@ -179,20 +234,23 @@ const Piece = ({ isTiger, isSelected }: { isTiger: boolean; isSelected: boolean 
 
 const styles = StyleSheet.create({
   gameWrapper: {
-    width: BOARD_CONTAINER_SIZE,
-    height: BOARD_CONTAINER_SIZE,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 20,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 15,
+    borderRadius: 12,
   },
   boardContainer: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 10,
-    backgroundColor: '#C8A479',
+    width: BOARD_CONTAINER_SIZE,
+    height: BOARD_CONTAINER_SIZE,
+    borderRadius: 12,
     overflow: 'hidden',
+  },
+  svgBoard: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
   },
   touchableIntersection: {
     position: 'absolute',
@@ -200,10 +258,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   validMoveIndicator: {
-    width: PIECE_DIAMETER * 0.4,
-    height: PIECE_DIAMETER * 0.4,
-    borderRadius: PIECE_DIAMETER * 0.2,
-    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    borderWidth: 2,
+    borderColor: 'rgba(139, 90, 43, 0.5)',
   },
   pieceContainer: {
     width: '100%',
@@ -211,24 +271,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  selectedPiece: {
-    transform: [{ scale: 1.1 }],
-    shadowColor: '#FFD700',
-    shadowOpacity: 0.8,
-    shadowRadius: 10,
-    elevation: 15,
-  },
-  piece: {
-    width: '100%',
-    height: '100%',
-    borderRadius: PIECE_DIAMETER / 2,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
+  selectionRing: {
+    position: 'absolute',
+    width: '110%',
+    height: '110%',
+    borderRadius: 999,
+    borderWidth: 3,
   },
 });
 

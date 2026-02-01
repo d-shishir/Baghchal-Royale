@@ -80,15 +80,19 @@ const SinglePlayerContainer: React.FC = () => {
   useEffect(() => {
     if (isOnline || viewMode !== 'playing' || localGameState.gameOver) return;
 
-    const aiSide = userSide === 'tigers' ? 'goats' : 'tigers';
-    if (localGameState.currentPlayer === aiSide) {
+    // Convert side format: 'tigers'/'goats' -> 'Tiger'/'Goat'
+    const aiSideLower = userSide === 'tigers' ? 'goats' : 'tigers';
+    const aiSideFormatted = aiSideLower === 'tigers' ? 'Tiger' : 'Goat';
+    
+    if (localGameState.currentPlayer === aiSideLower) {
       setIsAIThinking(true);
       const timer = setTimeout(() => {
         try {
             ai.setDifficulty(difficulty);
+            ai.setAISide(aiSideFormatted as 'Tiger' | 'Goat');
             const aiMove = ai.getMove(localGameState as GameState);
             if (aiMove) {
-              const fullMove: GameMove = { ...aiMove, player_id: aiSide, timestamp: new Date().toISOString() };
+              const fullMove: GameMove = { ...aiMove, player_id: aiSideLower, timestamp: new Date().toISOString() };
               if (isMoveValid(localGameState as GameState, fullMove)) {
                 const stateAfterMove = applyMove(localGameState as GameState, fullMove);
                 const gameResult = checkWinCondition(stateAfterMove);

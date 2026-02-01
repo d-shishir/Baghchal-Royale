@@ -1,24 +1,43 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import QuickMatchModal from '../../components/game/QuickMatchModal';
+import { useDispatch } from 'react-redux';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { startLocalGame } from '../../store/slices/gameSlice';
 import { initialGameState } from '../../game-logic/initialState';
-import { GameState } from '../../game-logic/baghchal';
+import { Game, Player, GameStatus } from '../../services/types';
+import { useAppTheme } from '../../theme';
 
 const MultiplayerSetupScreen = () => {
-  const [isQuickMatchModalVisible, setQuickMatchModalVisible] = useState(false);
   const navigation = useNavigation<any>();
+  const dispatch = useDispatch();
+  const insets = useSafeAreaInsets();
+  const theme = useAppTheme();
 
   const handlePVPOnDevice = () => {
     const gameId = `local-pvp-${Date.now()}`;
+    const player1: Player = { user_id: 'player1', username: 'Player 1 (Tiger)'};
+    const player2: Player = { user_id: 'player2', username: 'Player 2 (Goat)'};
+
+    const localGame: Game = {
+      game_id: gameId,
+      player_tiger_id: 'player1',
+      player_goat_id: 'player2',
+      player_tiger: player1,
+      player_goat: player2,
+      status: GameStatus.IN_PROGRESS,
+      game_state: initialGameState,
+      created_at: new Date().toISOString(),
+    };
+
+    dispatch(startLocalGame(localGame));
     navigation.navigate('Game', {
       gameId: gameId,
       gameMode: 'local',
@@ -26,116 +45,225 @@ const MultiplayerSetupScreen = () => {
     });
   };
 
+  const styles = createStyles(theme, insets);
+
   return (
-    <LinearGradient colors={['#1a1a2e', '#16213e']} style={styles.container}>
-      <SafeAreaView style={{flex: 1}}>
-        <QuickMatchModal 
-            visible={isQuickMatchModalVisible} 
-            onClose={() => setQuickMatchModalVisible(false)} 
-        />
+    <View style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity 
+          onPress={() => navigation.goBack()} 
+          style={styles.backButton}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Local Multiplayer</Text>
+      </View>
+
+      <View style={styles.content}>
+        {/* Icon */}
+        <View style={styles.iconContainer}>
+          <View style={[styles.iconCircle, { backgroundColor: theme.colors.tigerColor }]}>
+            <Ionicons name="people" size={48} color="#FFF" />
+          </View>
+        </View>
         
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}><Ionicons name="arrow-back" size={24} color="white" /></TouchableOpacity>
-          <Text style={styles.title}>Multiplayer</Text>
-          <View style={{width: 24}} />
-        </View>
+        {/* Title and description */}
+        <Text style={styles.promptTitle}>Play with a Friend</Text>
+        <Text style={styles.promptSubtitle}>
+          Share your device and take turns playing as Tigers and Goats
+        </Text>
 
-        <View style={styles.content}>
-            <Text style={styles.promptTitle}>Ready for a Challenge?</Text>
-            <Text style={styles.promptSubtitle}>Jump into a random match against players from around the world.</Text>
-            <TouchableOpacity style={styles.megaButton} onPress={() => setQuickMatchModalVisible(true)}>
-                <Ionicons name="flash" size={32} color="#FFF" />
-                <Text style={styles.megaButtonText}>Quick Match</Text>
-            </TouchableOpacity>
-
-            <View style={styles.divider}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>OR</Text>
-                <View style={styles.dividerLine} />
+        {/* Player assignments */}
+        <View style={styles.playerCards}>
+          <View style={styles.playerCard}>
+            <View style={[styles.playerIcon, { backgroundColor: theme.colors.tigerColor }]}>
+              <Ionicons name="flash" size={24} color="#FFF" />
             </View>
+            <View style={styles.playerInfo}>
+              <Text style={styles.playerLabel}>Player 1</Text>
+              <Text style={styles.playerRole}>Tigers</Text>
+            </View>
+          </View>
 
-            <TouchableOpacity style={styles.secondaryButton} onPress={handlePVPOnDevice}>
-                <Ionicons name="phone-portrait-outline" size={24} color="#FFF" />
-                <Text style={styles.secondaryButtonText}>PVP on Device</Text>
-            </TouchableOpacity>
+          <View style={styles.vsContainer}>
+            <Text style={styles.vsText}>VS</Text>
+          </View>
+
+          <View style={styles.playerCard}>
+            <View style={[styles.playerIcon, { backgroundColor: theme.colors.goatColor }]}>
+              <Ionicons name="shield" size={24} color="#FFF" />
+            </View>
+            <View style={styles.playerInfo}>
+              <Text style={styles.playerLabel}>Player 2</Text>
+              <Text style={styles.playerRole}>Goats</Text>
+            </View>
+          </View>
         </View>
 
-      </SafeAreaView>
-    </LinearGradient>
+        {/* Instructions */}
+        <View style={styles.instructionCard}>
+          <View style={styles.instructionRow}>
+            <Ionicons name="swap-horizontal" size={20} color={theme.colors.tigerColor} />
+            <Text style={styles.instructionText}>Pass the device after each turn</Text>
+          </View>
+          <View style={styles.instructionRow}>
+            <Ionicons name="shield" size={20} color={theme.colors.goatColor} />
+            <Text style={styles.instructionText}>Goats move first</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Start Button */}
+      <View style={styles.footer}>
+        <TouchableOpacity 
+          style={[styles.startButton, { backgroundColor: theme.colors.tigerColor }]} 
+          onPress={handlePVPOnDevice}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="play" size={24} color="#FFF" style={styles.startIcon} />
+          <Text style={styles.startButtonText}>Start Game</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 };
 
-const styles = StyleSheet.create({
-    container: { flex: 1 },
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20 },
-    title: { fontSize: 24, fontWeight: 'bold', color: 'white' },
-    content: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingHorizontal: 20,
-    },
-    promptTitle: {
-        fontSize: 28,
-        fontWeight: 'bold',
-        color: 'white',
-        textAlign: 'center',
-        marginBottom: 16,
-    },
-    promptSubtitle: {
-        fontSize: 16,
-        color: '#ccc',
-        textAlign: 'center',
-        marginBottom: 40,
-        maxWidth: '80%',
-    },
-    megaButton: { 
-        flexDirection: 'row', 
-        backgroundColor: 'rgba(233, 69, 96, 0.8)', 
-        paddingVertical: 20,
-        paddingHorizontal: 40, 
-        borderRadius: 30, 
-        justifyContent: 'center', 
-        alignItems: 'center',
-        elevation: 8, 
-        shadowColor: '#000', 
-        shadowOpacity: 0.4, 
-        shadowRadius: 8, 
-        shadowOffset: { width: 0, height: 4 } 
-    },
-    megaButtonText: { color: 'white', marginLeft: 15, fontWeight: 'bold', fontSize: 22 },
-    divider: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginVertical: 30,
-    },
-    dividerLine: {
-        flex: 1,
-        height: 1,
-        backgroundColor: 'rgba(255,255,255,0.2)',
-    },
-    dividerText: {
-        color: 'rgba(255,255,255,0.5)',
-        marginHorizontal: 15,
-        fontWeight: 'bold',
-    },
-    secondaryButton: {
-        flexDirection: 'row',
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
-        paddingVertical: 15,
-        paddingHorizontal: 30,
-        borderRadius: 25,
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.2)',
-    },
-    secondaryButtonText: {
-        color: 'white',
-        marginLeft: 15,
-        fontWeight: 'bold',
-        fontSize: 18,
-    },
+const createStyles = (theme: ReturnType<typeof useAppTheme>, insets: { top: number; bottom: number }) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: insets.top + 12,
+    paddingBottom: 16,
+  },
+  backButton: {
+    marginRight: 16,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: theme.colors.text,
+  },
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  iconContainer: {
+    marginBottom: 24,
+  },
+  iconCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  promptTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: theme.colors.text,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  promptSubtitle: {
+    fontSize: 15,
+    color: theme.colors.onSurfaceVariant,
+    textAlign: 'center',
+    marginBottom: 32,
+    lineHeight: 22,
+  },
+  playerCards: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 32,
+    width: '100%',
+  },
+  playerCard: {
+    flex: 1,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  playerIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  playerInfo: {
+    alignItems: 'center',
+  },
+  playerLabel: {
+    fontSize: 13,
+    color: theme.colors.onSurfaceVariant,
+    marginBottom: 2,
+  },
+  playerRole: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  vsContainer: {
+    paddingHorizontal: 12,
+  },
+  vsText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: theme.colors.onSurfaceVariant,
+  },
+  instructionCard: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: 12,
+    padding: 16,
+    width: '100%',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  instructionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  instructionText: {
+    color: theme.colors.onSurfaceVariant,
+    fontSize: 14,
+    marginLeft: 12,
+  },
+  footer: {
+    padding: 20,
+    paddingBottom: insets.bottom + 20,
+    backgroundColor: theme.colors.background,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+  },
+  startButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    borderRadius: 14,
+  },
+  startIcon: {
+    marginRight: 8,
+  },
+  startButtonText: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#FFF',
+  },
 });
 
-export default MultiplayerSetupScreen; 
+export default MultiplayerSetupScreen;

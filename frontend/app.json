@@ -34,14 +34,14 @@
       "bundler": "metro"
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      "expo-audio"
     ],
     "scheme": "baghchal-royale",
     "updates": {
       "fallbackToCacheTimeout": 0,
       "enabled": false
     },
-    "extra": {
-    }
+    "extra": {}
   }
-} 
+}

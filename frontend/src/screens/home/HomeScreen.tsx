@@ -1,486 +1,316 @@
-import React from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Dimensions,
-  Alert,
-  ActivityIndicator,
-} from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, StatusBar, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { useSelector, useDispatch } from 'react-redux';
-import { useNavigation } from '@react-navigation/native';
+import { useDispatch, useSelector } from 'react-redux';
+import { useNavigation, CompositeNavigationProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { RootState } from '../../store';
-import { MainStackParamList } from '../../navigation/MainNavigator';
-import { startLocalGame } from '../../store/slices/gameSlice';
-import { Game, Player, GameStatus } from '../../services/types';
-import { initialGameState } from '../../game-logic/initialState';
-import { useGetGamesQuery } from '../../services/api';
-
-type HomeScreenNavigationProp = StackNavigationProp<MainStackParamList, 'MainTabs'>;
+import { setShowGameRules, setShowSettings } from '../../store/slices/uiSlice';
+import { MainStackParamList, MainTabParamList } from '../../navigation/MainNavigator';
+import { theme as staticTheme, useAppTheme } from '../../theme';
+import GameButton from '../../components/game/GameButton';
+import GameCard from '../../components/game/GameCard';
+import RulesModal from '../../components/game/RulesModal';
 
 const { width } = Dimensions.get('window');
+
+// Define navigation prop type
+type HomeScreenNavigationProp = CompositeNavigationProp<
+  BottomTabNavigationProp<MainTabParamList, 'Home'>,
+  StackNavigationProp<MainStackParamList>
+>;
+
+// Define static theme for styles usage
+const theme = staticTheme;
 
 const HomeScreen: React.FC = () => {
   const navigation = useNavigation<HomeScreenNavigationProp>();
   const dispatch = useDispatch();
+  const insets = useSafeAreaInsets();
   const user = useSelector((state: RootState) => state.auth.user);
-  const isAuthenticated = useSelector((state: RootState) => state.auth.isAuthenticated);
-  const isGuest = useSelector((state: RootState) => state.auth.isGuest);
+  const localGameHistory = useSelector((state: RootState) => state.game.localGameHistory);
+  
+  const currentTheme = useAppTheme(); // Dynamic theme (renamed to avoid conflict with static theme)
+
+  // Calculate stats
+  const { totalGames, wins, winRate } = useMemo(() => {
+    const games = localGameHistory || [];
+    const total = games.length;
+    const won = games.filter(g => g.result === 'win').length;
+    const rate = total > 0 ? Math.round((won / total) * 100) : 0;
+    
+    return {
+      totalGames: total,
+      wins: won,
+      winRate: rate
+    };
+  }, [localGameHistory]);
+
+  const handleViewProfile = () => {
+    navigation.navigate('Profile');
+  };
 
   const handlePlaySinglePlayer = () => {
     navigation.navigate('SinglePlayerSetup');
   };
 
   const handlePlayLocalPVP = () => {
-    const gameId = `local-pvp-${Date.now()}`;
-    const player1: Player = { user_id: 'player1', username: 'Player 1 (Tiger)'};
-    const player2: Player = { user_id: 'player2', username: 'Player 2 (Goat)'};
-
-    const localGame: Game = {
-        game_id: gameId,
-        player_tiger_id: 'player1',
-        player_goat_id: 'player2',
-        player_tiger: player1,
-        player_goat: player2,
-        status: GameStatus.IN_PROGRESS,
-        game_state: initialGameState,
-        created_at: new Date().toISOString(),
-    };
-    dispatch(startLocalGame(localGame));
-    navigation.navigate('Game', { gameId, gameMode: 'local' });
-  };
-
-  const handlePlayMultiplayer = () => {
-    if (!isAuthenticated || isGuest) {
-      Alert.alert(
-        'Account Required',
-        'Please log in or create an account to play online multiplayer games.',
-        [{ text: 'OK' }]
-      );
-      return;
-    }
     navigation.navigate('MultiplayerSetup');
   };
 
-  const handleViewProfile = () => {
-    navigation.navigate('MainTabs', { screen: 'Profile' });
-  };
-
-  const handleViewLeaderboard = () => {
-    navigation.navigate('MainTabs', { screen: 'Leaderboard' });
-  };
-
   const handleShowGameRules = () => {
-     Alert.alert(
-      'Baghchal Rules',
-      '🐯 4 Tigers vs 🐐 20 Goats\n\n• Tigers move first\n• Tigers win by capturing 5 goats\n• Goats win by blocking all tiger movements\n• Game has 2 phases: placement and movement'
-    );
+    dispatch(setShowGameRules(true));
   };
-  
-  const { data: games = [], isLoading: isLoadingGames } = useGetGamesQuery(undefined, {
-    skip: !isAuthenticated || isGuest,
-    pollingInterval: 30000, // Poll for new games every 30 seconds
-  });
 
-  const ongoingGames = games.filter(g => g.status === GameStatus.IN_PROGRESS);
-  const finishedGames = games.filter(g => g.status === GameStatus.COMPLETED);
-
-  // TODO: calculate winrate from user's game history
-  const winRate = 'N/A';
+  const handleViewSettings = () => {
+    navigation.navigate('Settings');
+  };
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Header Section */}
-      <LinearGradient colors={['#2d2d2d', '#1a1a1a']} style={styles.header}>
-        <View style={styles.headerContent}>
+    <View style={[styles.container, { backgroundColor: currentTheme.colors.background }]}>
+      <StatusBar barStyle={currentTheme.isDark ? "light-content" : "dark-content"} />
+      <LinearGradient
+        colors={[currentTheme.colors.bgGradStart, currentTheme.colors.bgGradEnd]}
+        style={styles.background}
+      />
+      
+      <ScrollView 
+        style={styles.scrollView} 
+        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 20 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header Section */}
+        <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>Welcome back,</Text>
-            <Text style={styles.username}>{user?.username || 'Guest'}</Text>
+            <Text style={[styles.greeting, { color: currentTheme.colors.onSurfaceVariant }]}>WELCOME BACK</Text>
+            <Text style={[styles.username, { color: currentTheme.colors.text }]}>{user?.username || 'Hunter'}</Text>
           </View>
-          <TouchableOpacity onPress={handleViewProfile} style={styles.profileButton}>
-            <Ionicons name="person-circle-outline" size={32} color="#FF5252" />
-          </TouchableOpacity>
+          <GameButton 
+            onPress={handleViewProfile}
+            title=""
+            icon={<Ionicons name="person" size={24} color={currentTheme.colors.onPrimary} />}
+            circular
+          />
         </View>
-      </LinearGradient>
 
-      {/* Game Mode Selection */}
-      <View style={styles.gameModesSection}>
-        <Text style={styles.sectionTitle}>Choose Game Mode</Text>
+        {/* Stats Section */}
+        <View style={[styles.statsContainer, { backgroundColor: currentTheme.colors.surface, borderColor: currentTheme.colors.border }]}>
+          <View style={styles.statBox}>
+            <View style={[styles.statIconBox, { backgroundColor: currentTheme.colors.tigerColor + '20' }]}>
+              <Ionicons name="game-controller" size={20} color={currentTheme.colors.tigerColor} />
+            </View>
+            <Text style={[styles.statValue, { color: currentTheme.colors.text }]}>{totalGames}</Text>
+            <Text style={[styles.statLabel, { color: currentTheme.colors.onSurfaceVariant }]}>Games</Text>
+          </View>
+          
+          <View style={[styles.statDivider, { backgroundColor: currentTheme.colors.border }]} />
+          
+          <View style={styles.statBox}>
+            <View style={[styles.statIconBox, { backgroundColor: currentTheme.colors.success + '20' }]}>
+              <Ionicons name="trophy" size={20} color={currentTheme.colors.success} />
+            </View>
+            <Text style={[styles.statValue, { color: currentTheme.colors.text }]}>{wins}</Text>
+            <Text style={[styles.statLabel, { color: currentTheme.colors.onSurfaceVariant }]}>Wins</Text>
+          </View>
+          
+          <View style={[styles.statDivider, { backgroundColor: currentTheme.colors.border }]} />
+          
+          <View style={styles.statBox}>
+            <View style={[styles.statIconBox, { backgroundColor: currentTheme.colors.primary + '20' }]}>
+              <Ionicons name="stats-chart" size={20} color={currentTheme.colors.primary} />
+            </View>
+            <Text style={[styles.statValue, { color: currentTheme.colors.text }]}>{winRate}%</Text>
+            <Text style={[styles.statLabel, { color: currentTheme.colors.onSurfaceVariant }]}>Win Rate</Text>
+          </View>
+        </View>
+
+
+        {/* Main Actions */}
+        <Text style={[styles.sectionTitle, { color: currentTheme.colors.onSurfaceVariant }]}>PLAY NOW</Text>
         
-        {/* Single Player Mode */}
-        <TouchableOpacity style={styles.gameModeCard} onPress={handlePlaySinglePlayer}>
-          <LinearGradient colors={['#FF6F00', '#FF8F00']} style={styles.modeGradient}>
-            <View style={styles.modeContent}>
-              <View style={styles.modeIcon}>
-                <Ionicons name="person-outline" size={32} color="#FFF" />
-              </View>
-              <View style={styles.modeInfo}>
-                <Text style={styles.modeTitle}>Single Player</Text>
-                <Text style={styles.modeDescription}>Play against AI opponent</Text>
-                <View style={styles.modeBadge}>
-                  <Text style={styles.badgeText}>Practice Mode</Text>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={24} color="#FFF" />
-            </View>
-          </LinearGradient>
-        </TouchableOpacity>
+        <GameButton
+          title="Single Player"
+          variant="primary"
+          size="large"
+          onPress={handlePlaySinglePlayer}
+          icon={<Ionicons name="game-controller" size={28} color="#FFF" />}
+          style={styles.mainButton}
+        />
+        
+        <GameButton
+          title="Local Multiplayer"
+          variant="success"
+          size="large"
+          onPress={handlePlayLocalPVP}
+          icon={<Ionicons name="people" size={28} color="#FFF" />}
+          style={styles.mainButton}
+        />
 
-        {/* On-Device PVP Mode */}
-        <TouchableOpacity style={styles.gameModeCard} onPress={handlePlayLocalPVP}>
-          <LinearGradient colors={['#42A5F5', '#1976D2']} style={styles.modeGradient}>
-            <View style={styles.modeContent}>
-              <View style={styles.modeIcon}>
-                <Ionicons name="phone-portrait-outline" size={32} color="#FFF" />
-              </View>
-              <View style={styles.modeInfo}>
-                <Text style={styles.modeTitle}>PVP (On Device)</Text>
-                <Text style={styles.modeDescription}>Two players on the same device</Text>
-                <View style={styles.modeBadge}>
-                  <Text style={styles.badgeText}>Local Match</Text>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={24} color="#FFF" />
-            </View>
-          </LinearGradient>
-        </TouchableOpacity>
-
-        {/* Multiplayer Mode */}
-        <TouchableOpacity style={styles.gameModeCard} onPress={handlePlayMultiplayer}>
-          <LinearGradient colors={['#66BB6A', '#4CAF50']} style={styles.modeGradient}>
-            <View style={styles.modeContent}>
-              <View style={styles.modeIcon}>
-                <Ionicons name="people-outline" size={32} color="#FFF" />
-              </View>
-              <View style={styles.modeInfo}>
-                <Text style={styles.modeTitle}>Multiplayer</Text>
-                <Text style={styles.modeDescription}>Play with friends online</Text>
-                <View style={styles.modeBadge}>
-                  <Text style={styles.badgeText}>Ranked Games</Text>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={24} color="#FFF" />
-            </View>
-          </LinearGradient>
-        </TouchableOpacity>
-      </View>
-
-      {/* Quick Actions */}
-      <View style={styles.quickActionsSection}>
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
+        {/* Quick Actions Grid */}
+        <Text style={[styles.sectionTitle, { color: currentTheme.colors.onSurfaceVariant }]}>ACTIONS</Text>
         <View style={styles.actionGrid}>
-          <TouchableOpacity style={styles.actionCard} onPress={handleViewLeaderboard}>
-            <LinearGradient colors={['#FFB74D', '#FFA726']} style={styles.actionGradient}>
-              <Ionicons name="trophy-outline" size={28} color="#FFF" />
-              <Text style={styles.actionText}>Leaderboard</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionCard} onPress={handleShowGameRules}>
-            <LinearGradient colors={['#81C784', '#66BB6A']} style={styles.actionGradient}>
-              <Ionicons name="book-outline" size={28} color="#FFF" />
-              <Text style={styles.actionText}>Game Rules</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionCard} onPress={handleViewProfile}>
-            <LinearGradient colors={['#F48FB1', '#E91E63']} style={styles.actionGradient}>
-              <Ionicons name="stats-chart-outline" size={28} color="#FFF" />
-              <Text style={styles.actionText}>My Stats</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionCard}>
-            <LinearGradient colors={['#90CAF9', '#42A5F5']} style={styles.actionGradient}>
-              <Ionicons name="settings-outline" size={28} color="#FFF" />
-              <Text style={styles.actionText}>Settings</Text>
-            </LinearGradient>
-          </TouchableOpacity>
+          <GameButton
+            title="Rules"
+            variant="secondary"
+            size="medium"
+            onPress={handleShowGameRules}
+            style={styles.gridButton}
+            icon={<Ionicons name="book" size={20} color={currentTheme.colors.text} />}
+          />
+           <GameButton
+            title="Settings"
+            variant="secondary"
+            size="medium"
+            onPress={handleViewSettings}
+            style={styles.gridButton}
+            icon={<Ionicons name="settings" size={20} color={currentTheme.colors.text} />}
+          />
         </View>
-      </View>
 
-      {/* Recent Games */}
-      {isAuthenticated && !isGuest && (
-        <View style={styles.recentGamesSection}>
-          <Text style={styles.sectionTitle}>Recent Games</Text>
-          {isLoadingGames && <ActivityIndicator color="#FFF" />}
-          {ongoingGames.length > 0 && (
-            <View>
-              <Text style={styles.subSectionTitle}>Ongoing</Text>
-              {ongoingGames.map(game => (
-                <TouchableOpacity key={game.game_id} style={styles.gameCard} onPress={() => navigation.navigate('Game', { gameId: game.game_id, gameMode: 'online' })}>
-                  <Text style={styles.gameText}>vs {game.player_tiger?.username === user?.username ? game.player_goat?.username : game.player_tiger?.username}</Text>
-                  <Text style={styles.gameStatus}>In Progress</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-          {finishedGames.length > 0 && (
-            <View>
-              <Text style={styles.subSectionTitle}>Finished</Text>
-              {finishedGames.map(game => {
-                  const isWin = game.winner_id === user?.user_id;
-                  const isDraw = !game.winner_id;
-                  const result = isWin ? 'Won' : isDraw ? 'Draw' : 'Lost';
-                  
-                  return (
-                    <View key={game.game_id} style={styles.gameCard}>
-                      <Text style={styles.gameText}>vs {game.player_tiger?.username === user?.username ? game.player_goat?.username : game.player_tiger?.username}</Text>
-                      <Text style={[
-                        styles.gameStatus, 
-                        isWin ? styles.gameResultWin : isDraw ? styles.gameResultDraw : styles.gameResultLoss
-                      ]}>
-                        {result}
-                      </Text>
-                    </View>
-                  );
-              })}
-            </View>
-          )}
-          {games.length === 0 && !isLoadingGames && <Text style={styles.noGamesText}>No recent games found.</Text>}
-        </View>
-      )}
-
-      {/* Game Info */}
-      <View style={styles.gameInfoSection}>
-        <Text style={styles.sectionTitle}>About Baghchal</Text>
-        <View style={styles.infoCard}>
-          <Text style={styles.infoTitle}>🐅 Traditional Nepali Strategy Game</Text>
-          <Text style={styles.infoDescription}>
-            Baghchal (Tigers and Goats) is a traditional board game from Nepal. 
-            Four tigers hunt twenty goats while the goats try to block the tigers' movement.
-          </Text>
-          <View style={styles.rulesPreview}>
-            <Text style={styles.ruleItem}>• 4 Tigers vs 20 Goats</Text>
-            <Text style={styles.ruleItem}>• Tigers move first</Text>
-            <Text style={styles.ruleItem}>• Tigers win by capturing 5 goats</Text>
-            <Text style={styles.ruleItem}>• Goats win by blocking all tigers</Text>
+        {/* Tip Section */}
+        <View style={[styles.tipCard, { backgroundColor: currentTheme.colors.surface, borderColor: currentTheme.colors.border }]}>
+          <View style={[styles.tipIconBox, { backgroundColor: currentTheme.colors.primary + '15' }]}>
+            <Ionicons name="bulb" size={24} color={currentTheme.colors.primary} />
+          </View>
+          <View style={styles.tipContent}>
+            <Text style={[styles.tipTitle, { color: currentTheme.colors.text }]}>Pro Tip</Text>
+            <Text style={[styles.tipText, { color: currentTheme.colors.onSurfaceVariant }]}>
+              With perfect play, Goats can always win! Focus on blocking tiger movements.
+            </Text>
           </View>
         </View>
-      </View>
-    </ScrollView>
+
+        {/* Bottom Spacing */}
+        <View style={{ height: 100 }} />
+      </ScrollView>
+
+      {/* Rules Modal */}
+      <RulesModal />
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: theme.colors.background,
+  },
+  background: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingBottom: theme.spacing.xl,
   },
   header: {
-    paddingTop: 60,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-  },
-  headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: theme.spacing.xl,
   },
   greeting: {
-    fontSize: 16,
-    color: '#999',
-  },
-  username: {
-    fontSize: 24,
+    color: theme.colors.onSurfaceVariant,
+    fontSize: theme.fonts.labelSmall.fontSize,
     fontWeight: 'bold',
-    color: '#FFF',
-    marginTop: 4,
-  },
-  profileButton: {
-    padding: 8,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 16,
-    paddingVertical: 20,
-    marginTop: 10,
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FF5252',
+    letterSpacing: 1,
     marginBottom: 4,
   },
-  statLabel: {
-    fontSize: 14,
-    color: '#999',
-  },
-  gameModesSection: {
-    paddingHorizontal: 20,
-    marginTop: 20,
-  },
-  sectionTitle: {
-    fontSize: 22,
+  username: {
+    color: theme.colors.text,
+    fontSize: theme.fonts.headlineMedium.fontSize,
     fontWeight: 'bold',
-    color: '#FFF',
-    marginBottom: 16,
+    letterSpacing: 0.5,
   },
-  subSectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#ccc',
-    marginBottom: 10,
-    marginTop: 10,
-  },
-  gameModeCard: {
-    marginBottom: 16,
-    borderRadius: 16,
-    overflow: 'hidden',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  modeGradient: {
-    borderRadius: 16,
-    padding: 20,
-  },
-  modeContent: {
+  // Stats Section
+  statsContainer: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: theme.spacing.xl,
+  },
+  statBox: {
+    flex: 1,
     alignItems: 'center',
   },
-  modeIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  statIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 16,
+    marginBottom: 8,
   },
-  modeInfo: {
-    flex: 1,
-  },
-  modeTitle: {
-    fontSize: 18,
+  statValue: {
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#FFF',
+    marginBottom: 2,
   },
-  modeDescription: {
-    fontSize: 13,
-    color: '#E0E0E0',
-    marginTop: 4,
+  statLabel: {
+    fontSize: 12,
+    fontWeight: '500',
   },
-  modeBadge: {
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
-    marginTop: 8,
+  statDivider: {
+    width: 1,
+    height: 50,
+    marginHorizontal: 8,
   },
-  badgeText: {
-    color: '#FFF',
-    fontSize: 10,
+  sectionTitle: {
+    color: theme.colors.onSurfaceVariant,
+    fontSize: theme.fonts.labelMedium.fontSize,
     fontWeight: 'bold',
+    letterSpacing: 1,
+    marginBottom: theme.spacing.md,
+    marginTop: theme.spacing.sm,
   },
-  quickActionsSection: {
-    paddingHorizontal: 20,
-    marginTop: 20,
+  mainButton: {
+    marginBottom: theme.spacing.md,
   },
   actionGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     justifyContent: 'space-between',
+    marginBottom: theme.spacing.xl,
   },
-  actionCard: {
-    width: (width - 60) / 2,
-    marginBottom: 20,
-    borderRadius: 16,
-    overflow: 'hidden',
+  gridButton: {
+    width: (width - theme.spacing.lg * 2 - theme.spacing.md) / 2,
   },
-  actionGradient: {
-    padding: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    height: 120,
-  },
-  actionText: {
-    color: '#FFF',
-    fontWeight: 'bold',
-    marginTop: 8,
-  },
-  recentGamesSection: {
-    paddingHorizontal: 20,
-    marginTop: 20,
-  },
-  gameCard: {
-    backgroundColor: '#2d2d2d',
-    borderRadius: 12,
-    padding: 16,
+  // Tip Card
+  tipCard: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
-  },
-  gameText: {
-    color: '#FFF',
-    fontSize: 16,
-  },
-  gameStatus: {
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  gameResultWin: {
-    color: '#4CAF50',
-  },
-  gameResultLoss: {
-    color: '#F44336',
-  },
-  gameResultDraw: {
-    color: '#9E9E9E',
-  },
-  noGamesText: {
-    color: '#888',
-    textAlign: 'center',
-    marginTop: 10,
-  },
-  gameInfoSection: {
-    paddingHorizontal: 20,
-    marginTop: 20,
-    paddingBottom: 40,
-  },
-  infoCard: {
-    backgroundColor: '#1E1E1E',
-    borderRadius: 16,
-    padding: 20,
-  },
-  infoTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFF',
-    marginBottom: 12,
-  },
-  infoDescription: {
-    fontSize: 14,
-    color: '#CCC',
-    lineHeight: 20,
-    marginBottom: 16,
-  },
-  rulesPreview: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 12,
     padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
   },
-  ruleItem: {
+  tipIconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  tipContent: {
+    flex: 1,
+  },
+  tipTitle: {
     fontSize: 14,
-    color: '#999',
-    marginBottom: 6,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  tipText: {
+    fontSize: 13,
+    lineHeight: 18,
   },
 });
 
-export default HomeScreen; 
+export default HomeScreen;

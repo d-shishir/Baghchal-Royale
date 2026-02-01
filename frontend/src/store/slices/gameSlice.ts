@@ -1,7 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { Game } from '../../services/types';
 import { GameState } from '../../game-logic/baghchal';
-import { api } from '../../services/api';
 
 interface ActiveGameState {
     game: Game;
@@ -11,10 +10,20 @@ interface ActiveGameState {
 
 interface GameSliceState {
     activeGame: ActiveGameState | null;
+    // Local game history for offline tracking
+    localGameHistory: {
+        gameId: string;
+        result: 'win' | 'loss' | 'draw';
+        mode: 'ai' | 'local';
+        playerSide?: 'TIGER' | 'GOAT';
+        aiDifficulty?: 'EASY' | 'MEDIUM' | 'HARD';
+        date: string;
+    }[];
 }
 
 const initialState: GameSliceState = {
     activeGame: null,
+    localGameHistory: [],
 };
 
 const gameSlice = createSlice({
@@ -41,23 +50,31 @@ const gameSlice = createSlice({
         clearActiveGame: (state) => {
             state.activeGame = null;
         },
-    },
-    extraReducers: (builder) => {
-        // When a user fetches a specific game, set it as the active game
-        builder.addMatcher(
-            api.endpoints.getGameById.matchFulfilled,
-            (state, action: PayloadAction<Game>) => {
-                state.activeGame = {
-                    game: action.payload,
-                    history: [action.payload.game_state], // For now, only the current state from API
-                    local: false,
-                };
+        // Record completed game for local history
+        recordGameResult: (state, action: PayloadAction<{
+            gameId: string;
+            result: 'win' | 'loss' | 'draw';
+            mode: 'ai' | 'local';
+            playerSide?: 'TIGER' | 'GOAT';
+            aiDifficulty?: 'EASY' | 'MEDIUM' | 'HARD';
+        }>) => {
+            state.localGameHistory.unshift({
+                ...action.payload,
+                date: new Date().toISOString(),
+            });
+            // Keep only last 50 games
+            if (state.localGameHistory.length > 50) {
+                state.localGameHistory = state.localGameHistory.slice(0, 50);
             }
-        );
-        // Can add matchers for AI games here later if needed
+        },
+        // Clear game history
+        clearGameHistory: (state) => {
+            state.localGameHistory = [];
+        },
     },
+    // No extraReducers - removed all API dependencies
 });
 
-export const { startLocalGame, updateLocalGame, clearActiveGame } = gameSlice.actions;
+export const { startLocalGame, updateLocalGame, clearActiveGame, recordGameResult, clearGameHistory } = gameSlice.actions;
 
 export default gameSlice.reducer; 

@@ -11,6 +11,7 @@ import { theme } from './src/theme';
 import RootNavigator from './src/navigation/MainNavigator';
 import LoadingScreen from './src/components/LoadingScreen';
 import { NotificationProvider } from './src/contexts/NotificationContext';
+import { AlertProvider } from './src/contexts/AlertContext';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -53,10 +54,12 @@ export default function App() {
       <PersistGate loading={<LoadingScreen />} persistor={persistor}>
         <PaperProvider theme={theme}>
           <NotificationProvider>
-            <NavigationContainer onReady={onLayoutRootView}>
-              <StatusBar style="auto" />
-              <RootNavigator />
-            </NavigationContainer>
+            <AlertProvider>
+              <NavigationContainer onReady={onLayoutRootView}>
+                <StatusBar style="auto" />
+                <RootNavigator />
+              </NavigationContainer>
+            </AlertProvider>
           </NotificationProvider>
         </PaperProvider>
       </PersistGate>
