@@ -296,4 +296,10 @@ Temporary Items
 .apdisk
 
 ### JetBrains ###
-.idea/ 
+.idea/
+
+### Secrets / Credentials ###
+*.json.bak
+baghchal-royale-*.json
+*-credentials.json
+*-service-account.json 
