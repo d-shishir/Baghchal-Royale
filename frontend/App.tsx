@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { Provider as PaperProvider } from 'react-native-paper';
@@ -12,12 +13,16 @@ import RootNavigator from './src/navigation/MainNavigator';
 import LoadingScreen from './src/components/LoadingScreen';
 import { NotificationProvider } from './src/contexts/NotificationContext';
 import { AlertProvider } from './src/contexts/AlertContext';
+import AnimatedSplash from './src/screens/AnimatedSplash';
 
 // Keep the splash screen visible while we fetch resources
-SplashScreen.preventAutoHideAsync();
+SplashScreen.preventAutoHideAsync().catch(() => {
+  /* reloading the app might trigger some race conditions, ignore them */
+});
 
 export default function App() {
   const [appIsReady, setAppIsReady] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
     async function prepare() {
@@ -25,8 +30,8 @@ export default function App() {
         // App initialization - simplified for development
         console.log('Initializing Baghchal Royale app...');
         
-        // Artificially delay for better UX
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Artificially delay for better UX (optional, can be removed if fast enough)
+        // await new Promise(resolve => setTimeout(resolve, 500));
       } catch (e) {
         console.warn('App initialization error:', e);
       } finally {
@@ -38,15 +43,12 @@ export default function App() {
     prepare();
   }, []);
 
-  const onLayoutRootView = React.useCallback(async () => {
-    if (appIsReady) {
-      // This tells the splash screen to hide immediately!
-      await SplashScreen.hideAsync();
-    }
-  }, [appIsReady]);
+  const onSplashAnimationComplete = useCallback(() => {
+    setShowSplash(false);
+  }, []);
 
   if (!appIsReady) {
-    return <LoadingScreen />;
+    return null;
   }
 
   return (
@@ -55,14 +57,20 @@ export default function App() {
         <PaperProvider theme={theme}>
           <NotificationProvider>
             <AlertProvider>
-              <NavigationContainer onReady={onLayoutRootView}>
-                <StatusBar style="auto" />
-                <RootNavigator />
-              </NavigationContainer>
+              <View style={{ flex: 1 }}>
+                <NavigationContainer>
+                  <StatusBar style="auto" />
+                  <RootNavigator />
+                </NavigationContainer>
+                {showSplash && (
+                  <AnimatedSplash onAnimationComplete={onSplashAnimationComplete} />
+                )}
+              </View>
             </AlertProvider>
           </NotificationProvider>
         </PaperProvider>
       </PersistGate>
     </ReduxProvider>
   );
-} 
+}
+ 

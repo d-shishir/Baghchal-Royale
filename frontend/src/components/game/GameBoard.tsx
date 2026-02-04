@@ -20,9 +20,7 @@ import GoatIcon from './GoatIcon';
 import { useAppTheme } from '../../theme';
 import { RootState } from '../../store';
 
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+
 
 interface Position {
   row: number;
