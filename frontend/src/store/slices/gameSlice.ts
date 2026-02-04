@@ -1,6 +1,7 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { Game } from '../../services/types';
-import { GameState } from '../../game-logic/baghchal';
+import { GameState, checkThreefoldRepetition } from '../../game-logic/baghchal';
+import { BackendGameStatus } from '../../services/types';
 
 interface ActiveGameState {
     game: Game;
@@ -41,8 +42,17 @@ const gameSlice = createSlice({
         // Reducer to update a local game's state
         updateLocalGame: (state, action: PayloadAction<GameState>) => {
             if (state.activeGame && state.activeGame.local) {
-                state.activeGame.game.game_state = action.payload;
-                state.activeGame.game.status = action.payload.status;
+                // Check for threefold repetition before pushing logic
+                // Pass current history (excluding this new state) and the new state
+                if (checkThreefoldRepetition(action.payload, state.activeGame.history)) {
+                    state.activeGame.game.status = BackendGameStatus.DRAW;
+                    // Also update the payload status so it's stored correctly in history/game
+                    action.payload.status = 'DRAW' as any; 
+                    state.activeGame.game.game_state = action.payload;
+                } else {
+                    state.activeGame.game.game_state = action.payload;
+                    state.activeGame.game.status = action.payload.status as unknown as BackendGameStatus;
+                }
                 state.activeGame.history.push(action.payload);
             }
         },
@@ -58,6 +68,9 @@ const gameSlice = createSlice({
             playerSide?: 'TIGER' | 'GOAT';
             aiDifficulty?: 'EASY' | 'MEDIUM' | 'HARD';
         }>) => {
+            if (!state.localGameHistory) {
+                state.localGameHistory = [];
+            }
             state.localGameHistory.unshift({
                 ...action.payload,
                 date: new Date().toISOString(),

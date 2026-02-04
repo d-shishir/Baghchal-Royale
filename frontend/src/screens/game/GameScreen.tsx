@@ -70,14 +70,24 @@ const GameScreen: React.FC = () => {
       const handleAIMove = async () => {
         try {
           // Determine AI side (opposite of human side)
-          const aiSide = playerSide === 'Tiger' ? 'Goat' : 'Tiger';
+          // playerSide comes as 'Tiger' or 'Goat', we need to match the case
+          const normalizedPlayerSide = playerSide?.charAt(0).toUpperCase() + playerSide?.slice(1).toLowerCase();
+          const aiSide = normalizedPlayerSide === 'Tiger' ? 'Goat' : 'Tiger';
+          
+          console.log(`AI Move: playerSide=${playerSide}, aiSide=${aiSide}, currentPlayer=${currentGameState.currentPlayer}`);
           
           // Map string difficulty to Enum
           let difficultyEnum = AIDifficulty.MEDIUM;
           if (aiDifficulty === 'EASY') difficultyEnum = AIDifficulty.EASY;
           else if (aiDifficulty === 'HARD') difficultyEnum = AIDifficulty.HARD;
 
-          const aiPotentialMove = getGuestAIMove(currentGameState, difficultyEnum, aiSide);
+          // Clone the state to avoid mutation of frozen object
+          const clonedState = {
+            ...currentGameState,
+            board: currentGameState.board.map(row => [...row]),
+          };
+
+          const aiPotentialMove = getGuestAIMove(clonedState, difficultyEnum, aiSide);
           
           if (aiPotentialMove) {
             const aiMove = { ...aiPotentialMove, player_id: currentGameState.currentPlayer, timestamp: new Date().toISOString() };

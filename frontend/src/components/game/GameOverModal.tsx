@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useAppTheme } from '../../theme';
 
 interface GameOverModalProps {
   visible: boolean;
@@ -25,6 +26,7 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
   onGoHome,
   showRestart = true, // Default to true for backward compatibility
 }) => {
+  const { colors, isDark } = useAppTheme();
   const scaleAnim = useRef(new Animated.Value(0.5)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
@@ -54,31 +56,35 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
         <Animated.View
           style={[
             styles.modalContent,
-            { opacity: opacityAnim, transform: [{ scale: scaleAnim }] },
+            { 
+              opacity: opacityAnim, 
+              transform: [{ scale: scaleAnim }],
+              backgroundColor: colors.surface 
+            },
           ]}
         >
           <LinearGradient
-            colors={['#2a2a2e', '#16213e']}
+            colors={[colors.surface, colors.surfaceVariant]}
             style={styles.gradient}
           >
-            <Ionicons name="trophy" size={80} color="#FFD700" />
-            <Text style={styles.winnerText}>{winner}</Text>
+            <Ionicons name="trophy" size={80} color={colors.highlightColor} />
+            <Text style={[styles.winnerText, { color: colors.text }]}>{winner}</Text>
             <View style={[styles.buttonContainer, !showRestart && styles.singleButtonContainer]}>
               {showRestart && (
                 <TouchableOpacity
-                  style={[styles.button, styles.restartButton]}
+                  style={[styles.button, { backgroundColor: colors.primary }]}
                   onPress={onRestart}
                 >
-                  <Ionicons name="refresh" size={24} color="#FFF" />
-                  <Text style={styles.buttonText}>Restart</Text>
+                  <Ionicons name="refresh" size={24} color={colors.onPrimary} />
+                  <Text style={[styles.buttonText, { color: colors.onPrimary }]}>Restart</Text>
                 </TouchableOpacity>
               )}
               <TouchableOpacity
-                style={[styles.button, styles.homeButton, !showRestart && styles.singleButton]}
+                style={[styles.button, !showRestart && styles.singleButton, { backgroundColor: colors.secondary }]}
                 onPress={onGoHome}
               >
-                <Ionicons name="home" size={24} color="#FFF" />
-                <Text style={styles.buttonText}>Home</Text>
+                <Ionicons name="home" size={24} color={colors.onSecondary} />
+                <Text style={[styles.buttonText, { color: colors.onSecondary }]}>Home</Text>
               </TouchableOpacity>
             </View>
           </LinearGradient>
@@ -91,62 +97,67 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
 const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContent: {
-    width: '80%',
-    borderRadius: 20,
+    width: '90%',
+    maxWidth: 400,
+    borderRadius: 24,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 20,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.6,
+    shadowRadius: 24,
+    elevation: 24,
   },
   gradient: {
-    padding: 30,
+    paddingVertical: 40,
+    paddingHorizontal: 24,
     alignItems: 'center',
   },
   winnerText: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#FFF',
-    marginVertical: 20,
+    fontSize: 36,
+    fontWeight: '800',
+    marginVertical: 24,
     textAlign: 'center',
+    letterSpacing: 0.5,
   },
   buttonContainer: {
     flexDirection: 'row',
-    marginTop: 20,
-    justifyContent: 'space-around',
+    marginTop: 16,
+    justifyContent: 'center',
     width: '100%',
+    gap: 16, // Adds space between buttons
   },
   singleButtonContainer: {
     justifyContent: 'center',
   },
   button: {
     flexDirection: 'row',
-    paddingVertical: 12,
-    paddingHorizontal: 25,
-    borderRadius: 25,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  restartButton: {
-    backgroundColor: '#4CAF50',
-  },
-  homeButton: {
-    backgroundColor: '#1E88E5',
+    minWidth: 130,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 6,
   },
   singleButton: {
-    minWidth: 120,
+    minWidth: 160,
   },
   buttonText: {
-    color: '#FFF',
-    fontWeight: 'bold',
+    fontWeight: '700',
     fontSize: 16,
     marginLeft: 10,
+    letterSpacing: 0.5,
   },
 });
 

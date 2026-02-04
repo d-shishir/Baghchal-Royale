@@ -6,7 +6,9 @@ import {
   ScrollView,
   TouchableOpacity,
   Switch,
+  Linking,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
@@ -30,6 +32,19 @@ const SettingsScreen: React.FC = () => {
   const theme = useAppTheme();
   const insets = useSafeAreaInsets();
   const { showAlert } = useAlert();
+  const navigation = useNavigation();
+
+  const handleContactSupport = async () => {
+    try {
+      await Linking.openURL('mailto:dshishir13@gmail.com');
+    } catch (error) {
+      showAlert({
+        title: 'Error',
+        message: 'Could not open email client.',
+        type: 'error',
+      });
+    }
+  };
 
   const handleClearHistory = () => {
     showAlert({
@@ -188,6 +203,51 @@ const SettingsScreen: React.FC = () => {
                 <Text style={styles.smallButtonText}>CLEAR</Text>
             </TouchableOpacity>
           </View>
+        </GameCard>
+
+        {/* Support & Legal */}
+        <GameCard title="Support & Legal" icon={<Ionicons name="information-circle" size={24} color={theme.colors.primary} />} style={styles.card}>
+           <View style={styles.row}>
+            <View style={styles.labelContainer}>
+              <Ionicons name="mail" size={24} color={theme.colors.secondary} />
+               <View style={styles.textContainer}>
+                <Text style={[styles.label, { color: theme.colors.text }]}>Contact Support</Text>
+                <Text style={[styles.subLabel, { color: theme.colors.onSurfaceVariant }]}>
+                   Get help or send feedback
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+                style={[styles.smallButton, { backgroundColor: theme.colors.secondary }]}
+                onPress={handleContactSupport}
+            >
+                <Text style={styles.smallButtonText}>EMAIL</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.divider} />
+
+          <TouchableOpacity style={styles.row} onPress={() => navigation.navigate('PrivacyPolicy' as never)}>
+            <View style={styles.labelContainer}>
+              <Ionicons name="lock-closed" size={24} color={theme.colors.tertiary} />
+              <View style={styles.textContainer}>
+                <Text style={[styles.label, { color: theme.colors.text }]}>Privacy Policy</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color={theme.colors.onSurfaceVariant} />
+          </TouchableOpacity>
+
+          <View style={styles.divider} />
+
+          <TouchableOpacity style={styles.row} onPress={() => navigation.navigate('TermsOfService' as never)}>
+             <View style={styles.labelContainer}>
+              <Ionicons name="document-text" size={24} color={theme.colors.primary} />
+              <View style={styles.textContainer}>
+                <Text style={[styles.label, { color: theme.colors.text }]}>Terms of Service</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color={theme.colors.onSurfaceVariant} />
+          </TouchableOpacity>
         </GameCard>
         
         <View style={styles.footer}>

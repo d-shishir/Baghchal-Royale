@@ -35,6 +35,8 @@ interface UIState {
   
   // Performance
   enableAnimations: boolean;
+  
+  hasSeenOnboarding: boolean;
 }
 
 const initialState: UIState = {
@@ -57,6 +59,8 @@ const initialState: UIState = {
   isOnline: true,
   
   enableAnimations: true,
+  
+  hasSeenOnboarding: false,
 };
 
 const uiSlice = createSlice({
@@ -131,6 +135,10 @@ const uiSlice = createSlice({
       state.enableAnimations = action.payload;
     },
     
+    setHasSeenOnboarding: (state, action: PayloadAction<boolean>) => {
+      state.hasSeenOnboarding = action.payload;
+    },
+    
     // Reset UI state
     resetUI: () => initialState,
   },
@@ -153,6 +161,7 @@ export const {
   setEnableVibration,
   setIsOnline,
   setEnableAnimations,
+  setHasSeenOnboarding,
   resetUI,
 } = uiSlice.actions;
 

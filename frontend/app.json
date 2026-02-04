@@ -27,7 +27,9 @@
       "versionCode": 1,
       "permissions": [
         "INTERNET",
-        "ACCESS_NETWORK_STATE"
+        "ACCESS_NETWORK_STATE",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
       ]
     },
     "web": {
@@ -42,6 +44,10 @@
       "fallbackToCacheTimeout": 0,
       "enabled": false
     },
-    "extra": {}
+    "extra": {
+      "eas": {
+        "projectId": "b119503f-f0d4-4d14-b239-310e7b085a52"
+      }
+    }
   }
 }

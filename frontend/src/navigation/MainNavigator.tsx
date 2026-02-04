@@ -16,6 +16,11 @@ import GameScreen from "../screens/game/GameScreen";
 import SinglePlayerSetupScreen from "../screens/singleplayer/SinglePlayerSetupScreen";
 import MultiplayerSetupScreen from "../screens/multiplayer/MultiplayerSetupScreen";
 import SettingsScreen from "../screens/settings/SettingsScreen";
+import PrivacyPolicyScreen from "../screens/settings/PrivacyPolicyScreen";
+import TermsOfServiceScreen from "../screens/settings/TermsOfServiceScreen";
+import OnboardingScreen from "../screens/onboarding/OnboardingScreen";
+import { useSelector } from "react-redux";
+import { RootState } from "../store";
 
 // Navigation types
 export type MainTabParamList = {
@@ -35,10 +40,13 @@ export type MainStackParamList = {
     gameMode?: "ai" | "local";
     initialGameState?: GameState;
   };
+  PrivacyPolicy: undefined;
+  TermsOfService: undefined;
 };
 
 export type RootStackParamList = {
   Main: undefined;
+  Onboarding: undefined;
 };
 
 // Navigation prop types
@@ -130,15 +138,31 @@ const MainStackNavigator = () => {
         component={GameScreen} 
         options={{ headerShown: false }}
       />
+      <MainStack.Screen 
+        name="PrivacyPolicy" 
+        component={PrivacyPolicyScreen} 
+        options={{ headerShown: false }}
+      />
+      <MainStack.Screen 
+        name="TermsOfService" 
+        component={TermsOfServiceScreen} 
+        options={{ headerShown: false }}
+      />
     </MainStack.Navigator>
   );
 };
 
-// Root Navigator - No auth check, direct to main
+// Root Navigator - Logic to show onboarding or main app
 const RootNavigator = () => {
+  const hasSeenOnboarding = useSelector((state: RootState) => state.ui.hasSeenOnboarding);
+
   return (
     <RootStack.Navigator screenOptions={{ headerShown: false }}>
-      <RootStack.Screen name="Main" component={MainStackNavigator} />
+      {!hasSeenOnboarding ? (
+        <RootStack.Screen name="Onboarding" component={OnboardingScreen} />
+      ) : (
+        <RootStack.Screen name="Main" component={MainStackNavigator} />
+      )}
     </RootStack.Navigator>
   );
 };

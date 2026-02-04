@@ -14,4 +14,6 @@ export const initialGameState: GameState = {
     goatsPlaced: 0,
     status: GameStatus.IN_PROGRESS,
     selectedPosition: null,
+    movesSinceCaptureOrPlacement: 0,
+    lastMove: null,
 };

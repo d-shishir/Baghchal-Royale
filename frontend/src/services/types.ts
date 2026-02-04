@@ -8,6 +8,9 @@ export enum BackendGameStatus {
   IN_PROGRESS = "IN_PROGRESS",
   COMPLETED = "COMPLETED",
   ABANDONED = "ABANDONED",
+  TIGER_WON = "TIGER_WON",
+  GOAT_WON = "GOAT_WON",
+  DRAW = "DRAW",
 }
 
 // Alias for compatibility
