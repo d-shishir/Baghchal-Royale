@@ -134,6 +134,7 @@ export const shadows = {
   })
 };
 
+import { useColorScheme } from 'react-native';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 
@@ -183,7 +184,14 @@ export const theme = {
 export type Theme = typeof theme;
 
 export const useAppTheme = () => {
-  const isDarkMode = useSelector((state: RootState) => state.ui.darkMode);
+  const systemColorScheme = useColorScheme();
+  const themePreference = useSelector((state: RootState) => state.ui.themePreference);
+  const isDarkModeStored = useSelector((state: RootState) => state.ui.darkMode);
+  
+  const isDarkMode = themePreference === 'system' 
+    ? systemColorScheme === 'dark' 
+    : themePreference === 'dark';
+    
   const currentColors = isDarkMode ? colors.dark : colors.light;
   
   return {

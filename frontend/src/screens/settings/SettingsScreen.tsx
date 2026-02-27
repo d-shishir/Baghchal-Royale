@@ -16,10 +16,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { RootState } from '../../store';
 import {
-  toggleDarkMode,
   setEnableSoundEffects,
   setEnableVibration,
   setEnableAnimations,
+  setThemePreference,
 } from '../../store/slices/uiSlice';
 import { clearGameHistory } from '../../store/slices/gameSlice';
 import { useAppTheme } from '../../theme';
@@ -69,8 +69,8 @@ const SettingsScreen: React.FC = () => {
     });
   };
 
-  const handleToggleDarkMode = () => {
-    dispatch(toggleDarkMode());
+  const handleThemePreference = (pref: 'light' | 'dark' | 'system') => {
+    dispatch(setThemePreference(pref));
   };
 
   const handleToggleAnimations = (value: boolean) => {
@@ -104,22 +104,34 @@ const SettingsScreen: React.FC = () => {
 
         {/* Display Settings */}
         <GameCard title="Display" icon={<Ionicons name="eye" size={24} color={theme.colors.primary} />} style={styles.card}>
-          <View style={styles.row}>
-            <View style={styles.labelContainer}>
-              <Ionicons name="moon" size={24} color={theme.colors.primary} />
-              <View style={styles.textContainer}>
-                <Text style={[styles.label, { color: theme.colors.text }]}>Dark Mode</Text>
-                <Text style={[styles.subLabel, { color: theme.colors.onSurfaceVariant }]}>
-                  {uiState.darkMode ? 'On' : 'Off'}
-                </Text>
-              </View>
-            </View>
-            <Switch
-              value={uiState.darkMode}
-              onValueChange={handleToggleDarkMode}
-              trackColor={{ false: theme.colors.surfaceVariant, true: theme.colors.primary }}
-              thumbColor="#FFF"
-            />
+          <View style={styles.themeSelector}>
+            <TouchableOpacity 
+              style={[
+                styles.themeOption, 
+                uiState.themePreference === 'system' && { backgroundColor: theme.colors.primary + '20', borderColor: theme.colors.primary }
+              ]}
+              onPress={() => handleThemePreference('system')}
+            >
+              <Text style={[styles.themeOptionText, { color: uiState.themePreference === 'system' ? theme.colors.primary : theme.colors.text }]}>System</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[
+                styles.themeOption, 
+                uiState.themePreference === 'light' && { backgroundColor: theme.colors.primary + '20', borderColor: theme.colors.primary }
+              ]}
+              onPress={() => handleThemePreference('light')}
+            >
+              <Text style={[styles.themeOptionText, { color: uiState.themePreference === 'light' ? theme.colors.primary : theme.colors.text }]}>Light</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[
+                styles.themeOption, 
+                uiState.themePreference === 'dark' && { backgroundColor: theme.colors.primary + '20', borderColor: theme.colors.primary }
+              ]}
+              onPress={() => handleThemePreference('dark')}
+            >
+              <Text style={[styles.themeOptionText, { color: uiState.themePreference === 'dark' ? theme.colors.primary : theme.colors.text }]}>Dark</Text>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.divider} />
@@ -306,6 +318,25 @@ const styles = StyleSheet.create({
   subLabel: {
       fontSize: 12,
       marginTop: 2,
+  },
+  themeSelector: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginVertical: 8,
+    gap: 8,
+  },
+  themeOption: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  themeOptionText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   divider: {
     height: 1,

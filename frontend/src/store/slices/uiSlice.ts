@@ -37,6 +37,7 @@ interface UIState {
   enableAnimations: boolean;
   
   hasSeenOnboarding: boolean;
+  themePreference: 'light' | 'dark' | 'system';
 }
 
 const initialState: UIState = {
@@ -61,6 +62,7 @@ const initialState: UIState = {
   enableAnimations: true,
   
   hasSeenOnboarding: false,
+  themePreference: 'system',
 };
 
 const uiSlice = createSlice({
@@ -138,6 +140,13 @@ const uiSlice = createSlice({
     setHasSeenOnboarding: (state, action: PayloadAction<boolean>) => {
       state.hasSeenOnboarding = action.payload;
     },
+
+    setThemePreference: (state, action: PayloadAction<'light' | 'dark' | 'system'>) => {
+      state.themePreference = action.payload;
+      if (action.payload !== 'system') {
+        state.darkMode = action.payload === 'dark';
+      }
+    },
     
     // Reset UI state
     resetUI: () => initialState,
@@ -162,6 +171,7 @@ export const {
   setIsOnline,
   setEnableAnimations,
   setHasSeenOnboarding,
+  setThemePreference,
   resetUI,
 } = uiSlice.actions;
 

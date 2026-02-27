@@ -7,10 +7,10 @@ import {
   FlatList,
   Dimensions,
   TouchableOpacity,
-  SafeAreaView,
   Image,
   Animated,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDispatch } from 'react-redux';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppTheme } from '../../theme';
@@ -49,6 +49,7 @@ const slides: Slide[] = [
 const OnboardingScreen = () => {
   const theme = useAppTheme();
   const dispatch = useDispatch();
+  const insets = useSafeAreaInsets();
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
 
@@ -92,13 +93,13 @@ const OnboardingScreen = () => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleSkip} style={styles.skipButton}>
-         {currentIndex < slides.length - 1 && (
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+        {currentIndex < slides.length - 1 && (
+          <TouchableOpacity onPress={handleSkip} style={styles.skipButton}>
             <Text style={[styles.skipText, { color: theme.colors.primary }]}>Skip</Text>
-         )}
-        </TouchableOpacity>
+          </TouchableOpacity>
+        )}
       </View>
 
       <FlatList
@@ -146,7 +147,7 @@ const OnboardingScreen = () => {
           </Text>
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -155,15 +156,23 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
     alignItems: 'flex-end',
   },
   skipButton: {
-    padding: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 111, 0, 0.1)', // Subtle primary glow
+    borderWidth: 1,
+    borderColor: 'rgba(255, 111, 0, 0.2)',
   },
   skipText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   slide: {
     width: width,

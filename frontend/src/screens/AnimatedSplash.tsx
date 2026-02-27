@@ -3,7 +3,7 @@ import { StyleSheet, View, Animated, Dimensions, Image, Text } from 'react-nativ
 import * as SplashScreen from 'expo-splash-screen';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
-import { colors } from '../theme';
+import { useAppTheme } from '../theme';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -13,8 +13,8 @@ interface AnimatedSplashProps {
 
 export const AnimatedSplash: React.FC<AnimatedSplashProps> = ({ onAnimationComplete }) => {
   // Theme
-  const isDarkMode = useSelector((state: RootState) => state.ui.darkMode);
-  const themeColors = isDarkMode ? colors.dark : colors.light;
+  const theme = useAppTheme();
+  const themeColors = theme.colors;
 
   // Animation values
   const logoScale = useRef(new Animated.Value(0.5)).current;
