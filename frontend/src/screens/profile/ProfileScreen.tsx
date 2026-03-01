@@ -289,7 +289,6 @@ const ProfileScreen: React.FC = () => {
               </TouchableOpacity>
             </View>
           )}
-          <Text style={[styles.userSubtitle, { color: theme.colors.onSurfaceVariant }]}>Offline Player</Text>
         </View>
 
         {/* Tabs */}

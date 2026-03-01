@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shishir Lamichhane - CV</title>
+    <style>
+        :root {
+            --bg-grey: #f0f0f0;
+            --text-main: #000;
+        }
+        body {
+            font-family: 'Times New Roman', Times, serif;
+            line-height: 1.5;
+            color: var(--text-main);
+            background: #e9ecef;
+            margin: 0;
+            padding: 30px 0;
+        }
+        .page {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto 30px auto;
+            background: #fff;
+            padding: 20mm;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            box-sizing: border-box;
+            position: relative;
+        }
+        
+        /* Typography & Header */
+        h1 {
+            text-align: center;
+            margin: 0 0 5px 0;
+            font-size: 24px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+        .subtitle {
+            text-align: center;
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+        .contact-info {
+            text-align: center;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+        .contact-info span {
+            font-weight: bold;
+        }
+        
+        /* Section Titles */
+        .section-title {
+            background-color: var(--bg-grey);
+            text-align: center;
+            font-weight: bold;
+            padding: 6px 0;
+            margin: 20px 0 10px 0;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+        
+        /* Layout Utilities */
+        .content {
+            font-size: 13px;
+        }
+        a {
+            color: var(--text-main);
+            text-decoration: underline;
+        }
+        .bold { font-weight: bold; }
+        
+        /* Flexbox with Dot Leaders */
+        .flex-leader {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            margin-top: 15px;
+        }
+        .flex-leader .dots {
+            border-bottom: 1.5px dotted #999;
+            flex-grow: 1;
+            margin: 0 10px;
+            position: relative;
+            top: -4px;
+        }
+        
+        /* Lists */
+        ul {
+            margin: 5px 0 15px 0;
+            padding-left: 20px;
+        }
+        li {
+            margin-bottom: 4px;
+        }
+        
+        /* Grids */
+        .grid-2-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            column-gap: 30px;
+        }
+        
+        /* Skills & Hobbies Specifics */
+        .skills-list, .hobbies-list {
+            margin-top: 10px;
+        }
+        .skills-item {
+            display: flex;
+            align-items: baseline;
+            margin-bottom: 6px;
+        }
+        .skills-item .dots {
+            border-bottom: 1.5px dotted #999;
+            flex-grow: 1;
+            margin-left: 10px;
+            position: relative;
+            top: -4px;
+        }
+        .hobbies-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+        .hobbies-item::before {
+            content: "❖";
+            margin-right: 8px;
+            font-size: 12px;
+        }
+        
+        /* Languages */
+        .languages-container {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 40px;
+            margin-bottom: 15px;
+        }
+        .lang-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .lang-dots {
+            border-bottom: 1.5px dotted #999;
+            flex-grow: 1;
+            min-width: 50px;
+            position: relative;
+            top: -4px;
+        }
+        .lang-stars {
+            font-size: 14px;
+            letter-spacing: 2px;
+        }
+        .star-filled { color: #000; }
+        .star-empty { color: #ccc; }
+
+        /* Print Button */
+        .print-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background-color: #000;
+            color: #fff;
+            border: none;
+            padding: 15px 25px;
+            font-size: 16px;
+            font-family: Arial, sans-serif;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            transition: background 0.3s;
+            z-index: 1000;
+        }
+        .print-btn:hover {
+            background-color: #333;
+        }
+
+        /* Print Styles */
+        @media print {
+            body { 
+                display: block !important;
+                background: #fff; 
+                margin: 0; 
+                padding: 0; 
+            }
+            .page { 
+                box-shadow: none; 
+                padding: 10mm 15mm; 
+                width: 100%; 
+                min-height: 0; 
+                margin: 0; 
+                page-break-after: always;
+            }
+            .page:last-child {
+                page-break-after: auto;
+            }
+            .print-btn { 
+                display: none !important; 
+            }
+            @page {
+                size: A4 portrait;
+                margin: 5mm;
+            }
+        }
+    </style>
+    <script>
+        function triggerPrint() {
+            window.focus();
+            try {
+                window.print();
+            } catch (e) {
+                console.log("Print command blocked by browser sandbox. Use Ctrl+P or Cmd+P.");
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <button class="print-btn" onclick="triggerPrint()">🖨️ Print / Save as PDF</button>
+
+    <div class="page">
+        <!-- Header -->
+        <h1>SHISHIR LAMICHHANE</h1>
+        <div class="subtitle">Crypto Customer Support Specialist</div>
+        <div class="contact-info">
+            Kathmandu, Nepal<br><br>
+            <span>dshishir13@gmail.com</span> &nbsp;&nbsp;&nbsp;&nbsp; <span>+9779822447613</span>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid #000; margin-bottom: 0;">
+
+        <!-- Websites and Social Links -->
+        <div class="section-title">WEBSITES AND SOCIAL LINKS</div>
+        <div class="content">
+            <div style="margin-bottom: 3px;">ENS Wallet: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a>0xshishir.eth</a></div>
+            <div style="margin-bottom: 3px;">X (Twitter): &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://x.com/reddevilccr" target="_blank">https://x.com/reddevilccr</a></div>
+            <div style="margin-bottom: 3px;">LinkedIn: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://www.linkedin.com/in/dshishir13" target="_blank">https://www.linkedin.com/in/dshishir13</a></div>
+        </div>
+
+        <!-- Summary -->
+        <div class="section-title">SUMMARY</div>
+        <div class="content">
+            P2P focused Crypto Customer Support Specialist with personal hands-on experience completing 70+ P2P trades with a 100% completion rate. Strong understanding of escrow workflows, payment verification processes, and common dispute scenarios from real trading experience. Experienced in supporting Web3 communities, assisting users with wallet troubleshooting, transaction verification, and maintaining strong fraud awareness in crypto environments.
+        </div>
+
+        <!-- Experience -->
+        <div class="section-title">EXPERIENCE</div>
+        <div class="content">
+            <div class="flex-leader">
+                <span class="bold">❖ Crypto Community Moderator, Web3 Projects</span>
+                <span class="dots"></span>
+                <span>Jan 2021 — Jan 2026</span>
+            </div>
+            <div style="text-align: right; margin-bottom: 5px;">Remote</div>
+            <ul>
+                <li>Moderated and managed communities on Telegram and Discord for many small scale crypto projects.</li>
+                <li>Helped provide frontline user support related to wallets, token transfers, staking, and platform usage.</li>
+                <li>Worked to assist users with transaction issues, wallet connections, and onboarding guidance.</li>
+                <li>Removed scam attempts, phishing, and malicious users to maintain security.</li>
+                <li>Educated community members about safe crypto practices and platform features.</li>
+                <li>Maintained positive community engagement while handling user complaints and disputes.</li>
+            </ul>
+
+            <div class="flex-leader">
+                <span class="bold">❖ Jr. Software Engineer (Part Time), GivingbackAI</span>
+                <span class="dots"></span>
+                <span>Apr 2023 — May 2025</span>
+            </div>
+            <div style="text-align: right; margin-bottom: 5px;">Remote (United States)</div>
+            <p style="margin-top:0;">While my main work was designing and developing software as a junior I also sometimes worked with customers and learned some valuable skills.</p>
+            <ul>
+                <li>Investigated user-reported technical issues by analyzing logs and system behavior.</li>
+                <li>Escalated complex cases to development teams with detailed reproduction steps.</li>
+                <li>Improved support resolution efficiency through structured documentation.</li>
+                <li>Assisted in testing releases before deployment.</li>
+            </ul>
+        </div>
+
+        <!-- Education -->
+        <div class="section-title">EDUCATION</div>
+        <div class="content">
+            <div class="flex-leader">
+                <span class="bold">❖ Ratna Rajyalaxmi Campus, Tribhuvan University</span>
+                <span class="dots"></span>
+                <span>2020 — 2025</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <span style="font-style: italic;">Bachelor of Computer Applications (BCA),</span>
+                <span>Kathmandu</span>
+            </div>
+            <ul>
+                <li>Graduated with a Bachelor of Computer Applications (BCA) degree</li>
+                <li>Achieved a GPA of 3.5/4.0, ranking in the top 10% of the class</li>
+            </ul>
+        </div>
+
+    </div> <!-- End of Page 1 -->
+
+    <div class="page"> <!-- Start of Page 2 -->
+
+        <!-- Skills -->
+        <div class="section-title">SKILLS</div>
+        <div class="content grid-2-col skills-list">
+            <div>
+                <div class="skills-item">P2P Customer Support & Dispute Understanding <span class="dots"></span></div>
+                <div class="skills-item">Community Moderation & User Support <span class="dots"></span></div>
+                <div class="skills-item">Fraud & Scam Risk Awareness <span class="dots"></span></div>
+                <div class="skills-item">Remote Support & Ticket Systems <span class="dots"></span></div>
+                <div class="skills-item">Windows, macOS, Linux <span class="dots"></span></div>
+                <div class="skills-item">JavaScript, React, React Native <span class="dots"></span></div>
+                <div class="skills-item">Wallet management & Smart contract basics <span class="dots"></span></div>
+            </div>
+            <div>
+                <div class="skills-item">Crypto Wallet & Transaction Troubleshooting <span class="dots"></span></div>
+                <div class="skills-item">Escrow Transaction Workflow <span class="dots"></span></div>
+                <div class="skills-item">Blockchain Transaction Verification <span class="dots"></span></div>
+                <div class="skills-item">Conflict Resolution & Communication <span class="dots"></span></div>
+                <div class="skills-item">VPN setup & DNS/IP diagnostics <span class="dots"></span></div>
+                <div class="skills-item">REST APIs & Git Version Control <span class="dots"></span></div>
+            </div>
+        </div>
+
+        <!-- Languages -->
+        <div class="section-title">LANGUAGES</div>
+        <div class="content" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 40px; margin-bottom: 20px;">
+            <div class="flex-leader" style="margin-top: 0;">
+                <span>English</span>
+                <span class="dots"></span>
+                <span class="bold">Advanced</span>
+            </div>
+            <div class="flex-leader" style="margin-top: 0;">
+                <span>Nepali</span>
+                <span class="dots"></span>
+                <span class="bold">Native</span>
+            </div>
+            <div class="flex-leader" style="margin-top: 0;">
+                <span>Hindi</span>
+                <span class="dots"></span>
+                <span class="bold">Intermediate</span>
+            </div>
+        </div>
+
+        <!-- Web3 Highlights -->
+        <div class="section-title">WEB3 HIGHLIGHTS</div>
+        <div class="content">
+            <ul>
+                <li>70+ completed P2P trades with 100% completion rate</li>
+                <li>ENS identity owner (<strong>0xshishir.eth</strong>)</li>
+                <li>Active multi-chain EVM wallet user</li>
+                <li>Experience with DeFi airdrops, smart contracts, and transaction verification</li>
+                <li>Familiar with Bybit and Binance exchange ecosystems</li>
+            </ul>
+        </div>
+
+        <!-- Hobbies -->
+        <div class="section-title">HOBBIES AND INTERESTS</div>
+        <div class="content grid-2-col hobbies-list">
+            <div>
+                <div class="hobbies-item">Blockchain Technology & Web3 Ecosystems</div>
+                <div class="hobbies-item">DeFi Protocol Exploration</div>
+            </div>
+            <div>
+                <div class="hobbies-item">Crypto Security & Fraud Prevention Research</div>
+                <div class="hobbies-item">Emerging Financial Technologies (FinTech)</div>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>
