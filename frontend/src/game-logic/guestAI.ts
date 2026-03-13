@@ -136,6 +136,25 @@ export class GuestModeAI {
             return this.getEasyMove(state, validMoves);
         }
 
+        // Medium/Hard Tiger: FORCED CAPTURES — if any capture is available, only consider those.
+        // This ensures the tiger always takes a goat when possible, which is the expected
+        // behavior for competitive play. The best capture is still chosen via full search.
+        if (this.aiSide === 'Tiger') {
+            const captureMoves = validMoves.filter(m =>
+                m.type === 'move' && isCaptureMove(m.from, m.to, state.board)
+            );
+            if (captureMoves.length > 0) {
+                if (captureMoves.length === 1) {
+                    // Only one capture — take it immediately without searching
+                    return captureMoves[0];
+                }
+                // Multiple captures — pick the best one via full search
+                const captureResult = this.searchBestMove(state, Math.min(this.config.maxDepth, 4), captureMoves);
+                console.log(`AI (${this.config.difficulty}): Forced capture, picked best of ${captureMoves.length} captures, depth ${captureResult.depth}, score ${captureResult.score}`);
+                return captureResult.move;
+            }
+        }
+
         // Medium/Hard: use full search
         const result = this.config.maxDepth > 8
             ? this.iterativeDeepening(state)
@@ -217,8 +236,8 @@ export class GuestModeAI {
     /**
      * Main search function
      */
-    private searchBestMove(state: GameState, maxDepth: number): SearchResult {
-        const validMoves = getAllValidMoves(state);
+    private searchBestMove(state: GameState, maxDepth: number, candidateMoves?: PotentialMove[]): SearchResult {
+        const validMoves = candidateMoves ?? getAllValidMoves(state);
         
         if (validMoves.length === 0) {
             return {
@@ -243,7 +262,8 @@ export class GuestModeAI {
         let bestMoves: PotentialMove[] = [];
         const isRoot = maxDepth === this.config.maxDepth;
         const useRandomness = isRoot && this.config.difficulty === AIDifficulty.MEDIUM;
-        const randomnessTolerance = 200; // Small tolerance for variety
+        // Wider pool for medium — picks from moves within 800 pts of best, giving human-like variety
+        const randomnessTolerance = 800;
 
         for (const move of orderedMoves) {
             const undoInfo = makeMove(state, move);
@@ -260,8 +280,16 @@ export class GuestModeAI {
         }
         
         if (useRandomness && bestMoves.length > 0) {
-             bestMove = bestMoves[Math.floor(Math.random() * bestMoves.length)] || bestMove;
-             // Update bestMove but keeping bestScore accurate for alpha/beta propagation isn't needed at root final return
+            // 20% chance: pick a completely random move from the acceptable pool (feels human)
+            // 80% chance: pick from near-best moves
+            if (Math.random() < 0.20 && orderedMoves.length > 2) {
+                // Exclude the very worst moves (bottom quarter) for sanity
+                const cutoff = Math.floor(orderedMoves.length * 0.75);
+                const acceptablePool = orderedMoves.slice(0, cutoff);
+                bestMove = acceptablePool[Math.floor(Math.random() * acceptablePool.length)] || bestMove;
+            } else {
+                bestMove = bestMoves[Math.floor(Math.random() * bestMoves.length)] || bestMove;
+            }
         }
 
         return {

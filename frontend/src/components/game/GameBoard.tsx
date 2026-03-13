@@ -1,16 +1,12 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   StyleSheet,
   Dimensions,
   TouchableOpacity,
-  LayoutAnimation,
-  UIManager,
-  Platform,
 } from 'react-native';
 import Svg, { Line } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useAudioPlayer } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
 import { useSelector } from 'react-redux';
 
@@ -19,8 +15,6 @@ import TigerIcon from './TigerIcon';
 import GoatIcon from './GoatIcon';
 import { useAppTheme } from '../../theme';
 import { RootState } from '../../store';
-
-
 
 interface Position {
   row: number;
@@ -35,7 +29,24 @@ interface GameBoardProps {
   isMoveLoading?: boolean;
   currentPlayer: PlayerSide;
   phase: GamePhase;
+  /**
+   * During AI animation, the position whose piece should be hidden so the
+   * AnimatedPiece overlay doesn't produce a visible duplicate.
+   */
+  animatingFrom?: [number, number] | null;
+  /**
+   * The grid cell of the captured piece (if any) — also hidden during animation
+   * so the board looks correct while the tiger is sliding over the goat.
+   */
+  animatingCapture?: [number, number] | null;
+  /**
+   * An animated piece node to render inside the board's coordinate space.
+   * This must be placed inside the board view so its absolute pixel coords match.
+   */
+  animatedPieceNode?: React.ReactNode;
 }
+
+export const BOARD_CONTAINER_SIZE_EXPORT = Dimensions.get('window').width - 48;
 
 const { width: screenWidth } = Dimensions.get('window');
 const BOARD_CONTAINER_SIZE = screenWidth - 48;
@@ -52,32 +63,12 @@ const GameBoard: React.FC<GameBoardProps> = ({
   isMoveLoading = false,
   currentPlayer,
   phase,
+  animatingFrom = null,
+  animatingCapture = null,
+  animatedPieceNode = null,
 }) => {
   const theme = useAppTheme();
-  const enableSoundEffects = useSelector((state: RootState) => state.ui.enableSoundEffects);
-  const enableVibration = useSelector((state: RootState) => state.ui.enableVibration);
-  const enableAnimations = useSelector((state: RootState) => state.ui.enableAnimations);
-  
-  const moveSoundPlayer = useAudioPlayer(require('../../../assets/audio/move_sound.mp3'));
-  const captureSoundPlayer = useAudioPlayer(require('../../../assets/audio/capture_sound.mp3'));
-
-  useEffect(() => {
-    if (enableAnimations) {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
-    }
-  }, [board, enableAnimations]);
-
-  const playMoveSound = useCallback(async () => {
-    if (!enableSoundEffects) return;
-    moveSoundPlayer.seekTo(0);
-    moveSoundPlayer.play();
-  }, [moveSoundPlayer, enableSoundEffects]);
-  
-  const playCaptureSound = useCallback(async () => {
-    if (!enableSoundEffects) return;
-    captureSoundPlayer.seekTo(0);
-    captureSoundPlayer.play();
-  }, [captureSoundPlayer, enableSoundEffects]);
+  const enableVibration  = useSelector((state: RootState) => state.ui.enableVibration);
 
   const triggerHaptic = useCallback((isCapture: boolean) => {
     if (!enableVibration) return;
@@ -91,17 +82,11 @@ const GameBoard: React.FC<GameBoardProps> = ({
   const handlePositionPress = (row: number, col: number) => {
     if (isMoveLoading) return;
 
-    const isCapture = validMoves.some(m => m.row === row && m.col === col) && 
-                      selectedPosition && 
+    const isCapture = validMoves.some(m => m.row === row && m.col === col) &&
+                      selectedPosition !== null &&
                       Math.abs(selectedPosition.row - row) > 1;
 
-    if (isCapture) {
-      playCaptureSound();
-      triggerHaptic(true);
-    } else {
-      playMoveSound();
-      triggerHaptic(false);
-    }
+    triggerHaptic(isCapture);
     onPositionPress({ row, col });
   };
 
@@ -156,6 +141,18 @@ const GameBoard: React.FC<GameBoardProps> = ({
         const isSelected = selectedPosition?.row === row && selectedPosition?.col === col;
         const isValidMove = validMoves.some(m => m.row === row && m.col === col);
 
+        // Hide the piece that is currently mid-animation so there's no ghost duplicate
+        const isAnimatingSource =
+          animatingFrom !== null &&
+          animatingFrom[0] === row &&
+          animatingFrom[1] === col;
+
+        // Hide the captured piece so it disappears as the tiger starts sliding
+        const isAnimatingCaptured =
+          animatingCapture !== null &&
+          animatingCapture[0] === row &&
+          animatingCapture[1] === col;
+
         elements.push(
           <TouchableOpacity
             key={`cell-${row}-${col}`}
@@ -177,8 +174,8 @@ const GameBoard: React.FC<GameBoardProps> = ({
               <View style={styles.validMoveIndicator} />
             )}
             
-            {/* Game piece */}
-            {piece !== PieceType.EMPTY && (
+            {/* Game piece — hidden when it's the source of an ongoing animation or the captured piece */}
+            {piece !== PieceType.EMPTY && !isAnimatingSource && !isAnimatingCaptured && (
               <View style={[
                 styles.pieceContainer, 
                 isSelected && { 
@@ -221,9 +218,10 @@ const GameBoard: React.FC<GameBoardProps> = ({
           {renderLines()}
         </Svg>
         
-        {/* Pieces */}
+        {/* Pieces + animated overlay — all within the same coordinate space */}
         <View style={StyleSheet.absoluteFillObject} pointerEvents="box-none">
           {renderPiecesAndHighlights()}
+          {animatedPieceNode}
         </View>
       </LinearGradient>
     </View>
@@ -278,4 +276,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default GameBoard; 
+export default GameBoard;

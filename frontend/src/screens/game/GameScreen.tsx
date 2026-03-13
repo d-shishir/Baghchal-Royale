@@ -13,10 +13,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAudioPlayer } from 'expo-audio';
 
 import GameBoard from '../../components/game/GameBoard';
 import TigerIcon from '../../components/game/TigerIcon';
 import GoatIcon from '../../components/game/GoatIcon';
+import AnimatedPiece from '../../components/game/AnimatedPiece';
 import { GameState, PieceType, PlayerSide, GamePhase, isMoveValid, applyMove, getMovesForPiece, PotentialMove, GameStatus as GameStatusEnum } from '../../game-logic/baghchal';
 import { getGuestAIMove, AIDifficulty } from '../../game-logic/guestAI';
 import { RootState } from '../../store';
@@ -40,6 +42,15 @@ type GameScreenRouteProp = RouteProp<{
   };
 }, 'Game'>;
 
+/** Shape for a pending (mid-animation) AI move */
+interface PendingAiMove {
+  from: [number, number];
+  to: [number, number];
+  pieceType: PieceType.TIGER | PieceType.GOAT;
+  nextState: GameState;
+  isCapture: boolean;
+}
+
 const GameScreen: React.FC = () => {
   const route = useRoute<GameScreenRouteProp>();
   const navigation = useNavigation<any>();
@@ -49,39 +60,81 @@ const GameScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const { gameId, gameMode = 'local', playerSide = 'Tiger', initialGameState: localInitialState, aiDifficulty } = route.params;
 
+  const enableSoundEffects = useSelector((state: RootState) => state.ui.enableSoundEffects);
+  const enableAnimations   = useSelector((state: RootState) => state.ui.enableAnimations);
+
+  // Audio players
+  const moveSoundPlayer    = useAudioPlayer(require('../../../assets/audio/move_sound.mp3'));
+  const captureSoundPlayer = useAudioPlayer(require('../../../assets/audio/capture_sound.mp3'));
+
   const [currentGameState, setCurrentGameState] = useState<GameState>(localInitialState || initialGameState);
   const [selectedPosition, setSelectedPosition] = useState<{ row: number; col: number } | null>(null);
   const [isAiThinking, setIsAiThinking] = useState(false);
+  const [pendingAiMove, setPendingAiMove] = useState<PendingAiMove | null>(null);
+  // Mirror pendingAiMove into a ref so the animation callback is never stale
+  const pendingAiMoveRef = useRef<PendingAiMove | null>(null);
   const [isGameOverModalVisible, setGameOverModalVisible] = useState(false);
   const [isExitModalVisible, setExitModalVisible] = useState(false);
   const gameOverModalShownRef = useRef(false);
   const resultRecordedRef = useRef(false);
 
-  // AI Move Effect
+  /** Play a sound only if the setting is on */
+  const playSound = useCallback((isCapture: boolean) => {
+    if (!enableSoundEffects) return;
+    if (isCapture) {
+      captureSoundPlayer.seekTo(0);
+      captureSoundPlayer.play();
+    } else {
+      moveSoundPlayer.seekTo(0);
+      moveSoundPlayer.play();
+    }
+  }, [enableSoundEffects, moveSoundPlayer, captureSoundPlayer]);
+
+  /** Called by AnimatedPiece when the slide finishes — commit board state.
+   *  Reads from ref to avoid stale closure issues with runOnJS. */
+  const handleAiAnimationComplete = useCallback(() => {
+    const move = pendingAiMoveRef.current;
+    if (move) {
+      // Play capture sound at the END of animation — sounds like the piece lands/crunch
+      if (move.isCapture) playSound(true);
+      setCurrentGameState(move.nextState);
+      setPendingAiMove(null);
+      pendingAiMoveRef.current = null;
+      isAiThinkingRef.current = false;
+      setIsAiThinking(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);  // Ref-based lock so the AI effect cannot re-fire while a move is already in progress
+  const isAiThinkingRef = useRef(false);
+  // Capture enableAnimations in a ref to avoid adding it as an effect dependency
+  const enableAnimationsRef = useRef(enableAnimations);
+  useEffect(() => { enableAnimationsRef.current = enableAnimations; }, [enableAnimations]);
+
+  // AI Move Effect — only re-runs when the board state or game config changes
   useEffect(() => {
+    // Guard: bail immediately if already processing an AI move
+    if (isAiThinkingRef.current) return;
+
     const isAiTurn =
       !!aiDifficulty &&
       currentGameState.currentPlayer.toUpperCase() !== playerSide?.toUpperCase() &&
       currentGameState.status === GameStatusEnum.IN_PROGRESS;
 
     if (isAiTurn) {
+      isAiThinkingRef.current = true;
       setIsAiThinking(true);
       
       const handleAIMove = async () => {
         try {
-          // Determine AI side (opposite of human side)
-          // playerSide comes as 'Tiger' or 'Goat', we need to match the case
           const normalizedPlayerSide = playerSide?.charAt(0).toUpperCase() + playerSide?.slice(1).toLowerCase();
           const aiSide = normalizedPlayerSide === 'Tiger' ? 'Goat' : 'Tiger';
           
           console.log(`AI Move: playerSide=${playerSide}, aiSide=${aiSide}, currentPlayer=${currentGameState.currentPlayer}`);
           
-          // Map string difficulty to Enum
           let difficultyEnum = AIDifficulty.MEDIUM;
           if (aiDifficulty === 'EASY') difficultyEnum = AIDifficulty.EASY;
           else if (aiDifficulty === 'HARD') difficultyEnum = AIDifficulty.HARD;
 
-          // Clone the state to avoid mutation of frozen object
           const clonedState = {
             ...currentGameState,
             board: currentGameState.board.map(row => [...row]),
@@ -91,8 +144,41 @@ const GameScreen: React.FC = () => {
           
           if (aiPotentialMove) {
             const aiMove = { ...aiPotentialMove, player_id: currentGameState.currentPlayer, timestamp: new Date().toISOString() };
-            const newState = applyMove(currentGameState, aiMove);
-            setCurrentGameState(newState);
+            const nextState = applyMove(currentGameState, aiMove);
+
+            if (aiPotentialMove.type === 'move' && enableAnimationsRef.current) {
+              // Detect capture: tiger jumps 2 cells
+              const isCapture =
+                Math.abs(aiPotentialMove.from[0] - aiPotentialMove.to[0]) > 1 ||
+                Math.abs(aiPotentialMove.from[1] - aiPotentialMove.to[1]) > 1;
+
+              const movingPiece = currentGameState.board[aiPotentialMove.from[0]][aiPotentialMove.from[1]] as PieceType.TIGER | PieceType.GOAT;
+
+              // Play MOVE sound at the START of animation (slide begins)
+              // Capture sound plays later in handleAiAnimationComplete when piece lands
+              playSound(false);
+
+              // Store the pending move — AnimatedPiece will handle committing it
+              const movePayload: PendingAiMove = {
+                from: [aiPotentialMove.from[0], aiPotentialMove.from[1]],
+                to:   [aiPotentialMove.to[0],   aiPotentialMove.to[1]],
+                pieceType: movingPiece,
+                nextState,
+                isCapture,
+              };
+              pendingAiMoveRef.current = movePayload;
+              setPendingAiMove(movePayload);
+              // isAiThinkingRef stays true — handleAiAnimationComplete clears it
+            } else {
+              // Placements or animations-off: update immediately
+              playSound(false);
+              setCurrentGameState(nextState);
+              isAiThinkingRef.current = false;
+              setIsAiThinking(false);
+            }
+          } else {
+            isAiThinkingRef.current = false;
+            setIsAiThinking(false);
           }
         } catch (err) {
           console.error('Failed to get AI move:', err);
@@ -101,20 +187,23 @@ const GameScreen: React.FC = () => {
             message: 'Could not get AI move.',
             type: 'error',
           });
-        } finally {
+          isAiThinkingRef.current = false;
           setIsAiThinking(false);
         }
       };
 
-      const timer = setTimeout(handleAIMove, 1500);
+      const timer = setTimeout(handleAIMove, 800);
       return () => clearTimeout(timer);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentGameState, aiDifficulty, playerSide]);
 
   // Game Over Effect
   useEffect(() => {
     const status = currentGameState.status;
-    if ((status === GameStatusEnum.TIGER_WON || status === GameStatusEnum.GOAT_WON) && !gameOverModalShownRef.current) {
+    if ((status === GameStatusEnum.TIGER_WON || status === GameStatusEnum.GOAT_WON) &&
+        !gameOverModalShownRef.current &&
+        pendingAiMoveRef.current === null) {
       const timer = setTimeout(() => {
         gameOverModalShownRef.current = true;
         setGameOverModalVisible(true);
@@ -187,6 +276,10 @@ const GameScreen: React.FC = () => {
         type: 'move',
       };
       if (isMoveValid(currentGameState, aMove)) {
+        const isCapture =
+          Math.abs(selectedPosition.row - position.row) > 1 ||
+          Math.abs(selectedPosition.col - position.col) > 1;
+        playSound(isCapture);
         const gameMove = { ...aMove, player_id: ourSide, timestamp: new Date().toISOString() };
         const newState = applyMove(currentGameState, gameMove);
         setCurrentGameState(newState);
@@ -202,6 +295,7 @@ const GameScreen: React.FC = () => {
           const isValid = isMoveValid(currentGameState, aMove);
           
           if (isValid) {
+            playSound(false); // placement = move sound
             const gameMove = { ...aMove, player_id: ourSide, timestamp: new Date().toISOString() };
             const newState = applyMove(currentGameState, gameMove);
             setCurrentGameState(newState);
@@ -217,7 +311,7 @@ const GameScreen: React.FC = () => {
         setSelectedPosition(position);
       }
     }
-  }, [currentGameState, selectedPosition, gameMode, isAiThinking, ourSide]);
+  }, [currentGameState, selectedPosition, gameMode, isAiThinking, ourSide, playSound]);
 
   const handleGoHome = () => {
     setGameOverModalVisible(false);
@@ -321,9 +415,28 @@ const GameScreen: React.FC = () => {
             selectedPosition={selectedPosition}
             validMoves={validMovesForSelection}
             onPositionPress={handlePress}
-            isMoveLoading={isAiThinking}
+            isMoveLoading={isAiThinking || pendingAiMove !== null}
             currentPlayer={currentGameState.currentPlayer}
             phase={currentGameState.phase}
+            animatingFrom={pendingAiMove ? pendingAiMove.from : null}
+            animatingCapture={
+              pendingAiMove?.isCapture
+                ? [
+                    Math.round((pendingAiMove.from[0] + pendingAiMove.to[0]) / 2),
+                    Math.round((pendingAiMove.from[1] + pendingAiMove.to[1]) / 2),
+                  ]
+                : null
+            }
+            animatedPieceNode={
+              pendingAiMove ? (
+                <AnimatedPiece
+                  from={pendingAiMove.from}
+                  to={pendingAiMove.to}
+                  pieceType={pendingAiMove.pieceType}
+                  onAnimationComplete={handleAiAnimationComplete}
+                />
+              ) : null
+            }
           />
         </View>
       </View>
