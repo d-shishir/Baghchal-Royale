@@ -64,6 +64,7 @@ const GameScreen: React.FC = () => {
   const enableAnimations   = useSelector((state: RootState) => state.ui.enableAnimations);
 
   // Audio players
+  // Audio players - Paths are 3 levels up from src/screens/game/ to root assets/
   const moveSoundPlayer    = useAudioPlayer(require('../../../assets/audio/move_sound.mp3'));
   const captureSoundPlayer = useAudioPlayer(require('../../../assets/audio/capture_sound.mp3'));
 
@@ -80,11 +81,14 @@ const GameScreen: React.FC = () => {
 
   /** Play a sound only if the setting is on */
   const playSound = useCallback((isCapture: boolean) => {
+    console.log(`playSound called: isCapture=${isCapture}, enabled=${enableSoundEffects}`);
     if (!enableSoundEffects) return;
     if (isCapture) {
+      console.log('Playing capture sound...');
       captureSoundPlayer.seekTo(0);
       captureSoundPlayer.play();
     } else {
+      console.log('Playing move sound...');
       moveSoundPlayer.seekTo(0);
       moveSoundPlayer.play();
     }
@@ -95,16 +99,18 @@ const GameScreen: React.FC = () => {
   const handleAiAnimationComplete = useCallback(() => {
     const move = pendingAiMoveRef.current;
     if (move) {
+      console.log(`AI Animation Complete: isCapture=${move.isCapture}`);
       // Play capture sound at the END of animation — sounds like the piece lands/crunch
-      if (move.isCapture) playSound(true);
+      if (move.isCapture) {
+        playSound(true);
+      }
       setCurrentGameState(move.nextState);
       setPendingAiMove(null);
       pendingAiMoveRef.current = null;
       isAiThinkingRef.current = false;
       setIsAiThinking(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);  // Ref-based lock so the AI effect cannot re-fire while a move is already in progress
+  }, [playSound]);  // Use latest playSound to avoid stale audio player refs
   const isAiThinkingRef = useRef(false);
   // Capture enableAnimations in a ref to avoid adding it as an effect dependency
   const enableAnimationsRef = useRef(enableAnimations);
