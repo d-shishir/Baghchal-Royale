@@ -1,0 +1,37 @@
+{
+  "appName": "Baghchal Royale",
+  "iconPath": "../icon.png",
+  "theme": "colorful-warm",
+  "screenshots": [
+    {
+      "img": "mainfirstscreen.png",
+      "label": "CLASSIC BOARD GAME",
+      "headline": "Play the traditional\nBaghchal game"
+    },
+    {
+      "img": "2br.png",
+      "label": "OFFLINE MULTIPLAYER",
+      "headline": "Challenge your\nfriends and family"
+    },
+    {
+      "img": "3br.png",
+      "label": "TIGERS VS GOATS",
+      "headline": "Hunt as Tigers or\nSurvive as Goats"
+    },
+    {
+      "img": "4br.png",
+      "label": "STRATEGIC MOVES",
+      "headline": "Master the art\nof true strategy"
+    },
+    {
+      "img": "5br.png",
+      "label": "TRACK PROGRESS",
+      "headline": "Check your stats and\nbecome a master"
+    },
+    {
+      "img": "6br.png",
+      "label": "LOCAL MULTIPLAYER",
+      "headline": "Play with friends\non the same device"
+    }
+  ]
+}
