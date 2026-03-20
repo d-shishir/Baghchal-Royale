@@ -38,6 +38,7 @@ interface UIState {
   
   hasSeenOnboarding: boolean;
   themePreference: 'light' | 'dark' | 'system';
+  boardTheme: 'classic' | 'stone' | 'neon' | 'newyear';
 }
 
 const initialState: UIState = {
@@ -63,6 +64,7 @@ const initialState: UIState = {
   
   hasSeenOnboarding: false,
   themePreference: 'system',
+  boardTheme: 'classic',
 };
 
 const uiSlice = createSlice({
@@ -147,6 +149,10 @@ const uiSlice = createSlice({
         state.darkMode = action.payload === 'dark';
       }
     },
+
+    setBoardTheme: (state, action: PayloadAction<'classic' | 'stone' | 'neon' | 'newyear'>) => {
+      state.boardTheme = action.payload;
+    },
     
     // Reset UI state
     resetUI: () => initialState,
@@ -172,6 +178,7 @@ export const {
   setEnableAnimations,
   setHasSeenOnboarding,
   setThemePreference,
+  setBoardTheme,
   resetUI,
 } = uiSlice.actions;
 

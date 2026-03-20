@@ -29,6 +29,7 @@ import { recordGameResult } from '../../store/slices/gameSlice';
 import { incrementWins, incrementLosses } from '../../store/slices/authSlice';
 import { useAppTheme } from '../../theme';
 import { useAlert } from '../../contexts/AlertContext';
+import { setBoardTheme } from '../../store/slices/uiSlice';
 
 const { width } = Dimensions.get('window');
 
@@ -62,6 +63,7 @@ const GameScreen: React.FC = () => {
 
   const enableSoundEffects = useSelector((state: RootState) => state.ui.enableSoundEffects);
   const enableAnimations   = useSelector((state: RootState) => state.ui.enableAnimations);
+  const currentBoardTheme  = useSelector((state: RootState) => state.ui.boardTheme);
 
   // Audio players
   // Audio players - Paths are 3 levels up from src/screens/game/ to root assets/
@@ -76,6 +78,7 @@ const GameScreen: React.FC = () => {
   const pendingAiMoveRef = useRef<PendingAiMove | null>(null);
   const [isGameOverModalVisible, setGameOverModalVisible] = useState(false);
   const [isExitModalVisible, setExitModalVisible] = useState(false);
+  const [isThemeModalVisible, setThemeModalVisible] = useState(false);
   const gameOverModalShownRef = useRef(false);
   const resultRecordedRef = useRef(false);
 
@@ -319,6 +322,15 @@ const GameScreen: React.FC = () => {
     }
   }, [currentGameState, selectedPosition, gameMode, isAiThinking, ourSide, playSound]);
 
+  const handleOpenThemeModal = () => {
+    setThemeModalVisible(true);
+  };
+
+  const handleSelectTheme = (themeId: 'classic' | 'stone' | 'neon' | 'newyear') => {
+    dispatch(setBoardTheme(themeId));
+    setThemeModalVisible(false);
+  };
+
   const handleGoHome = () => {
     setGameOverModalVisible(false);
     gameOverModalShownRef.current = false;
@@ -398,7 +410,7 @@ const GameScreen: React.FC = () => {
       <View style={[styles.topSection, { paddingTop: insets.top + 8 }]}>
         <View style={[styles.playerCard, { backgroundColor: theme.colors.surface, borderColor: isTigerTurn ? theme.colors.tigerColor : 'transparent' }]}>
           <View style={[styles.playerIconBg, { backgroundColor: theme.colors.tigerColor + '20' }]}>
-            <TigerIcon size={28} color={theme.colors.tigerColor} />
+            <TigerIcon key={currentBoardTheme} size={28} color={theme.colors.tigerColor} />
           </View>
           <View style={styles.playerInfo}>
             <Text style={[styles.playerName, { color: tigerPlayer.isYou ? theme.colors.goatColor : theme.colors.text }]}>
@@ -465,7 +477,7 @@ const GameScreen: React.FC = () => {
 
         <View style={[styles.playerCard, { backgroundColor: theme.colors.surface, borderColor: isGoatTurn ? theme.colors.goatColor : 'transparent' }]}>
           <View style={[styles.playerIconBg, { backgroundColor: theme.colors.goatColor + '20' }]}>
-            <GoatIcon size={28} color={theme.colors.goatColor} />
+            <GoatIcon key={currentBoardTheme} size={28} color={theme.colors.goatColor} />
           </View>
           <View style={styles.playerInfo}>
             <Text style={[styles.playerName, { color: goatPlayer.isYou ? theme.colors.goatColor : theme.colors.text }]}>
@@ -488,6 +500,10 @@ const GameScreen: React.FC = () => {
           <TouchableOpacity style={[styles.actionButton, { backgroundColor: theme.colors.surfaceVariant }]} onPress={handleRestart}>
             <Ionicons name="refresh" size={20} color={theme.colors.text} />
             <Text style={[styles.actionButtonText, { color: theme.colors.text }]}>Restart</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.actionButton, { backgroundColor: theme.colors.surfaceVariant }]} onPress={handleOpenThemeModal}>
+            <Ionicons name="color-palette" size={20} color={theme.colors.text} />
+            <Text style={[styles.actionButtonText, { color: theme.colors.text }]}>Theme</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.actionButton, { backgroundColor: theme.colors.surfaceVariant }]} onPress={handleQuitGame}>
             <Ionicons name="home" size={20} color={theme.colors.text} />
@@ -531,6 +547,54 @@ const GameScreen: React.FC = () => {
               >
                 <Text style={[styles.exitModalButtonText, { color: '#FFF' }]}>Exit</Text>
               </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Theme Selection Modal */}
+      <Modal
+        visible={isThemeModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setThemeModalVisible(false)}
+      >
+        <View style={styles.themeModalOverlay}>
+          <View style={[styles.themeModalContainer, { backgroundColor: theme.colors.surface }]}>
+            <View style={styles.themeModalHeader}>
+              <Text style={[styles.themeModalTitle, { color: theme.colors.text }]}>Select Board Theme</Text>
+              <TouchableOpacity onPress={() => setThemeModalVisible(false)}>
+                <Ionicons name="close" size={24} color={theme.colors.onSurfaceVariant} />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.themeOptionList}>
+              {(['classic', 'stone', 'neon', 'newyear'] as const).map((id) => {
+                const isSelected = currentBoardTheme === id;
+                const themeNames = {
+                  classic: 'Classic Wood',
+                  stone: 'Ancient Stone',
+                  neon: 'Cyber Neon',
+                  newyear: 'Nepali New Year'
+                };
+                
+                return (
+                  <TouchableOpacity 
+                    key={id}
+                    style={[
+                      styles.themeOption, 
+                      { backgroundColor: theme.colors.surfaceVariant },
+                      isSelected && { borderColor: theme.colors.primary, borderWidth: 2 }
+                    ]}
+                    onPress={() => handleSelectTheme(id)}
+                  >
+                    <View style={styles.themeOptionInfo}>
+                      <Text style={[styles.themeOptionName, { color: theme.colors.text }]}>{themeNames[id]}</Text>
+                      {isSelected && <Ionicons name="checkmark-circle" size={20} color={theme.colors.primary} />}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
         </View>
@@ -647,16 +711,19 @@ const styles = StyleSheet.create({
   actionRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 12,
+    flexWrap: 'wrap',
+    gap: 8,
     marginTop: 12,
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     borderRadius: 12,
-    gap: 8,
+    gap: 6,
+    minWidth: 90,
+    justifyContent: 'center',
   },
   actionButtonText: {
     fontSize: 14,
@@ -704,6 +771,45 @@ const styles = StyleSheet.create({
   exitModalButtonText: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  themeModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  themeModalContainer: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+  },
+  themeModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  themeModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  themeOptionList: {
+    gap: 12,
+  },
+  themeOption: {
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  themeOptionInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  themeOptionName: {
+    fontSize: 16,
+    fontWeight: '500',
   },
 });
 

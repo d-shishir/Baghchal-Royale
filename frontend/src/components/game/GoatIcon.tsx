@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, Image } from 'react-native';
+import { useAppTheme } from '../../theme';
 
 interface GoatIconProps {
   size?: number;
@@ -7,14 +8,44 @@ interface GoatIconProps {
 }
 
 const GoatIcon: React.FC<GoatIconProps> = ({ size = 32 }) => {
+  const theme = useAppTheme();
+  
+  const source = theme.boardTheme.pieceStyle === 'image' && 'goatImage' in theme.boardTheme
+    ? theme.boardTheme.goatImage
+    : require('../../../assets/goat.jpg');
+
   return (
-    <View style={[styles.container, { 
-      width: size, 
-      height: size,
-      borderRadius: size / 2,
-    }]}>
+    <View style={[
+      styles.container, 
+      { 
+        width: size, 
+        height: size,
+        borderRadius: size / 2,
+      },
+      theme.boardTheme.id === 'stone' && {
+        borderWidth: 2,
+        borderColor: 'rgba(50, 50, 50, 0.4)', // Subtle dark border for marble definition
+        shadowOpacity: 0.6,
+        shadowRadius: 6,
+        elevation: 10,
+      },
+      theme.boardTheme.id === 'neon' && {
+        shadowColor: '#00FFFF', // Goat glow
+        shadowOpacity: 0.8,
+        shadowRadius: 10,
+        elevation: 15,
+      },
+      theme.boardTheme.id === 'newyear' && {
+        borderWidth: 2,
+        borderColor: '#FFD700', // Gold border for celebration
+        shadowColor: '#FFD700',
+        shadowOpacity: 0.6,
+        shadowRadius: 8,
+        elevation: 12,
+      }
+    ]}>
       <Image
-        source={require('../../../assets/goat.jpg')}
+        source={source}
         style={[styles.image, { 
           width: size, 
           height: size, 

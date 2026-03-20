@@ -20,9 +20,10 @@ import {
   setEnableVibration,
   setEnableAnimations,
   setThemePreference,
+  setBoardTheme,
 } from '../../store/slices/uiSlice';
 import { clearGameHistory } from '../../store/slices/gameSlice';
-import { useAppTheme } from '../../theme';
+import { useAppTheme, boardThemes } from '../../theme';
 import GameCard from '../../components/game/GameCard';
 import { useAlert } from '../../contexts/AlertContext';
 
@@ -83,6 +84,10 @@ const SettingsScreen: React.FC = () => {
 
   const handleToggleVibration = (value: boolean) => {
     dispatch(setEnableVibration(value));
+  };
+
+  const handleBoardTheme = (themeId: 'classic' | 'stone' | 'neon' | 'newyear') => {
+    dispatch(setBoardTheme(themeId));
   };
 
   return (
@@ -152,6 +157,26 @@ const SettingsScreen: React.FC = () => {
               trackColor={{ false: theme.colors.surfaceVariant, true: theme.colors.primary }}
               thumbColor="#FFF"
             />
+          </View>
+        </GameCard>
+        
+        {/* Board Appearance */}
+        <GameCard title="Board Appearance" icon={<Ionicons name="grid" size={24} color={theme.colors.primary} />} style={styles.card}>
+          <View style={styles.themeSelector}>
+            {Object.values(boardThemes).map((b) => (
+              <TouchableOpacity 
+                key={b.id}
+                style={[
+                  styles.themeOption, 
+                  uiState.boardTheme === b.id && { backgroundColor: theme.colors.primary + '20', borderColor: theme.colors.primary }
+                ]}
+                onPress={() => handleBoardTheme(b.id)}
+              >
+                <Text style={[styles.themeOptionText, { color: uiState.boardTheme === b.id ? theme.colors.primary : theme.colors.text }]}>
+                  {b.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
         </GameCard>
 

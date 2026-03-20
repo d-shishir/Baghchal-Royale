@@ -103,6 +103,50 @@ export const colors = {
   },
 };
 
+export const boardThemes = {
+  classic: {
+    id: 'classic' as const,
+    name: 'Classic Wood',
+    backgroundType: 'gradient' as const,
+    lineColor: (isDark: boolean) => isDark ? 'rgba(139,90,43,0.6)' : 'rgba(101,67,33,0.4)',
+    lineWidth: 2,
+    pieceStyle: 'svg' as const,
+  },
+  stone: {
+    id: 'stone' as const,
+    name: 'Ancient Stone',
+    backgroundType: 'image' as const,
+    backgroundImage: require('../../assets/images/stone_board.png'),
+    lineColor: () => 'rgba(184, 134, 11, 0.4)', // Dark Goldenrod / Bronze
+    lineWidth: 2.5,
+    pieceStyle: 'image' as const,
+    tigerImage: require('../../assets/images/stone_tiger.png'),
+    goatImage: require('../../assets/images/stone_goat.png'),
+  },
+  neon: {
+    id: 'neon' as const,
+    name: 'Cyber Neon',
+    backgroundType: 'gradient' as const, // We'll use a deep dark gradient
+    bgColors: ['#000000', '#0A0A2A', '#000000'] as const,
+    lineColor: () => '#00FFFF', // Cyan Neon
+    lineWidth: 2,
+    pieceStyle: 'image' as const,
+    tigerImage: require('../../assets/images/neon_tiger.png'),
+    goatImage: require('../../assets/images/neon_goat.png'),
+  },
+  newyear: {
+    id: 'newyear' as const,
+    name: 'Nepali New Year',
+    backgroundType: 'gradient' as const,
+    bgColors: ['#DC143C', '#003893'] as const, // Crimson Red and Royal Blue
+    lineColor: () => '#FFD700', // Gold
+    lineWidth: 3,
+    pieceStyle: 'image' as const,
+    tigerImage: require('../../assets/images/newyear_tiger.png'),
+    goatImage: require('../../assets/images/newyear_goat.png'),
+  }
+};
+
 export const shadows = {
   small: {
     shadowColor: "#000",
@@ -194,10 +238,14 @@ export const useAppTheme = () => {
     
   const currentColors = isDarkMode ? colors.dark : colors.light;
   
+  const boardThemeId = useSelector((state: RootState) => state.ui.boardTheme);
+  const boardTheme = boardThemes[boardThemeId] || boardThemes.classic;
+  
   return {
     ...theme,
     colors: currentColors,
     isDark: isDarkMode,
+    boardTheme,
   };
 };
  

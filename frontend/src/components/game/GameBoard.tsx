@@ -7,6 +7,7 @@ import {
 } from 'react-native';
 import Svg, { Line } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
+import { ImageBackground } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useSelector } from 'react-redux';
 
@@ -92,8 +93,8 @@ const GameBoard: React.FC<GameBoardProps> = ({
 
   const renderLines = () => {
     const lines = [];
-    const lineColor = theme.isDark ? 'rgba(139,90,43,0.6)' : 'rgba(101,67,33,0.4)';
-    const lineWidth = 2;
+    const lineColor = theme.boardTheme.lineColor(theme.isDark);
+    const lineWidth = theme.boardTheme.lineWidth;
     
     const connections = [
       // Horizontal lines
@@ -121,6 +122,28 @@ const GameBoard: React.FC<GameBoardProps> = ({
     ];
 
     for (const line of connections) {
+      if (theme.boardTheme.id === 'neon') {
+        // Render neon glow layer
+        lines.push(
+          <Line 
+            {...line} 
+            stroke={lineColor} 
+            strokeWidth={lineWidth * 3.5}
+            strokeOpacity={0.25}
+            key={`glow-${line.x1}-${line.y1}-${line.x2}-${line.y2}`} 
+          />
+        );
+        // Render core neon line
+        lines.push(
+          <Line 
+            {...line} 
+            stroke="#FFFFFF" // White core for neon effect
+            strokeWidth={lineWidth * 0.5}
+            key={`core-${line.x1}-${line.y1}-${line.x2}-${line.y2}`} 
+          />
+        );
+      }
+      
       lines.push(
         <Line 
           {...line} 
@@ -205,25 +228,41 @@ const GameBoard: React.FC<GameBoardProps> = ({
     ? ['#3D3020', '#4A3C2A', '#3D3020'] as const
     : ['#DEB887', '#D2B48C', '#DEB887'] as const;
 
+  const renderBoardContent = () => (
+    <>
+      {/* Board lines */}
+      <Svg height={BOARD_CONTAINER_SIZE} width={BOARD_CONTAINER_SIZE} style={styles.svgBoard}>
+        {renderLines()}
+      </Svg>
+      
+      {/* Pieces + animated overlay — all within the same coordinate space */}
+      <View style={StyleSheet.absoluteFillObject} pointerEvents="box-none">
+        {renderPiecesAndHighlights()}
+        {animatedPieceNode}
+      </View>
+    </>
+  );
+
   return (
     <View style={styles.gameWrapper}>
-      <LinearGradient
-        colors={boardBgColors}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.boardContainer}
-      >
-        {/* Board lines */}
-        <Svg height={BOARD_CONTAINER_SIZE} width={BOARD_CONTAINER_SIZE} style={styles.svgBoard}>
-          {renderLines()}
-        </Svg>
-        
-        {/* Pieces + animated overlay — all within the same coordinate space */}
-        <View style={StyleSheet.absoluteFillObject} pointerEvents="box-none">
-          {renderPiecesAndHighlights()}
-          {animatedPieceNode}
-        </View>
-      </LinearGradient>
+      {theme.boardTheme.backgroundType === 'image' && 'backgroundImage' in theme.boardTheme ? (
+        <ImageBackground
+          source={theme.boardTheme.backgroundImage}
+          style={styles.boardContainer}
+          imageStyle={{ borderRadius: 12 }}
+        >
+          {renderBoardContent()}
+        </ImageBackground>
+      ) : (
+        <LinearGradient
+          colors={boardBgColors}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.boardContainer}
+        >
+          {renderBoardContent()}
+        </LinearGradient>
+      )}
     </View>
   );
 };
