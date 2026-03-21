@@ -10,8 +10,9 @@ interface GoatIconProps {
 const GoatIcon: React.FC<GoatIconProps> = ({ size = 32 }) => {
   const theme = useAppTheme();
   
-  const source = theme.boardTheme.pieceStyle === 'image' && 'goatImage' in theme.boardTheme
-    ? theme.boardTheme.goatImage
+  const boardTheme = theme.boardTheme;
+  const source = boardTheme.pieceStyle === 'image' && 'goatImage' in boardTheme
+    ? boardTheme.goatImage
     : require('../../../assets/goat.jpg');
 
   return (
@@ -45,6 +46,7 @@ const GoatIcon: React.FC<GoatIconProps> = ({ size = 32 }) => {
       }
     ]}>
       <Image
+        key={boardTheme.id}
         source={source}
         style={[styles.image, { 
           width: size, 

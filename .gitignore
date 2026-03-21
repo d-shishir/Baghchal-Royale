@@ -261,12 +261,12 @@ frontend/.expo/
 web-build/
 
 # Android
-android/app/build/
-android/.gradle/
-android/app/src/main/assets/
+frontend/android/
+android/
 
 # iOS
-ios/build/
+frontend/ios/
+ios/
 
 ### macOS ###
 .DS_Store

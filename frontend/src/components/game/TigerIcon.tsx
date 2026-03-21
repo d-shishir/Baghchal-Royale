@@ -10,8 +10,9 @@ interface TigerIconProps {
 const TigerIcon: React.FC<TigerIconProps> = ({ size = 32 }) => {
   const theme = useAppTheme();
   
-  const source = theme.boardTheme.pieceStyle === 'image' && 'tigerImage' in theme.boardTheme
-    ? theme.boardTheme.tigerImage
+  const boardTheme = theme.boardTheme;
+  const source = boardTheme.pieceStyle === 'image' && 'tigerImage' in boardTheme
+    ? boardTheme.tigerImage
     : require('../../../assets/tiger.jpeg');
 
   return (
@@ -45,6 +46,7 @@ const TigerIcon: React.FC<TigerIconProps> = ({ size = 32 }) => {
       }
     ]}>
       <Image
+        key={boardTheme.id}
         source={source}
         style={[styles.image, { 
           width: size, 
