@@ -4,6 +4,7 @@ import {
   StyleSheet,
   Dimensions,
   TouchableOpacity,
+  Platform,
 } from 'react-native';
 import Svg, { Line } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -273,7 +274,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 12,
-    elevation: 15,
+    ...Platform.select({
+      ios: { elevation: 15 },
+      android: { elevation: 0, borderWidth: 1, borderColor: 'rgba(0,0,0,0.1)' },
+    }),
     borderRadius: 12,
   },
   boardContainer: {

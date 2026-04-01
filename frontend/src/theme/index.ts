@@ -126,8 +126,8 @@ export const boardThemes = {
   neon: {
     id: 'neon' as const,
     name: 'Cyber Neon',
-    backgroundType: 'gradient' as const, // We'll use a deep dark gradient
-    bgColors: ['#000000', '#0A0A2A', '#000000'] as const,
+    backgroundType: 'image' as const,
+    backgroundImage: require('../../assets/images/neon_board.png'),
     lineColor: () => '#00FFFF', // Cyan Neon
     lineWidth: 2,
     pieceStyle: 'image' as const,
@@ -137,8 +137,8 @@ export const boardThemes = {
   newyear: {
     id: 'newyear' as const,
     name: 'Nepali New Year',
-    backgroundType: 'gradient' as const,
-    bgColors: ['#DC143C', '#003893'] as const, // Crimson Red and Royal Blue
+    backgroundType: 'image' as const,
+    backgroundImage: require('../../assets/images/newyear_board.png'),
     lineColor: () => '#FFD700', // Gold
     lineWidth: 3,
     pieceStyle: 'image' as const,
@@ -153,32 +153,44 @@ export const shadows = {
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
-    elevation: 2,
+    ...Platform.select({
+      ios: { elevation: 2 },
+      android: { elevation: 0, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)' },
+    }),
   },
   medium: {
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.30,
     shadowRadius: 4.65,
-    elevation: 4,
+    ...Platform.select({
+      ios: { elevation: 4 },
+      android: { elevation: 0, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' },
+    }),
   },
   large: {
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.37,
     shadowRadius: 7.49,
-    elevation: 8,
+    ...Platform.select({
+      ios: { elevation: 8 },
+      android: { elevation: 0, borderWidth: 1, borderColor: 'rgba(0,0,0,0.1)' },
+    }),
   },
   neon: (color: string) => ({
     shadowColor: color,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
     shadowRadius: 10,
-    elevation: 10, // Android mostly ignores shadow color, but elevation helps
+    ...Platform.select({
+      ios: { elevation: 10 },
+      android: { elevation: 0, borderWidth: 1, borderColor: color },
+    }),
   })
 };
 
-import { useColorScheme } from 'react-native';
+import { useColorScheme, Platform } from 'react-native';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 

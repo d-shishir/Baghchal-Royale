@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Animated,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -112,7 +113,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.6,
     shadowRadius: 24,
-    elevation: 24,
+    ...Platform.select({
+      ios: { elevation: 24 },
+      android: { elevation: 0, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' },
+    }),
   },
   gradient: {
     paddingVertical: 40,
@@ -148,7 +152,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
-    elevation: 6,
+    ...Platform.select({
+      ios: { elevation: 6 },
+      android: { elevation: 0, borderWidth: 1, borderColor: 'rgba(0,0,0,0.1)' },
+    }),
   },
   singleButton: {
     minWidth: 160,
