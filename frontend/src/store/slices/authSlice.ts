@@ -87,10 +87,16 @@ const authSlice = createSlice({
         state.user.xp += 10;
       }
     },
+    grantAdReward: (state, action: PayloadAction<{ amount?: number } | undefined>) => {
+      if (state.user) {
+        const amount = action.payload?.amount ?? 25;
+        state.user.xp += amount;
+      }
+    },
   },
   // No extraReducers - removed all API dependencies
 });
 
-export const { logout, setGuest, updateLocalUser, incrementWins, incrementLosses } = authSlice.actions;
+export const { logout, setGuest, updateLocalUser, incrementWins, incrementLosses, grantAdReward } = authSlice.actions;
 
 export default authSlice.reducer; 

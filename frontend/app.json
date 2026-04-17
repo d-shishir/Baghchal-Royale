@@ -45,7 +45,15 @@
           "color": "#ffffff"
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-4706890560108753~6183463687",
+          "iosAppId": "ca-app-pub-4706890560108753~6183463687",
+          "userTrackingUsageDescription": "This identifier will be used to deliver personalized ads to you."
+        }
+      ]
     ],
     "scheme": "baghchal-royale",
     "updates": {

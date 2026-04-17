@@ -18,6 +18,12 @@ interface GameOverModalProps {
   onRestart: () => void;
   onGoHome: () => void;
   showRestart?: boolean; // Optional prop to control restart button visibility
+  /** Optional CTA to play a rewarded ad in exchange for an in-app reward. */
+  onWatchAd?: () => void;
+  /** Whether the ad CTA should be visible (e.g. when a rewarded ad is loaded). */
+  showAdButton?: boolean;
+  /** Label displayed on the ad CTA button. */
+  adButtonLabel?: string;
 }
 
 const GameOverModal: React.FC<GameOverModalProps> = ({
@@ -26,6 +32,9 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
   onRestart,
   onGoHome,
   showRestart = true, // Default to true for backward compatibility
+  onWatchAd,
+  showAdButton = false,
+  adButtonLabel = 'Watch Ad for +25 XP',
 }) => {
   const { colors, isDark } = useAppTheme();
   const scaleAnim = useRef(new Animated.Value(0.5)).current;
@@ -70,6 +79,17 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
           >
             <Ionicons name="trophy" size={80} color={colors.highlightColor} />
             <Text style={[styles.winnerText, { color: colors.text }]}>{winner}</Text>
+            {showAdButton && onWatchAd && (
+              <TouchableOpacity
+                style={[styles.adButton, { backgroundColor: colors.highlightColor }]}
+                onPress={onWatchAd}
+                accessibilityRole="button"
+                accessibilityLabel={adButtonLabel}
+              >
+                <Ionicons name="play-circle" size={22} color="#000" />
+                <Text style={[styles.adButtonText, { color: '#000' }]}>{adButtonLabel}</Text>
+              </TouchableOpacity>
+            )}
             <View style={[styles.buttonContainer, !showRestart && styles.singleButtonContainer]}>
               {showRestart && (
                 <TouchableOpacity
@@ -165,6 +185,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginLeft: 10,
     letterSpacing: 0.5,
+  },
+  adButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 14,
+    gap: 8,
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  adButtonText: {
+    fontWeight: '700',
+    fontSize: 15,
+    letterSpacing: 0.3,
   },
 });
 

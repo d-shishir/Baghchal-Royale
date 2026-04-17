@@ -14,6 +14,7 @@ import LoadingScreen from './src/components/LoadingScreen';
 import { NotificationProvider } from './src/contexts/NotificationContext';
 import { AlertProvider } from './src/contexts/AlertContext';
 import AnimatedSplash from './src/screens/AnimatedSplash';
+import { initializeAds, preloadInterstitial, preloadRewardedInterstitial } from './src/services/ads';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -27,15 +28,15 @@ export default function App() {
   useEffect(() => {
     async function prepare() {
       try {
-        // App initialization - simplified for development
         console.log('Initializing Baghchal Royale app...');
-        
-        // Artificially delay for better UX (optional, can be removed if fast enough)
-        // await new Promise(resolve => setTimeout(resolve, 500));
+        // Kick off ads init/preload in the background so it never blocks UI.
+        initializeAds().then(() => {
+          preloadRewardedInterstitial();
+          preloadInterstitial();
+        });
       } catch (e) {
         console.warn('App initialization error:', e);
       } finally {
-        // Tell the application to render
         setAppIsReady(true);
       }
     }

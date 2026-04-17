@@ -26,10 +26,17 @@ import { Player } from '../../services/types';
 import { initialGameState } from '../../game-logic/initialState';
 import GameOverModal from '../../components/game/GameOverModal';
 import { recordGameResult } from '../../store/slices/gameSlice';
-import { incrementWins, incrementLosses } from '../../store/slices/authSlice';
+import { incrementWins, incrementLosses, grantAdReward } from '../../store/slices/authSlice';
 import { useAppTheme } from '../../theme';
 import { useAlert } from '../../contexts/AlertContext';
 import { setBoardTheme } from '../../store/slices/uiSlice';
+import {
+  isRewardedInterstitialReady,
+  maybeShowInterstitial,
+  preloadInterstitial,
+  preloadRewardedInterstitial,
+  showRewardedInterstitial,
+} from '../../services/ads';
 
 const { width } = Dimensions.get('window');
 
@@ -79,6 +86,8 @@ const GameScreen: React.FC = () => {
   const [isGameOverModalVisible, setGameOverModalVisible] = useState(false);
   const [isExitModalVisible, setExitModalVisible] = useState(false);
   const [isThemeModalVisible, setThemeModalVisible] = useState(false);
+  const [isAdReady, setIsAdReady] = useState(false);
+  const [adRewardClaimed, setAdRewardClaimed] = useState(false);
   const gameOverModalShownRef = useRef(false);
   const resultRecordedRef = useRef(false);
 
@@ -331,20 +340,86 @@ const GameScreen: React.FC = () => {
     setThemeModalVisible(false);
   };
 
-  const handleGoHome = () => {
+  // Preload ads while the match is in progress so they are ready when the
+  // game ends. Rewarded interstitial is opt-in (Watch Ad for XP button);
+  // standard interstitial fires on Restart/Home (respecting a 5-min cooldown).
+  useEffect(() => {
+    let cancelled = false;
+    if (!isRewardedInterstitialReady()) {
+      preloadRewardedInterstitial().then(() => {
+        if (!cancelled) setIsAdReady(isRewardedInterstitialReady());
+      });
+    } else {
+      setIsAdReady(true);
+    }
+    preloadInterstitial();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Reset ad-claimed flag whenever a new game over modal cycle starts.
+  useEffect(() => {
+    if (isGameOverModalVisible) {
+      setIsAdReady(isRewardedInterstitialReady());
+    }
+  }, [isGameOverModalVisible]);
+
+  const handleWatchAd = useCallback(async () => {
+    if (adRewardClaimed) return;
+    try {
+      const result = await showRewardedInterstitial();
+      if (result.rewarded) {
+        const amount = typeof result.reward?.amount === 'number' ? result.reward.amount : 25;
+        dispatch(grantAdReward({ amount }));
+        setAdRewardClaimed(true);
+        showAlert({
+          title: 'Reward earned',
+          message: `You earned +${amount} XP. Thanks for watching!`,
+          type: 'success',
+        });
+      } else if (!result.shown) {
+        showAlert({
+          title: 'Ad unavailable',
+          message: 'No ad is ready right now. Please try again in a moment.',
+          type: 'info',
+        });
+      }
+    } catch (err) {
+      console.warn('Rewarded interstitial error:', err);
+    } finally {
+      setIsAdReady(isRewardedInterstitialReady());
+    }
+  }, [adRewardClaimed, dispatch, showAlert]);
+
+  // Gate only game-over transitions on the interstitial so we never show it
+  // while a game is mid-session (policy: natural transitions only).
+  const tryShowGameCompletionInterstitial = useCallback(async () => {
+    if (!gameOverModalShownRef.current) return;
+    try {
+      await maybeShowInterstitial();
+    } catch (err) {
+      console.warn('Interstitial show error:', err);
+    }
+  }, []);
+
+  const handleGoHome = useCallback(async () => {
     setGameOverModalVisible(false);
+    await tryShowGameCompletionInterstitial();
     gameOverModalShownRef.current = false;
     navigation.navigate('MainTabs', { screen: 'Home' });
-  };
+  }, [navigation, tryShowGameCompletionInterstitial]);
 
-  const handleRestart = () => {
+  const handleRestart = useCallback(async () => {
     setGameOverModalVisible(false);
+    await tryShowGameCompletionInterstitial();
     gameOverModalShownRef.current = false;
     resultRecordedRef.current = false;
+    setAdRewardClaimed(false);
     setTimeout(() => {
       setCurrentGameState(localInitialState || initialGameState);
     }, 200);
-  };
+  }, [localInitialState, tryShowGameCompletionInterstitial]);
 
   const handleQuitGame = () => {
     setExitModalVisible(true);
@@ -518,6 +593,9 @@ const GameScreen: React.FC = () => {
         onRestart={handleRestart}
         onGoHome={handleGoHome}
         showRestart={true}
+        showAdButton={isAdReady && !adRewardClaimed}
+        onWatchAd={handleWatchAd}
+        adButtonLabel={adRewardClaimed ? 'Reward Claimed' : 'Watch Ad for +25 XP'}
       />
 
       {/* Exit Confirmation Modal */}
