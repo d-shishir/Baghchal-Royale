@@ -12,7 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSelector, useDispatch } from 'react-redux';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { RootState } from '../../store';
 import { updateLocalUser } from '../../store/slices/authSlice';
@@ -24,7 +24,7 @@ import { useAlert } from '../../contexts/AlertContext';
 
 const { width } = Dimensions.get('window');
 
-type ProfileNavProp = StackNavigationProp<MainStackParamList>;
+type ProfileNavProp = NativeStackNavigationProp<MainStackParamList>;
 
 const ProfileScreen: React.FC = () => {
   const navigation = useNavigation<ProfileNavProp>();

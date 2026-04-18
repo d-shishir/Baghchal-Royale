@@ -27,6 +27,11 @@ interface AuthState {
   error: string | null;
 }
 
+/** Total XP maps to levels: 0–99 → L1, 100–199 → L2, … (matches Profile progress UI). */
+function syncLevelFromXp(user: User) {
+  user.level = Math.floor(user.xp / 100) + 1;
+}
+
 // Default offline user
 const defaultOfflineUser: User = {
   user_id: 'local-user',
@@ -71,6 +76,7 @@ const authSlice = createSlice({
     updateLocalUser: (state, action: PayloadAction<Partial<User>>) => {
       if (state.user) {
         state.user = { ...state.user, ...action.payload };
+        syncLevelFromXp(state.user);
       }
     },
     incrementWins: (state) => {
@@ -78,6 +84,7 @@ const authSlice = createSlice({
         state.user.wins += 1;
         state.user.games_played += 1;
         state.user.xp += 50;
+        syncLevelFromXp(state.user);
       }
     },
     incrementLosses: (state) => {
@@ -85,12 +92,14 @@ const authSlice = createSlice({
         state.user.losses += 1;
         state.user.games_played += 1;
         state.user.xp += 10;
+        syncLevelFromXp(state.user);
       }
     },
     grantAdReward: (state, action: PayloadAction<{ amount?: number } | undefined>) => {
       if (state.user) {
         const amount = action.payload?.amount ?? 25;
         state.user.xp += amount;
+        syncLevelFromXp(state.user);
       }
     },
   },

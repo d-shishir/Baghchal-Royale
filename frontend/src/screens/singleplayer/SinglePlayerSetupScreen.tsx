@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSelector, useDispatch } from 'react-redux';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -21,7 +21,7 @@ import { GameStatus } from '../../game-logic/baghchal';
 import { initialGameState } from '../../game-logic/initialState';
 import { useAppTheme } from '../../theme';
 
-type NavProps = StackNavigationProp<MainStackParamList, 'SinglePlayerSetup'>;
+type NavProps = NativeStackNavigationProp<MainStackParamList, 'SinglePlayerSetup'>;
 
 const { width } = Dimensions.get('window');
 

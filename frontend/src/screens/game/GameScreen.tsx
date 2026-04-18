@@ -370,13 +370,25 @@ const GameScreen: React.FC = () => {
     try {
       const result = await showRewardedInterstitial();
       if (result.rewarded) {
-        const amount = typeof result.reward?.amount === 'number' ? result.reward.amount : 25;
+        const raw = result.reward?.amount;
+        const amount =
+          typeof raw === 'number' && Number.isFinite(raw)
+            ? raw
+            : typeof raw === 'string'
+              ? parseInt(raw, 10) || 25
+              : 25;
         dispatch(grantAdReward({ amount }));
         setAdRewardClaimed(true);
         showAlert({
           title: 'Reward earned',
           message: `You earned +${amount} XP. Thanks for watching!`,
           type: 'success',
+        });
+      } else if (result.shown && !result.rewarded) {
+        showAlert({
+          title: 'No reward',
+          message: 'The ad closed before the reward could be granted. Try again next game.',
+          type: 'info',
         });
       } else if (!result.shown) {
         showAlert({

@@ -11,6 +11,7 @@ import {
   Animated,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { CommonActions, useNavigation } from '@react-navigation/native';
 import { useDispatch } from 'react-redux';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppTheme } from '../../theme';
@@ -49,6 +50,7 @@ const slides: Slide[] = [
 const OnboardingScreen = () => {
   const theme = useAppTheme();
   const dispatch = useDispatch();
+  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
@@ -66,6 +68,12 @@ const OnboardingScreen = () => {
 
   const handleFinish = () => {
     dispatch(setHasSeenOnboarding(true));
+    navigation.dispatch(
+      CommonActions.reset({
+        index: 0,
+        routes: [{ name: 'Main' }],
+      }),
+    );
   };
 
   const handleSkip = () => {

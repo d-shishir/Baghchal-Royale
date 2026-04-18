@@ -1,8 +1,8 @@
 import React from "react";
 import {
-  createStackNavigator,
-  StackNavigationProp,
-} from "@react-navigation/stack";
+  createNativeStackNavigator,
+  NativeStackNavigationProp,
+} from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -50,14 +50,14 @@ export type RootStackParamList = {
 };
 
 // Navigation prop types
-export type GameScreenNavigationProp = StackNavigationProp<
+export type GameScreenNavigationProp = NativeStackNavigationProp<
   MainStackParamList,
   "Game"
 >;
 
 const MainTab = createBottomTabNavigator<MainTabParamList>();
-const MainStack = createStackNavigator<MainStackParamList>();
-const RootStack = createStackNavigator<RootStackParamList>();
+const MainStack = createNativeStackNavigator<MainStackParamList>();
+const RootStack = createNativeStackNavigator<RootStackParamList>();
 
 // Main Tab Navigator - simplified for offline mode
 const MainTabNavigator = () => {
@@ -100,22 +100,18 @@ const MainStackNavigator = () => {
   const theme = useAppTheme();
   
   return (
-    <MainStack.Navigator 
-      screenOptions={{ 
+    <MainStack.Navigator
+      screenOptions={{
         headerShown: false,
-        cardStyle: { backgroundColor: theme.colors.background }, 
+        contentStyle: { backgroundColor: theme.colors.background },
         headerStyle: {
           backgroundColor: theme.colors.surface,
-          elevation: 0,
-          shadowOpacity: 0,
-          borderBottomWidth: 1,
-          borderBottomColor: theme.colors.border,
         },
         headerTintColor: theme.colors.text,
         headerTitleStyle: {
           fontWeight: 'bold',
           fontSize: 18,
-        }
+        },
       }}
     >
       <MainStack.Screen 
@@ -152,17 +148,19 @@ const MainStackNavigator = () => {
   );
 };
 
-// Root Navigator - Logic to show onboarding or main app
+// Root Navigator — native stack requires a stable screen list; switching JSX
+// branches (only Onboarding vs only Main) leaves undefined internals and
+// triggers "Cannot read property '$$typeof' of undefined".
 const RootNavigator = () => {
   const hasSeenOnboarding = useSelector((state: RootState) => state.ui.hasSeenOnboarding);
 
   return (
-    <RootStack.Navigator screenOptions={{ headerShown: false }}>
-      {!hasSeenOnboarding ? (
-        <RootStack.Screen name="Onboarding" component={OnboardingScreen} />
-      ) : (
-        <RootStack.Screen name="Main" component={MainStackNavigator} />
-      )}
+    <RootStack.Navigator
+      screenOptions={{ headerShown: false }}
+      initialRouteName={hasSeenOnboarding ? 'Main' : 'Onboarding'}
+    >
+      <RootStack.Screen name="Onboarding" component={OnboardingScreen} />
+      <RootStack.Screen name="Main" component={MainStackNavigator} />
     </RootStack.Navigator>
   );
 };
