@@ -57,6 +57,7 @@ const GoatIcon: React.FC<GoatIconProps> = ({ size = 32 }) => {
       }
     ]}>
       <Image
+        key={theme.boardTheme.id}
         source={source}
         style={[styles.image, { 
           width: size, 
@@ -64,6 +65,10 @@ const GoatIcon: React.FC<GoatIconProps> = ({ size = 32 }) => {
           borderRadius: size / 2 
         }]}
         resizeMode="cover"
+        {...Platform.select({
+          android: { fadeDuration: 0 as const },
+          default: {},
+        })}
       />
     </View>
   );

@@ -5,10 +5,10 @@ import {
   Dimensions,
   TouchableOpacity,
   Platform,
+  Image,
 } from 'react-native';
 import Svg, { Line } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ImageBackground } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useSelector } from 'react-redux';
 
@@ -244,16 +244,26 @@ const GameBoard: React.FC<GameBoardProps> = ({
     </>
   );
 
+  // ImageBackground + Svg overlay is unreliable on some Android builds (image never
+  // composites). Use an explicit background layer + content on top instead.
+  const boardKey = theme.boardTheme.id;
+
   return (
-    <View style={styles.gameWrapper}>
+    <View style={styles.gameWrapper} key={boardKey}>
       {theme.boardTheme.backgroundType === 'image' && 'backgroundImage' in theme.boardTheme ? (
-        <ImageBackground
-          source={theme.boardTheme.backgroundImage}
-          style={styles.boardContainer}
-          imageStyle={{ borderRadius: 12 }}
-        >
+        <View style={styles.boardContainer}>
+          <Image
+            source={theme.boardTheme.backgroundImage}
+            style={styles.boardBackgroundImage}
+            resizeMode="cover"
+            {...Platform.select({
+              android: { fadeDuration: 0 as const },
+              default: {},
+            })}
+            pointerEvents="none"
+          />
           {renderBoardContent()}
-        </ImageBackground>
+        </View>
       ) : (
         <LinearGradient
           colors={boardBgColors}
@@ -285,6 +295,11 @@ const styles = StyleSheet.create({
     height: BOARD_CONTAINER_SIZE,
     borderRadius: 12,
     overflow: 'hidden',
+    position: 'relative',
+  },
+  boardBackgroundImage: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 12,
   },
   svgBoard: {
     position: 'absolute',
